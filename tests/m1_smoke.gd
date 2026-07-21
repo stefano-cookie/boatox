@@ -59,26 +59,26 @@ func _run() -> void:
 		await _wait(0.5)
 		print("BOE: in stiva=%d, valore=%d $ (attese >0)" % [GameState.cargo_count(), GameState.cargo_value()])
 
-	# --- Zone di mare: onde crescenti dal centro al largo ---
+	# --- Zone di mare: onde crescenti dalla costa verso il largo ---
 	var sea: Sea = _main.get_node("Sea")
-	print("ZONE: moltiplicatori a 50/150/220 m = %.2f / %.2f / %.2f (attesi crescenti)" % [
-		sea.state_multiplier(Vector3(50, 0, 0)),
-		sea.state_multiplier(Vector3(150, 0, 0)),
-		sea.state_multiplier(Vector3(220, 0, 0)),
+	print("ZONE: moltiplicatori a 40/160/290 m dalla costa = %.2f / %.2f / %.2f (attesi crescenti)" % [
+		sea.state_multiplier(Vector3(0, 0, -100)),
+		sea.state_multiplier(Vector3(0, 0, 20)),
+		sea.state_multiplier(Vector3(0, 0, 150)),
 	])
 
 	# --- Confini: fuori zona parte il countdown, poi recupero al porto ---
 	_boat.reset_motion()
-	_boat.global_position = Vector3(300, 0.0, 0.0)
+	_boat.global_position = Vector3(0, 0.0, 260)
 	var world: Node3D = _main.get_node("World")
 	await _wait(world.escape_countdown + 2.0)
-	var port_dist := _boat.global_position.distance_to(Vector3(46, 0, -44))
+	var port_dist := _boat.global_position.distance_to(Vector3(36, 0, -132))
 	print("CONFINI: dopo il countdown la barca è a %.1f m dal molo (atteso <10)" % port_dist)
 
 	# --- Danni: speronate ripetute contro un'isola fino al traino ---
 	_boat.reset_motion()
-	_boat.global_position = Vector3(90, 0.0, 80)
-	_boat.rotation.y = -PI / 2  # prua verso Island3 (120, 80)
+	_boat.global_position = Vector3(90, 0.0, 60)
+	_boat.rotation.y = -PI / 2  # prua verso Island2 (120, 60)
 	var rams := 0
 	while not _towed and rams < 12:
 		Input.action_press("move_forward")
@@ -91,7 +91,7 @@ func _run() -> void:
 		rams += 1
 		print("DANNI: speronata %d -> scafo %.1f" % [rams, GameState.hull])
 	if _towed:
-		print("TRAINO: ok, scafo=%.1f, denaro=%d, posizione=%s (atteso vicino a (46,-44))" % [GameState.hull, GameState.money, _boat.global_position])
+		print("TRAINO: ok, scafo=%.1f, denaro=%d, posizione=%s (atteso vicino a (36,-132))" % [GameState.hull, GameState.money, _boat.global_position])
 	else:
 		print("TRAINO: MAI SCATTATO dopo %d speronate, scafo=%.1f" % [rams, GameState.hull])
 	get_tree().quit()

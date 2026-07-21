@@ -25,6 +25,18 @@ extends CharacterBody3D
 @export var chaos_turn_deg: float = 55.0
 ## Spinta laterale delle onde a caos pieno (m/s²).
 @export var chaos_push: float = 7.0
+## Quota di velocità massima persa a caos pieno: il mare grosso frena.
+@export_range(0.0, 1.0) var rough_slow_max: float = 0.55
+
+@export_group("Tempesta (danni)")
+## Agitazione oltre cui il mare picchia lo scafo (solo largo + tempesta).
+@export var storm_damage_threshold: float = 3.4
+## Quanta agitazione oltre la soglia serve per il danno pieno.
+@export var storm_damage_range: float = 1.6
+## Danni al secondo a intensità piena e stabilità zero.
+@export var storm_damage_per_second: float = 5.0
+## Intervallo tra i tick di danno (la barra scafo scende a scatti visibili).
+@export var storm_tick: float = 0.8
 
 @export_group("Affondamento (fuori zona)")
 ## Quanto scende il visivo quando sink_amount arriva a 1.
@@ -60,6 +72,12 @@ var _stability: float = 0.2
 var _speed: float = 0.0
 var _impact_timer: float = 0.0
 var _chaos_time: float = 0.0
+## Caos corrente 0..1 (agitazione oltre soglia × instabilità): guida
+## sbandata, spinta delle onde e rallentamento.
+var _chaos: float = 0.0
+## Intensità 0..1 della tempesta che danneggia lo scafo.
+var _storm_intensity: float = 0.0
+var _storm_accum: float = 0.0
 
 var _sample_bow := Vector3(0.0, 0.0, -1.9)
 var _sample_stern := Vector3(0.0, 0.0, 1.9)
@@ -82,6 +100,7 @@ func _physics_process(delta: float) -> void:
 	if input_enabled:
 		throttle = Input.get_axis("move_back", "move_forward")
 		steer = Input.get_axis("turn_right", "turn_left")
+	_update_sea_stress(delta)
 	_update_speed(throttle, delta)
 	_update_heading(steer, delta)
 	_apply_chaos(delta)
@@ -95,6 +114,12 @@ func _physics_process(delta: float) -> void:
 
 func current_speed() -> float:
 	return _speed
+
+
+## Vero quando il mare sta danneggiando lo scafo: il World lo usa per
+## l'allarme a schermo.
+func storm_alarm() -> bool:
+	return _storm_intensity > 0.0
 
 
 func reset_motion() -> void:
@@ -133,9 +158,37 @@ func _apply_definition() -> void:
 		_visual.add_child(def.visual_scene.instantiate())
 
 
+## Agitazione del mare nel punto della barca, tradotta in caos (guida)
+## e intensità di tempesta (danni). Il danno scatta solo oltre la soglia
+## estrema — in pratica al largo col mare mosso — ed è mitigato dalla
+## stabilità: è la seconda metà del cancello di progressione.
+func _update_sea_stress(delta: float) -> void:
+	_chaos = 0.0
+	_storm_intensity = 0.0
+	if sea == null:
+		return
+	var agitation := sea.agitation(global_position)
+	_chaos = clampf((agitation - chaos_threshold) / chaos_full_range, 0.0, 1.0) \
+		* (1.0 - _stability)
+	_storm_intensity = clampf((agitation - storm_damage_threshold) / storm_damage_range, 0.0, 1.0)
+	if _storm_intensity <= 0.0 or GameState.hull <= 0.0:
+		_storm_accum = 0.0
+		return
+	_storm_accum += delta
+	if _storm_accum >= storm_tick:
+		_storm_accum -= storm_tick
+		GameState.apply_damage(storm_damage_per_second * _storm_intensity \
+			* (1.0 - 0.75 * _stability) * storm_tick)
+
+
 func _update_speed(throttle: float, delta: float) -> void:
+	# Il mare grosso frena: la velocità massima raggiungibile cala col
+	# caos, e se eri lanciato il mare ti rallenta lui.
+	var cap := max_speed * (1.0 - rough_slow_max * _chaos)
+	if _speed > cap:
+		_speed = move_toward(_speed, cap, (_water_drag + _brake_force * 0.5) * delta)
 	if throttle > 0.0:
-		_speed = move_toward(_speed, max_speed * throttle, _acceleration * delta)
+		_speed = move_toward(_speed, minf(max_speed * throttle, cap), _acceleration * delta)
 	elif throttle < 0.0:
 		if _speed > 0.1:
 			_speed = move_toward(_speed, 0.0, _brake_force * delta)
@@ -151,21 +204,16 @@ func _update_heading(steer: float, delta: float) -> void:
 
 
 ## Il mare agitato destabilizza (GDD § Navigazione): oltre la soglia di
-## agitazione il timone sbanda e le onde spingono di lato, in proporzione
-## a quanto manca alla stabilità piena. Con la barchetta il largo in
-## tempesta è quasi ingovernabile: è il cancello di progressione.
+## agitazione il timone sbanda e le onde spingono verso costa, in
+## proporzione a quanto manca alla stabilità piena. Con la barchetta il
+## largo in tempesta è quasi ingovernabile: è il cancello di progressione.
 func _apply_chaos(delta: float) -> void:
-	if sea == null:
-		return
-	var agitation := sea.agitation(global_position)
-	var chaos := clampf((agitation - chaos_threshold) / chaos_full_range, 0.0, 1.0) \
-		* (1.0 - _stability)
-	if chaos <= 0.0:
+	if sea == null or _chaos <= 0.0:
 		return
 	_chaos_time += delta
 	var wobble := sin(_chaos_time * 2.1) + 0.5 * sin(_chaos_time * 3.7 + 1.3)
-	rotation.y += wobble * deg_to_rad(chaos_turn_deg) * chaos * delta
-	velocity += sea.wave_push_direction() * chaos_push * chaos * delta
+	rotation.y += wobble * deg_to_rad(chaos_turn_deg) * _chaos * delta
+	velocity += sea.wave_push_direction() * chaos_push * _chaos * delta
 
 
 func _update_velocity(delta: float) -> void:

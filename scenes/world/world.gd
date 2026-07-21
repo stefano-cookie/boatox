@@ -1,12 +1,13 @@
 extends Node3D
 
-## La zona di mare di M1: isole e porto piazzati a mano nella scena,
-## scogli e punti boa sparsi proceduralmente con seed fisso (stessa mappa
-## a ogni avvio, densità regolabile dall'Inspector). Le boe seguono gli
-## anelli di mare della Sea (GDD pillar 2): gialle nelle acque calme,
-## rosse nelle medie, blu nelle mosse — dove stanno anche i campi di
-## scogli. Gestisce anche il confine mappa (countdown e recupero) e il
-## traino a scafo zero.
+## La baia di gioco: la costa a nord (scena Coast), isole e porto
+## piazzati a mano, scogli e punti boa sparsi proceduralmente con seed
+## fisso (stessa mappa a ogni avvio, densità regolabile dall'Inspector).
+## Le boe seguono le fasce di mare della Sea (GDD pillar 2): gialle
+## nelle acque calme sotto costa, rosse nelle medie, blu nelle mosse al
+## largo — dove stanno anche isole e campi di scogli. Gestisce anche il
+## confine mappa (countdown e recupero), l'allarme tempesta e il traino
+## a scafo zero.
 
 const BUOY_SCENE: PackedScene = preload("res://scenes/buoy/buoy.tscn")
 const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
@@ -15,7 +16,10 @@ const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 @export var sea: Sea
 
 @export_group("Confini")
-@export var bounds_radius: float = 240.0
+## Distanza massima dalla costa prima del countdown di recupero.
+@export var bounds_depth: float = 340.0
+## Mezza larghezza della baia giocabile (oltre i promontori si è fuori).
+@export var bounds_half_width: float = 330.0
 ## Secondi per rientrare in zona prima del recupero al porto.
 @export var escape_countdown: float = 10.0
 
@@ -24,6 +28,9 @@ const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 @export var yellow_buoy_count: int = 26
 @export var red_point_count: int = 14
 @export var blue_point_count: int = 10
+## Le boe vengono campionate con |x| entro questo limite, per non
+## finire dentro i promontori.
+@export var scatter_half_width: float = 255.0
 @export var rocks_per_field: int = 9
 @export var rock_field_radius: float = 13.0
 
@@ -32,6 +39,7 @@ var _rock_positions: Array[Vector3] = []
 var _buoy_positions: Array[Vector3] = []
 ## -1 quando la barca è dentro i confini.
 var _outside_elapsed: float = -1.0
+var _storm_alarmed: bool = false
 
 @onready var _islands: Node3D = $Islands
 @onready var _rock_fields: Node3D = $RockFields
@@ -49,7 +57,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if boat == null:
 		return
-	var outside := Vector2(boat.global_position.x, boat.global_position.z).length() > bounds_radius
+	var pos := boat.global_position
+	var outside := sea.shore_distance(pos) > bounds_depth or absf(pos.x) > bounds_half_width
 	if outside:
 		if _outside_elapsed < 0.0:
 			_outside_elapsed = 0.0
@@ -60,9 +69,19 @@ func _physics_process(delta: float) -> void:
 			_rescue_boat()
 		else:
 			GameState.set_danger("ACQUE PERICOLOSE! Torna indietro… %d" % ceili(left))
-	elif _outside_elapsed >= 0.0:
+		return
+	if _outside_elapsed >= 0.0:
 		_outside_elapsed = -1.0
 		boat.sink_amount = 0.0
+		GameState.clear_danger()
+	# Allarme tempesta: il mare sta danneggiando lo scafo (la logica del
+	# danno vive nella barca, qui solo il messaggio — la priorità resta
+	# al countdown fuori zona).
+	if boat.storm_alarm():
+		_storm_alarmed = true
+		GameState.set_danger("TEMPESTA! Lo scafo sta cedendo: punta verso la costa!")
+	elif _storm_alarmed:
+		_storm_alarmed = false
 		GameState.clear_danger()
 
 
@@ -89,7 +108,7 @@ func _rescue_boat() -> void:
 
 func _spawn_rock_field(center: Vector3) -> void:
 	for i in rocks_per_field:
-		var pos := _sample_ring(center, 0.0, rock_field_radius, _rock_positions, 3.0)
+		var pos := _sample_disc(center, rock_field_radius, _rock_positions, 3.0)
 		if not pos.is_finite():
 			continue
 		var rock := ROCK_SCENE.instantiate() as Node3D
@@ -100,19 +119,19 @@ func _spawn_rock_field(center: Vector3) -> void:
 		_rock_positions.append(pos)
 
 
-## Ogni tipologia vive nel suo anello di mare (GDD § Boe): gialle nelle
-## acque calme, rosse nelle medie, blu nelle mosse.
+## Ogni tipologia vive nella sua fascia di mare (GDD § Boe): gialle
+## nelle acque calme sotto costa, rosse nelle medie, blu nelle mosse.
 func _spawn_zone_buoys() -> void:
 	for i in yellow_buoy_count:
-		var pos := _sample_ring(Vector3.ZERO, 25.0, sea.calm_radius - 10.0, _buoy_positions, 10.0)
+		var pos := _sample_band(18.0, sea.calm_width - 15.0, _buoy_positions, 10.0)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.YELLOW)
 	for i in red_point_count:
-		var pos := _sample_ring(Vector3.ZERO, sea.calm_radius + 5.0, sea.medium_radius - 5.0, _buoy_positions, 10.0)
+		var pos := _sample_band(sea.calm_width + 5.0, sea.medium_width - 10.0, _buoy_positions, 10.0)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.RED)
 	for i in blue_point_count:
-		var pos := _sample_ring(Vector3.ZERO, sea.medium_radius + 10.0, bounds_radius * 0.88, _buoy_positions, 12.0)
+		var pos := _sample_band(sea.medium_width + 15.0, bounds_depth - 60.0, _buoy_positions, 12.0)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.BLUE)
 
@@ -126,13 +145,23 @@ func _spawn_buoy(pos: Vector3, type: int) -> void:
 	_buoy_positions.append(pos)
 
 
-## Campiona un punto in un anello intorno a center, lontano almeno
-## min_dist dai punti già occupati. Vector3.INF se non trova posto.
-func _sample_ring(center: Vector3, r_min: float, r_max: float, taken: Array[Vector3], min_dist: float) -> Vector3:
+## Campiona un punto nella fascia di mare tra d_min e d_max metri dalla
+## costa, lontano almeno min_dist dai punti già occupati. Vector3.INF se
+## non trova posto.
+func _sample_band(d_min: float, d_max: float, taken: Array[Vector3], min_dist: float) -> Vector3:
+	for attempt in 30:
+		var pos := Vector3(_rng.randf_range(-scatter_half_width, scatter_half_width), 0.0,
+			sea.shore_z + _rng.randf_range(d_min, d_max))
+		if _far_from(pos, taken, min_dist):
+			return pos
+	return Vector3.INF
+
+
+## Campiona un punto in un disco intorno a center (per i campi di scogli).
+func _sample_disc(center: Vector3, radius: float, taken: Array[Vector3], min_dist: float) -> Vector3:
 	for attempt in 30:
 		var angle := _rng.randf_range(0.0, TAU)
-		var radius := _rng.randf_range(r_min, r_max)
-		var pos := center + Vector3(cos(angle), 0.0, sin(angle)) * radius
+		var pos := center + Vector3(cos(angle), 0.0, sin(angle)) * _rng.randf_range(0.0, radius)
 		if _far_from(pos, taken, min_dist):
 			return pos
 	return Vector3.INF

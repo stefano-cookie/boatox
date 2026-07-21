@@ -32,9 +32,11 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Navigazione e meteo
 - Guida arcade: accelerazione, virata, deriva leggera. Niente simulazione velica.
-- Il mare è diviso in tre anelli concentrici statici dal centro mappa: **acque calme** (porto e partenza), **acque medie**, **acque mosse** al largo, con onde progressivamente più grosse. L'HUD mostra sempre la zona corrente.
-- Meteo dinamico (M2): stati calmo → mosso che cambiano a onde temporali sopra le zone statiche.
-- Il mare mosso spinge e destabilizza (M2): con la barchetta iniziale è quasi ingovernabile, con upgrade di stabilità diventa attraversabile. È il cancello di progressione principale.
+- La mappa è una baia: costa a nord (spiaggia, paese, porto), mare aperto a sud. Lo stato del mare cresce con la distanza dalla costa, a fasce statiche parallele: **battigia** (risacca minima), **acque calme** sotto costa, **acque medie**, **acque mosse** al largo. L'HUD mostra sempre la fascia corrente; sotto costa si è sempre al sicuro.
+- Geografia del rischio: scogli vicino a costa e promontori, isole e campi di scogli al largo nelle acque medie/mosse.
+- Meteo dinamico (M2): stati calmo → mosso che cambiano a onde temporali sopra le fasce statiche; cielo, luce e foschia si incupiscono insieme alle onde.
+- Il mare mosso spinge (verso costa, mai al largo), destabilizza e **frena**: la velocità massima cala con l'agitazione, mitigata dalla stabilità. Con la barchetta iniziale il largo in tempesta è quasi ingovernabile; con upgrade di stabilità diventa attraversabile. È il cancello di progressione principale.
+- Nelle condizioni estreme (acque mosse + meteo mosso) il mare **danneggia lo scafo** a tick visibili, con allarme a schermo: restare al largo in tempesta è una scommessa, la costa è la salvezza.
 - Uscire dai confini mappa avvia un countdown visibile con affondamento progressivo; se non rientri in tempo, recupero gratuito al porto.
 
 ### Boe (item da vendere)
@@ -87,4 +89,5 @@ Vedi `BACKLOG.md`. In particolare: finanza/commercio tra porti, tema narrativo m
 ## Direzione estetica
 
 - Low-poly stilizzato, flat color, luce curata: il mare e il cielo fanno l'atmosfera (riferimenti: Dredge per tono e struttura, Sailwind per il mare, eSail solo come ispirazione atmosferica).
+- L'ambientazione è la costa ionica di **Bova Marina** (Calabria): spiaggia chiara con acqua turchese sul bagnasciuga, paesino bianco coi tetti in terracotta sul lungomare, campanile, colline secche mediterranee (pini e cipressi) e l'Aspromonte sfumato nella foschia alle spalle; due promontori rocciosi chiudono la baia.
 - Asset di partenza: Kenney (pirate/watercraft kit), Quaternius. Tutto CC0/CC-BY, crediti in `assets/CREDITS.md`.

@@ -7,32 +7,40 @@ shader_type spatial;
 
 uniform float u_time = 0.0;
 // dir.x, dir.y, ampiezza, lunghezza d'onda
-uniform vec4 wave_a = vec4(1.0, 0.0, 0.22, 14.0);
-uniform vec4 wave_b = vec4(0.423, 0.906, 0.12, 8.0);
-uniform vec4 wave_c = vec4(-0.643, 0.766, 0.06, 4.5);
+uniform vec4 wave_a = vec4(0.0, -1.0, 0.22, 14.0);
+uniform vec4 wave_b = vec4(0.574, -0.819, 0.12, 8.0);
+uniform vec4 wave_c = vec4(-0.643, -0.766, 0.06, 4.5);
 uniform vec3 wave_speeds = vec3(3.0, 2.4, 1.8);
 
-// Zone di mare: anelli concentrici dal centro mappa con moltiplicatore
-// d'ampiezza crescente (calme -> medie -> mosse).
-uniform float calm_radius = 110.0;
-uniform float medium_radius = 180.0;
-uniform float zone_blend = 30.0;
+// Zone di mare a fasce parallele alla costa (terra a z < shore_z):
+// risacca sulla battigia, poi acque calme -> medie -> mosse col largo.
+uniform float shore_z = -140.0;
+uniform float calm_width = 110.0;
+uniform float medium_width = 220.0;
+uniform float zone_blend = 40.0;
 // moltiplicatori: x = calme, y = medie, z = mosse
 uniform vec3 zone_amps = vec3(0.6, 1.5, 2.8);
+uniform float shore_lap_distance = 30.0;
+uniform float shore_min_multiplier = 0.25;
 // Meteo dinamico sopra le zone statiche: 1 = calmo, >1 = mosso.
 uniform float weather_mult = 1.0;
 
 float sea_state(vec2 p) {
-	float d = length(p);
+	float d = p.y - shore_z;
 	float m = mix(zone_amps.x, zone_amps.y,
-		smoothstep(calm_radius - zone_blend * 0.5, calm_radius + zone_blend * 0.5, d));
-	return mix(m, zone_amps.z,
-		smoothstep(medium_radius - zone_blend * 0.5, medium_radius + zone_blend * 0.5, d)) * weather_mult;
+		smoothstep(calm_width - zone_blend * 0.5, calm_width + zone_blend * 0.5, d));
+	m = mix(m, zone_amps.z,
+		smoothstep(medium_width - zone_blend * 0.5, medium_width + zone_blend * 0.5, d));
+	m *= mix(shore_min_multiplier, 1.0, smoothstep(0.0, shore_lap_distance, d));
+	return m * weather_mult;
 }
 
 uniform vec3 deep_color : source_color = vec3(0.02, 0.15, 0.28);
 uniform vec3 shallow_color : source_color = vec3(0.13, 0.47, 0.53);
 uniform vec3 crest_color : source_color = vec3(0.85, 0.95, 0.95);
+// Turchese del bagnasciuga: l'acqua bassa sulla sabbia (vibe Bova Marina).
+uniform vec3 beach_color : source_color = vec3(0.21, 0.62, 0.6);
+uniform float beach_blend_distance = 38.0;
 uniform float crest_amount : hint_range(0.0, 1.0) = 0.5;
 uniform float water_roughness : hint_range(0.0, 1.0) = 0.12;
 
@@ -68,6 +76,8 @@ void fragment() {
 	float total_amp = (wave_a.z + wave_b.z + wave_c.z) * sea_state(v_world_pos.xz);
 	float hf = clamp(v_height / max(total_amp, 0.001) * 0.5 + 0.5, 0.0, 1.0);
 	vec3 col = mix(deep_color, shallow_color, hf);
+	float shore_d = v_world_pos.z - shore_z;
+	col = mix(beach_color, col, smoothstep(2.0, beach_blend_distance, shore_d));
 	col = mix(col, crest_color, smoothstep(0.75, 1.0, hf) * crest_amount);
 	ALBEDO = col;
 	ROUGHNESS = water_roughness;

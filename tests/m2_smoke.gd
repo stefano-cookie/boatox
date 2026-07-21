@@ -65,17 +65,22 @@ func _run() -> void:
 	print("METEO: mosso=%s, moltiplicatore=%.2f (atteso >1 e crescente)" % [
 		weather.rough, sea.weather_multiplier])
 
-	# --- Caos: la barchetta al largo col mosso perde la prua da sola ---
+	# --- Caos: la barchetta al largo col mosso perde la prua da sola,
+	# --- il mare la frena e la tempesta le mangia lo scafo ---
 	GameState.select_boat(&"dinghy")
 	await _wait(0.2)
 	_boat.reset_motion()
-	_boat.global_position = Vector3(200, 0.0, 0.0)
+	_boat.global_position = Vector3(0, 0.0, 160)
 	_boat.rotation.y = 0.0
+	var hull_before := GameState.hull
 	Input.action_press("move_forward")
 	await _wait(4.0)
+	var storm_speed := absf(_boat.current_speed())
 	Input.action_release("move_forward")
 	var drift := absf(wrapf(_boat.rotation.y, -PI, PI))
 	print("CAOS: deriva di prua %.2f rad senza sterzare (attesa >0.05 con la barchetta)" % drift)
+	print("TEMPESTA: vel %.1f su max %.1f (attesa ~metà), scafo %.1f -> %.1f (atteso in calo)" % [
+		storm_speed, _boat.max_speed, hull_before, GameState.hull])
 
 	GameState.reset()
 	get_tree().quit()

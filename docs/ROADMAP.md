@@ -25,6 +25,15 @@ Fondazione del game feel. Tutto il resto poggia qui.
 - [x] Salvataggio/caricamento
 - [ ] **Criterio di uscita**: arrivare alla seconda barca è desiderabile e guadagnarsela è soddisfacente
 
+## M2.5 — La costa (prerequisito di M3)
+La mappa diventa un luogo: la baia di Bova Marina.
+- [x] Costa a nord con spiaggia, paese bianco, campanile, colline e Aspromonte in foschia
+- [x] Promontori rocciosi ai lati della baia, scogli sotto costa, isole al largo
+- [x] Stato del mare per distanza dalla costa (battigia → calme → medie → mosse) + meteo sopra
+- [x] Il mare grosso frena la barca; nelle condizioni estreme danneggia lo scafo (allarme a schermo)
+- [x] Atmosfera legata al meteo: luce e foschia si incupiscono col mare mosso
+- [ ] **Criterio di uscita**: la baia si legge a colpo d'occhio (costa = sicurezza, largo = rischio) e sembra Bova Marina
+
 ## M3 — Missioni, gare, pesca
 - [ ] Minigioco pesca + zone di pesca + stiva
 - [ ] Gara a checkpoint con 2-3 IA, premi, sblocco contenuti
