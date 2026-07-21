@@ -1,0 +1,11 @@
+# Godot
+.godot/
+*.translation
+
+# macOS
+.DS_Store
+
+# Export
+export/
+*.dmg
+*.zip

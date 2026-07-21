@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/sea/sea.gd" id="1"]
+[ext_resource type="Shader" path="res://scenes/sea/sea.gdshader" id="2"]
+
+[sub_resource type="ShaderMaterial" id="sea_material"]
+shader = ExtResource("2")
+
+[sub_resource type="PlaneMesh" id="sea_mesh"]
+size = Vector2(500, 500)
+subdivide_width = 199
+subdivide_depth = 199
+
+[node name="Sea" type="MeshInstance3D"]
+cast_shadow = 0
+extra_cull_margin = 4.0
+mesh = SubResource("sea_mesh")
+material_override = SubResource("sea_material")
+script = ExtResource("1")

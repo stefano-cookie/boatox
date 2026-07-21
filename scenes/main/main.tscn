@@ -1,0 +1,53 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
+[ext_resource type="Script" path="res://scenes/camera/chase_camera.gd" id="3"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_material"]
+sky_top_color = Color(0.2, 0.42, 0.66, 1)
+sky_horizon_color = Color(0.78, 0.82, 0.83, 1)
+ground_bottom_color = Color(0.08, 0.14, 0.2, 1)
+ground_horizon_color = Color(0.78, 0.82, 0.83, 1)
+sun_angle_max = 25.0
+sun_curve = 0.2
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_material")
+
+[sub_resource type="Environment" id="environment"]
+background_mode = 2
+sky = SubResource("sky")
+tonemap_mode = 3
+fog_enabled = true
+fog_mode = 1
+fog_light_color = Color(0.76, 0.8, 0.82, 1)
+fog_sky_affect = 0.15
+fog_depth_begin = 80.0
+fog_depth_end = 240.0
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766044, 0.368688, -0.526578, 0, 0.819152, 0.573576, 0.642788, -0.439385, 0.627507, 0, 30, 0)
+light_color = Color(1, 0.95, 0.85, 1)
+light_energy = 1.3
+shadow_enabled = true
+directional_shadow_max_distance = 150.0
+
+[node name="Sea" parent="." instance=ExtResource("1")]
+follow_target = NodePath("../Boat")
+
+[node name="Boat" parent="." instance=ExtResource("2")]
+sea = NodePath("../Sea")
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 9)
+current = true
+fov = 70.0
+far = 500.0
+script = ExtResource("3")
+target = NodePath("../Boat")
