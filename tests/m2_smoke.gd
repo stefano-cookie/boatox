@@ -9,6 +9,8 @@ var _boat: Boat
 
 
 func _ready() -> void:
+	# File di salvataggio separato: i test non toccano quello vero.
+	GameState.save_path = "user://save_test.json"
 	GameState.reset()
 	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
 	add_child(_main)

@@ -65,8 +65,10 @@ const TOW_FEE: int = 30
 ## Scafo restituito dal traino: quanto basta per ripartire, non di più.
 const TOW_HULL_RESTORE: float = 20.0
 
-const SAVE_PATH: String = "user://save.json"
 const SAVE_VERSION: int = 1
+## Var e non const: i test headless la reindirizzano su un file proprio
+## per non toccare (e cancellare!) il salvataggio vero del giocatore.
+var save_path: String = "user://save.json"
 
 var money: int = 0
 var hull: float = 100.0
@@ -308,7 +310,7 @@ func save_game() -> void:
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
 	}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
 		push_error("Salvataggio fallito: %s" % error_string(FileAccess.get_open_error()))
 		return
@@ -318,10 +320,10 @@ func save_game() -> void:
 ## Carica il salvataggio se esiste e non emette segnali: si chiama solo
 ## all'avvio dell'autoload, prima che le scene si registrino.
 func load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(save_path):
 		hull = hull_max()
 		return
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file := FileAccess.open(save_path, FileAccess.READ)
 	var data: Variant = JSON.parse_string(file.get_as_text())
 	if data == null or not data is Dictionary:
 		push_error("Salvataggio corrotto, si riparte da zero")
@@ -351,8 +353,8 @@ func load_game() -> void:
 
 
 func delete_save() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(SAVE_PATH)
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(save_path)
 
 
 ## Riporta la partita allo stato iniziale e cancella il salvataggio

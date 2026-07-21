@@ -11,6 +11,9 @@ extends Node3D
 @export var docking_max_speed: float = 1.5
 
 var _boat: Boat = null
+## La barca a cui il menu ha spento la guida: la riaccende sempre lui,
+## anche se nel frattempo _boat è stato azzerato dall'uscita di zona.
+var _docked_boat: Boat = null
 var _open: bool = false
 var _shipyard_open: bool = false
 
@@ -91,15 +94,28 @@ func _on_zone_body_entered(body: Node3D) -> void:
 
 func _on_zone_body_exited(body: Node3D) -> void:
 	if body == _boat:
-		_boat = null
-		if _open:
-			_close_menu()
+		_confirm_departure(body)
+
+
+## Il cambio barca sostituisce la collision shape e questo fa scattare
+## un body_exited fasullo con rientro immediato: prima di chiudere il
+## menu si aspetta un giro di fisica e si riverifica che la barca sia
+## davvero fuori dalla zona.
+func _confirm_departure(body: Node3D) -> void:
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_instance_valid(body) or _zone.overlaps_body(body):
+		return
+	_boat = null
+	if _open:
+		_close_menu()
 
 
 func _open_menu() -> void:
 	_open = true
-	_boat.input_enabled = false
-	_boat.reset_motion()
+	_docked_boat = _boat
+	_docked_boat.input_enabled = false
+	_docked_boat.reset_motion()
 	_refresh()
 	_panel.show()
 	_sell_button.grab_focus()
@@ -111,8 +127,9 @@ func _close_menu() -> void:
 	_panel.hide()
 	_shipyard.hide()
 	GameState.save_game()
-	if _boat != null:
-		_boat.input_enabled = true
+	if _docked_boat != null:
+		_docked_boat.input_enabled = true
+		_docked_boat = null
 
 
 func _open_shipyard() -> void:
