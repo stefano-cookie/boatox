@@ -46,10 +46,14 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		if _open:
+			get_viewport().set_input_as_handled()
 			_close_menu()
 		elif _boat != null and absf(_boat.current_speed()) <= docking_max_speed:
+			get_viewport().set_input_as_handled()
 			_open_menu()
 	elif _open and event.is_action_pressed("ui_cancel"):
+		# Consumato: altrimenti lo stesso Esc aprirebbe anche la pausa.
+		get_viewport().set_input_as_handled()
 		_close_menu()
 
 

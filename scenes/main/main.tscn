@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/camera/chase_camera.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/pause/pause_menu.tscn" id="6"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -29,6 +30,8 @@ fog_depth_begin = 80.0
 fog_depth_end = 240.0
 
 [node name="Main" type="Node3D"]
+
+[node name="PauseMenu" parent="." instance=ExtResource("6")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("environment")

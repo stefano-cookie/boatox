@@ -34,7 +34,7 @@ Fondazione del game feel. Tutto il resto poggia qui.
 
 ## M4 — Beta
 - [ ] Customizzazione estetica (vernici, accessori)
-- [ ] Menu principale, pausa, impostazioni essenziali
+- [ ] Menu principale e impostazioni complete (pausa base fatta in M1: riprendi/ricomincia/fullscreen/esci)
 - [ ] Audio: mare, motore, UI, un tema musicale
 - [ ] Feedback d'impatto (flash barra scafo, scuotimento camera)
 - [ ] Traguardo di fine beta (acquisto del primo cabinato) e schermata finale provvisoria

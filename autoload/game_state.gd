@@ -122,6 +122,18 @@ func pay_tow() -> void:
 	post_notice("Scafo a pezzi: rimorchiato al porto (-%d $)" % TOW_FEE)
 
 
+## Riporta la partita allo stato iniziale (usato dal "Ricomincia" della
+## pausa: gli autoload sopravvivono al reload della scena).
+func reset() -> void:
+	money = 0
+	hull = HULL_MAX
+	cargo.clear()
+	money_changed.emit(money)
+	hull_changed.emit(hull, HULL_MAX)
+	cargo_changed.emit()
+	clear_danger()
+
+
 func post_notice(text: String) -> void:
 	notice_posted.emit(text)
 

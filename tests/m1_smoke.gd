@@ -22,6 +22,14 @@ func _ready() -> void:
 func _run() -> void:
 	await _wait(0.5)
 
+	# --- Pausa: Esc mette in pausa, un altro Esc riprende ---
+	_press_esc()
+	await _wait(0.3)
+	var paused_on := get_tree().paused
+	_press_esc()
+	await _wait(0.3)
+	print("PAUSA: apertura=%s chiusura=%s (attesi true/true)" % [paused_on, not get_tree().paused])
+
 	# --- Camera: deve seguire la barca mentre guida e vira ---
 	var cam_start: Vector3 = _camera.global_position
 	_boat.rotation.y = PI
@@ -91,6 +99,18 @@ func _find_buoy() -> Buoy:
 		if child is Buoy and child.visible:
 			return child
 	return null
+
+
+## Simula la pressione di Esc come evento vero (Input.action_press non
+## attraversa _unhandled_input).
+func _press_esc() -> void:
+	var press := InputEventAction.new()
+	press.action = "ui_cancel"
+	press.pressed = true
+	Input.parse_input_event(press)
+	var release := InputEventAction.new()
+	release.action = "ui_cancel"
+	Input.parse_input_event(release)
 
 
 func _wait(seconds: float) -> void:
