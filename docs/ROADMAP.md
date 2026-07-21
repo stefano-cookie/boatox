@@ -4,17 +4,17 @@ Regola: una milestone è chiusa solo quando Stefano l'ha giocata e approvata. No
 
 ## M0 — La barca sul mare
 Fondazione del game feel. Tutto il resto poggia qui.
-- [ ] Piano d'acqua low-poly con shader onde semplice
-- [ ] Barca pilotabile con WASD/frecce (accelerazione, virata, deriva leggera)
-- [ ] Camera terza persona GTA-style con parametri `@export` (altezza, distanza, inclinazione, smoothing)
-- [ ] Cielo, luce, orizzonte: prima impressione dell'atmosfera
-- [ ] **Criterio di uscita**: guidare la barca per 5 minuti è piacevole di per sé
+- [x] Piano d'acqua low-poly con shader onde semplice
+- [x] Barca pilotabile con WASD/frecce (accelerazione, virata, deriva leggera)
+- [x] Camera terza persona GTA-style con parametri `@export` (altezza, distanza, inclinazione, smoothing)
+- [x] Cielo, luce, orizzonte: prima impressione dell'atmosfera
+- [x] **Criterio di uscita**: guidare la barca per 5 minuti è piacevole di per sé
 
 ## M1 — Il mondo
-- [ ] Zona di mare con isole, campo di scogli, confini mappa
-- [ ] Boe raccoglibili al passaggio (comuni + dorate vicino ai pericoli), respawn a tempo
-- [ ] Collisioni e danni scafo, HUD minimo (denaro, scafo)
-- [ ] Porto: attracco, vendita, riparazione (UI essenziale)
+- [x] Zona di mare con isole, campo di scogli, confini mappa
+- [x] Boe raccoglibili al passaggio (comuni + dorate vicino ai pericoli), respawn a tempo
+- [x] Collisioni e danni scafo, HUD minimo (denaro, scafo)
+- [x] Porto: attracco, vendita, riparazione (UI essenziale)
 - [ ] **Criterio di uscita**: il ciclo esci→raccogli→rischia→rientra→ripara sta in piedi
 
 ## M2 — La progressione

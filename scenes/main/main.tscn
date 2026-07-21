@@ -1,8 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/camera/chase_camera.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="5"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -43,6 +45,12 @@ follow_target = NodePath("../Boat")
 
 [node name="Boat" parent="." instance=ExtResource("2")]
 sea = NodePath("../Sea")
+
+[node name="World" parent="." instance=ExtResource("4")]
+boat = NodePath("../Boat")
+sea = NodePath("../Sea")
+
+[node name="HUD" parent="." instance=ExtResource("5")]
 
 [node name="ChaseCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 9)

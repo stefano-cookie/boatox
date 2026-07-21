@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="mat_rock"]
+albedo_color = Color(0.45, 0.46, 0.48, 1)
+roughness = 0.95
+
+[sub_resource type="SphereMesh" id="rock_mesh"]
+radius = 1.3
+height = 2.6
+radial_segments = 6
+rings = 4
+
+[sub_resource type="SphereShape3D" id="rock_shape"]
+radius = 1.15
+
+[node name="Rock" type="StaticBody3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("rock_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.75, 0, 0, 0, 1.2, 0, 0, 0)
+mesh = SubResource("rock_mesh")
+material_override = SubResource("mat_rock")

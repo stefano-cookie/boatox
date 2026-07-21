@@ -21,6 +21,18 @@ extends CharacterBody3D
 ## Quanto in fretta la velocità si allinea alla prua: basso = più deriva.
 @export var grip: float = 2.5
 
+@export_group("Danni")
+## Sotto questa velocità d'impatto l'urto non danneggia (sfregare non punisce).
+@export var min_impact_speed: float = 3.0
+@export var damage_per_speed: float = 4.0
+@export var impact_cooldown: float = 0.6
+
+@export_group("Confini mappa")
+## Impostato dal World in _ready: oltre questo raggio dal centro la
+## corrente spinge dolcemente la barca verso l'interno.
+@export var bounds_radius: float = 240.0
+@export var bounds_push: float = 8.0
+
 @export_group("Assetto (visuale)")
 @export var bank_max_deg: float = 10.0
 @export var accel_pitch_deg: float = 3.0
@@ -32,20 +44,39 @@ const _SAMPLE_STERN := Vector3(0.0, 0.0, 1.9)
 const _SAMPLE_LEFT := Vector3(-0.9, 0.0, 0.0)
 const _SAMPLE_RIGHT := Vector3(0.9, 0.0, 0.0)
 
+var input_enabled: bool = true
+
 var _speed: float = 0.0
+var _impact_timer: float = 0.0
 
 @onready var _visual: Node3D = $Visual
 
 
 func _physics_process(delta: float) -> void:
-	var throttle := Input.get_axis("move_back", "move_forward")
-	var steer := Input.get_axis("turn_right", "turn_left")
+	_impact_timer = maxf(_impact_timer - delta, 0.0)
+	var throttle := 0.0
+	var steer := 0.0
+	if input_enabled:
+		throttle = Input.get_axis("move_back", "move_forward")
+		steer = Input.get_axis("turn_right", "turn_left")
 	_update_speed(throttle, delta)
 	_update_heading(steer, delta)
 	_update_velocity(delta)
+	_apply_bounds_push()
+	var pre_impact_velocity := velocity
 	move_and_slide()
 	global_position.y = 0.0
+	_handle_impacts(pre_impact_velocity)
 	_update_attitude(throttle, steer, delta)
+
+
+func current_speed() -> float:
+	return _speed
+
+
+func reset_motion() -> void:
+	_speed = 0.0
+	velocity = Vector3.ZERO
 
 
 func _update_speed(throttle: float, delta: float) -> void:
@@ -70,6 +101,25 @@ func _update_velocity(delta: float) -> void:
 	var target_velocity := forward * _speed
 	velocity = velocity.lerp(target_velocity, 1.0 - exp(-grip * delta))
 	velocity.y = 0.0
+
+
+func _apply_bounds_push() -> void:
+	var flat := Vector3(global_position.x, 0.0, global_position.z)
+	var overshoot := flat.length() - bounds_radius
+	if overshoot > 0.0:
+		velocity += -flat.normalized() * bounds_push * clampf(overshoot / 10.0, 0.2, 2.0)
+
+
+func _handle_impacts(pre_impact_velocity: Vector3) -> void:
+	if _impact_timer > 0.0 or get_slide_collision_count() == 0:
+		return
+	var normal := get_slide_collision(0).get_normal()
+	var impact := -pre_impact_velocity.dot(normal)
+	if impact <= min_impact_speed:
+		return
+	_impact_timer = impact_cooldown
+	_speed *= 0.3
+	GameState.apply_damage((impact - min_impact_speed) * damage_per_speed)
 
 
 func _turn_factor() -> float:
