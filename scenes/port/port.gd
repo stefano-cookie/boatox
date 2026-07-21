@@ -98,7 +98,11 @@ func _on_repair_pressed() -> void:
 func _refresh() -> void:
 	var cargo_text := "vuota"
 	if GameState.cargo_count() > 0:
-		cargo_text = "%d boe (%d $)" % [GameState.cargo_count(), GameState.cargo_value()]
+		var parts: Array[String] = []
+		for type: int in GameState.cargo:
+			if GameState.cargo[type] > 0:
+				parts.append("%d× %s" % [GameState.cargo[type], GameState.BUOY_NAME[type]])
+		cargo_text = "%s (%d $)" % [", ".join(parts), GameState.cargo_value()]
 	_info.text = "Denaro: %d $\nStiva: %s\nScafo: %d%%" % [
 		GameState.money,
 		cargo_text,

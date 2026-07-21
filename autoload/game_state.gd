@@ -1,22 +1,45 @@
 extends Node
 
 ## Stato di partita e valori di bilanciamento dell'economia (CLAUDE.md:
-## prezzi e curve vivono qui, mai nelle scene). Le boe raccolte vanno in
-## stiva e diventano denaro solo vendendole al porto: rientrare fa parte
-## del loop (GDD § core loop).
+## prezzi e curve vivono qui, mai nelle scene). Le boe sono item: vanno
+## in stiva e diventano denaro solo vendendole al porto (GDD § core loop).
 
 signal money_changed(amount: int)
 signal hull_changed(current: float, max_value: float)
-signal cargo_changed(common: int, golden: int)
+signal cargo_changed
 signal hull_depleted
 signal notice_posted(text: String)
+signal danger_changed(text: String)
+signal danger_cleared
+
+## Tipologie di boa legate al rischio della zona (GDD pillar 2):
+## gialla in acque tranquille, rossa ai margini degli scogli, blu
+## rarissima dentro i campi di scogli.
+enum BuoyType { YELLOW, RED, BLUE }
+
+const BUOY_VALUE: Dictionary[int, int] = {
+	BuoyType.YELLOW: 10,
+	BuoyType.RED: 40,
+	BuoyType.BLUE: 150,
+}
+## Probabilità che il punto boa sia occupato a ogni tentativo di spawn.
+const BUOY_SPAWN_CHANCE: Dictionary[int, float] = {
+	BuoyType.YELLOW: 1.0,
+	BuoyType.RED: 0.3,
+	BuoyType.BLUE: 0.05,
+}
+const BUOY_RESPAWN: Dictionary[int, float] = {
+	BuoyType.YELLOW: 45.0,
+	BuoyType.RED: 90.0,
+	BuoyType.BLUE: 120.0,
+}
+const BUOY_NAME: Dictionary[int, String] = {
+	BuoyType.YELLOW: "gialla",
+	BuoyType.RED: "rossa",
+	BuoyType.BLUE: "blu",
+}
 
 const HULL_MAX: float = 100.0
-
-const BUOY_COMMON_VALUE: int = 10
-const BUOY_GOLDEN_VALUE: int = 50
-const BUOY_COMMON_RESPAWN: float = 45.0
-const BUOY_GOLDEN_RESPAWN: float = 150.0
 
 ## Riparare tutto lo scafo da zero costa HULL_MAX * questo valore.
 const REPAIR_COST_PER_POINT: float = 0.5
@@ -26,25 +49,29 @@ const TOW_HULL_RESTORE: float = 20.0
 
 var money: int = 0
 var hull: float = HULL_MAX
-var cargo_common: int = 0
-var cargo_golden: int = 0
+## Conteggio boe in stiva per tipologia (chiave: BuoyType).
+var cargo: Dictionary[int, int] = {}
 
 
-func collect_buoy(golden: bool) -> void:
-	if golden:
-		cargo_golden += 1
-		post_notice("Boa dorata in stiva! (+%d $ di carico)" % BUOY_GOLDEN_VALUE)
-	else:
-		cargo_common += 1
-	cargo_changed.emit(cargo_common, cargo_golden)
+func collect_buoy(type: int) -> void:
+	cargo[type] = cargo.get(type, 0) + 1
+	if type == BuoyType.BLUE:
+		post_notice("Boa blu! Rarissima: +%d $ di carico" % BUOY_VALUE[type])
+	cargo_changed.emit()
 
 
 func cargo_count() -> int:
-	return cargo_common + cargo_golden
+	var total := 0
+	for type in cargo:
+		total += cargo[type]
+	return total
 
 
 func cargo_value() -> int:
-	return cargo_common * BUOY_COMMON_VALUE + cargo_golden * BUOY_GOLDEN_VALUE
+	var total := 0
+	for type in cargo:
+		total += cargo[type] * BUOY_VALUE[type]
+	return total
 
 
 func sell_cargo() -> int:
@@ -52,10 +79,9 @@ func sell_cargo() -> int:
 	if earned <= 0:
 		return 0
 	money += earned
-	cargo_common = 0
-	cargo_golden = 0
+	cargo.clear()
 	money_changed.emit(money)
-	cargo_changed.emit(cargo_common, cargo_golden)
+	cargo_changed.emit()
 	post_notice("Carico venduto: +%d $" % earned)
 	return earned
 
@@ -98,3 +124,13 @@ func pay_tow() -> void:
 
 func post_notice(text: String) -> void:
 	notice_posted.emit(text)
+
+
+## Avviso persistente a schermo (es. countdown fuori zona), aggiornato
+## dal chiamante finché la condizione dura.
+func set_danger(text: String) -> void:
+	danger_changed.emit(text)
+
+
+func clear_danger() -> void:
+	danger_cleared.emit()

@@ -27,11 +27,10 @@ extends CharacterBody3D
 @export var damage_per_speed: float = 4.0
 @export var impact_cooldown: float = 0.6
 
-@export_group("Confini mappa")
-## Impostato dal World in _ready: oltre questo raggio dal centro la
-## corrente spinge dolcemente la barca verso l'interno.
-@export var bounds_radius: float = 240.0
-@export var bounds_push: float = 8.0
+@export_group("Affondamento (fuori zona)")
+## Quanto scende il visivo quando sink_amount arriva a 1.
+@export var sink_depth: float = 0.9
+@export var sink_pitch_deg: float = 6.0
 
 @export_group("Assetto (visuale)")
 @export var bank_max_deg: float = 10.0
@@ -45,6 +44,10 @@ const _SAMPLE_LEFT := Vector3(-0.9, 0.0, 0.0)
 const _SAMPLE_RIGHT := Vector3(0.9, 0.0, 0.0)
 
 var input_enabled: bool = true
+## 0..1, impostato dal World fuori dai confini: la barca si abbassa
+## nell'acqua e appruata, senza toccare la guida (deve restare facile
+## rientrare).
+var sink_amount: float = 0.0
 
 var _speed: float = 0.0
 var _impact_timer: float = 0.0
@@ -62,7 +65,6 @@ func _physics_process(delta: float) -> void:
 	_update_speed(throttle, delta)
 	_update_heading(steer, delta)
 	_update_velocity(delta)
-	_apply_bounds_push()
 	var pre_impact_velocity := velocity
 	move_and_slide()
 	global_position.y = 0.0
@@ -103,13 +105,6 @@ func _update_velocity(delta: float) -> void:
 	velocity.y = 0.0
 
 
-func _apply_bounds_push() -> void:
-	var flat := Vector3(global_position.x, 0.0, global_position.z)
-	var overshoot := flat.length() - bounds_radius
-	if overshoot > 0.0:
-		velocity += -flat.normalized() * bounds_push * clampf(overshoot / 10.0, 0.2, 2.0)
-
-
 func _handle_impacts(pre_impact_velocity: Vector3) -> void:
 	if _impact_timer > 0.0 or get_slide_collision_count() == 0:
 		return
@@ -138,11 +133,12 @@ func _update_attitude(throttle: float, steer: float, delta: float) -> void:
 	var wave_pitch := atan2(h_bow - h_stern, _SAMPLE_STERN.z - _SAMPLE_BOW.z)
 	var wave_roll := atan2(h_right - h_left, _SAMPLE_RIGHT.x - _SAMPLE_LEFT.x)
 
-	var target_pitch := wave_pitch + deg_to_rad(accel_pitch_deg) * throttle
+	var target_pitch := wave_pitch + deg_to_rad(accel_pitch_deg) * throttle \
+		+ deg_to_rad(sink_pitch_deg) * sink_amount
 	var target_roll := wave_roll + steer * deg_to_rad(bank_max_deg) * _turn_factor()
 
 	var t_att := 1.0 - exp(-attitude_smoothing * delta)
 	var t_bob := 1.0 - exp(-bob_smoothing * delta)
 	_visual.rotation.x = lerp_angle(_visual.rotation.x, target_pitch, t_att)
 	_visual.rotation.z = lerp_angle(_visual.rotation.z, target_roll, t_att)
-	_visual.position.y = lerpf(_visual.position.y, water_level, t_bob)
+	_visual.position.y = lerpf(_visual.position.y, water_level - sink_depth * sink_amount, t_bob)

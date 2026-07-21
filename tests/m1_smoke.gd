@@ -45,7 +45,15 @@ func _run() -> void:
 	else:
 		_boat.global_position = buoy.global_position
 		await _wait(0.5)
-		print("BOE: in stiva=%d (attese >0)" % GameState.cargo_count())
+		print("BOE: in stiva=%d, valore=%d $ (attese >0)" % [GameState.cargo_count(), GameState.cargo_value()])
+
+	# --- Confini: fuori zona parte il countdown, poi recupero al porto ---
+	_boat.reset_motion()
+	_boat.global_position = Vector3(300, 0.0, 0.0)
+	var world: Node3D = _main.get_node("World")
+	await _wait(world.escape_countdown + 2.0)
+	var port_dist := _boat.global_position.distance_to(Vector3(46, 0, -44))
+	print("CONFINI: dopo il countdown la barca è a %.1f m dal molo (atteso <10)" % port_dist)
 
 	# --- Danni: speronate ripetute contro un'isola fino al traino ---
 	_boat.reset_motion()
@@ -69,9 +77,10 @@ func _run() -> void:
 	get_tree().quit()
 
 
+## Una boa presente (il tiro di spawn può lasciare vuoti i punti rari).
 func _find_buoy() -> Buoy:
 	for child in _main.get_node("World").get_children():
-		if child is Buoy:
+		if child is Buoy and child.visible:
 			return child
 	return null
 
