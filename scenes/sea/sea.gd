@@ -38,6 +38,10 @@ extends MeshInstance3D
 @export var wave_3_length: float = 4.5
 @export var wave_3_speed: float = 1.8
 
+## Moltiplicatore del meteo dinamico (GDD § Navigazione), pilotato dal
+## nodo Weather: 1 = calmo, sale col mare mosso sopra le zone statiche.
+var weather_multiplier: float = 1.0
+
 var _time: float = 0.0
 var _grid_step: float = 2.5
 
@@ -72,7 +76,21 @@ func state_multiplier(world_pos: Vector3) -> float:
 	var m: float = lerpf(calm_multiplier, medium_multiplier,
 		smoothstep(calm_radius - zone_blend * 0.5, calm_radius + zone_blend * 0.5, d))
 	return lerpf(m, rough_multiplier,
-		smoothstep(medium_radius - zone_blend * 0.5, medium_radius + zone_blend * 0.5, d))
+		smoothstep(medium_radius - zone_blend * 0.5, medium_radius + zone_blend * 0.5, d)) \
+		* weather_multiplier
+
+
+## Quanto il mare scuote in un punto (zona × meteo): la barca lo usa per
+## la destabilizzazione, in scala con state_multiplier.
+func agitation(world_pos: Vector3) -> float:
+	return state_multiplier(world_pos)
+
+
+## Direzione orizzontale dell'onda principale: le spinte del mare mosso
+## seguono lei, così il caos ha un verso leggibile invece che casuale.
+func wave_push_direction() -> Vector3:
+	var dir := Vector2.from_angle(deg_to_rad(wave_1_direction_deg))
+	return Vector3(dir.x, 0.0, dir.y)
 
 
 ## 0 = calme, 1 = medie, 2 = mosse (per HUD e spawn delle boe).
@@ -103,6 +121,7 @@ func _update_uniforms() -> void:
 	_material.set_shader_parameter("medium_radius", medium_radius)
 	_material.set_shader_parameter("zone_blend", zone_blend)
 	_material.set_shader_parameter("zone_amps", Vector3(calm_multiplier, medium_multiplier, rough_multiplier))
+	_material.set_shader_parameter("weather_mult", weather_multiplier)
 
 
 func _wave_vec(dir_deg: float, amplitude: float, length: float) -> Vector4:

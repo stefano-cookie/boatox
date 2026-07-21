@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/pause/pause_menu.tscn" id="6"]
+[ext_resource type="Script" path="res://scenes/weather/weather.gd" id="7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -46,6 +47,10 @@ directional_shadow_max_distance = 150.0
 [node name="Sea" parent="." node_paths=PackedStringArray("follow_target") instance=ExtResource("1")]
 follow_target = NodePath("../Boat")
 
+[node name="Weather" type="Node" parent="." node_paths=PackedStringArray("sea")]
+script = ExtResource("7")
+sea = NodePath("../Sea")
+
 [node name="Boat" parent="." node_paths=PackedStringArray("sea") instance=ExtResource("2")]
 sea = NodePath("../Sea")
 
@@ -53,9 +58,10 @@ sea = NodePath("../Sea")
 boat = NodePath("../Boat")
 sea = NodePath("../Sea")
 
-[node name="HUD" parent="." node_paths=PackedStringArray("boat", "sea") instance=ExtResource("5")]
+[node name="HUD" parent="." node_paths=PackedStringArray("boat", "sea", "weather") instance=ExtResource("5")]
 boat = NodePath("../Boat")
 sea = NodePath("../Sea")
+weather = NodePath("../Weather")
 
 [node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 9)

@@ -19,13 +19,15 @@ uniform float medium_radius = 180.0;
 uniform float zone_blend = 30.0;
 // moltiplicatori: x = calme, y = medie, z = mosse
 uniform vec3 zone_amps = vec3(0.6, 1.5, 2.8);
+// Meteo dinamico sopra le zone statiche: 1 = calmo, >1 = mosso.
+uniform float weather_mult = 1.0;
 
 float sea_state(vec2 p) {
 	float d = length(p);
 	float m = mix(zone_amps.x, zone_amps.y,
 		smoothstep(calm_radius - zone_blend * 0.5, calm_radius + zone_blend * 0.5, d));
 	return mix(m, zone_amps.z,
-		smoothstep(medium_radius - zone_blend * 0.5, medium_radius + zone_blend * 0.5, d));
+		smoothstep(medium_radius - zone_blend * 0.5, medium_radius + zone_blend * 0.5, d)) * weather_mult;
 }
 
 uniform vec3 deep_color : source_color = vec3(0.02, 0.15, 0.28);

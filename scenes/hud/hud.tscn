@@ -22,6 +22,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 34
 text = "0 $"
 
+[node name="BoatLabel" type="Label" parent="TopLeft/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "Barchetta"
+
 [node name="HullRow" type="HBoxContainer" parent="TopLeft/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 10
@@ -49,12 +55,18 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -260.0
-offset_top = -150.0
+offset_top = -184.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 0
 grow_vertical = 0
 theme_override_constants/separation = 6
+
+[node name="WeatherLabel" type="Label" parent="SpeedBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Mare calmo"
+horizontal_alignment = 2
 
 [node name="ZoneLabel" type="Label" parent="SpeedBox"]
 layout_mode = 2

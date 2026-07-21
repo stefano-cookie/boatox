@@ -64,8 +64,11 @@ func _set_present(present: bool) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if not _active or not body is Boat:
 		return
+	# A stiva piena la boa resta in acqua: il limite è il senso
+	# dell'upgrade stiva.
+	if not GameState.collect_buoy(type):
+		return
 	_set_present(false)
-	GameState.collect_buoy(type)
 	await get_tree().create_timer(GameState.BUOY_RESPAWN[type]).timeout
 	if is_inside_tree():
 		_try_spawn()

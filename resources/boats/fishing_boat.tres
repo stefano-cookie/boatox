@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="BoatDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/boat_definition.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/boat/visuals/fishing_visual.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"fishing_boat"
+display_name = "Pescareccio"
+price = 600
+visual_scene = ExtResource("2")
+collision_size = Vector3(2.4, 1.2, 7.0)
+max_speed = 16.0
+max_reverse_speed = 4.0
+acceleration = 4.2
+reverse_acceleration = 2.6
+brake_force = 7.0
+water_drag = 1.8
+turn_speed_deg = 42.0
+turn_full_speed_ratio = 0.3
+grip = 3.5
+hull_max = 180.0
+cargo_capacity = 18
+stability = 0.55
+motor_costs = Array[int]([150, 380, 900])
+hull_costs = Array[int]([130, 320, 760])
+stability_costs = Array[int]([200, 480, 1100])
+cargo_costs = Array[int]([110, 260, 620])
+motor_speed_step = 1.8
+motor_accel_step = 0.5
+hull_step = 40.0
+stability_step = 0.12
+cargo_step = 6

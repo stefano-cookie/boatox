@@ -11,6 +11,9 @@ var _towed: bool = false
 
 
 func _ready() -> void:
+	# Da M2 esiste il salvataggio: si riparte puliti per avere numeri
+	# deterministici.
+	GameState.reset()
 	_main = (load("res://scenes/main/main.tscn") as PackedScene).instantiate()
 	add_child(_main)
 	_boat = _main.get_node("Boat")

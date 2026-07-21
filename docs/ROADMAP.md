@@ -15,14 +15,14 @@ Fondazione del game feel. Tutto il resto poggia qui.
 - [x] Boe raccoglibili al passaggio (comuni + dorate vicino ai pericoli), respawn a tempo
 - [x] Collisioni e danni scafo, HUD minimo (denaro, scafo)
 - [x] Porto: attracco, vendita, riparazione (UI essenziale)
-- [ ] **Criterio di uscita**: il ciclo esci→raccogli→rischia→rientra→ripara sta in piedi
+- [x] **Criterio di uscita**: il ciclo esci→raccogli→rischia→rientra→ripara sta in piedi
 
 ## M2 — La progressione
-- [ ] 3 barche acquistabili con guida distinta
-- [ ] Upgrade funzionali: motore, scafo, stabilità, stiva
-- [ ] Meteo calmo/mosso; il mosso destabilizza davvero (cancello di progressione)
-- [ ] Prima curva economica completa (prezzi in `Resource`, bilanciabili senza toccare scene)
-- [ ] Salvataggio/caricamento
+- [x] 3 barche acquistabili con guida distinta
+- [x] Upgrade funzionali: motore, scafo, stabilità, stiva
+- [x] Meteo calmo/mosso; il mosso destabilizza davvero (cancello di progressione)
+- [x] Prima curva economica completa (prezzi in `Resource`, bilanciabili senza toccare scene)
+- [x] Salvataggio/caricamento
 - [ ] **Criterio di uscita**: arrivare alla seconda barca è desiderabile e guadagnarsela è soddisfacente
 
 ## M3 — Missioni, gare, pesca

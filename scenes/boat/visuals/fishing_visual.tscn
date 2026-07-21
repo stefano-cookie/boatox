@@ -1,0 +1,75 @@
+[gd_scene load_steps=12 format=3]
+
+[sub_resource type="StandardMaterial3D" id="mat_hull"]
+albedo_color = Color(0.16, 0.35, 0.5, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="mat_deck"]
+albedo_color = Color(0.62, 0.47, 0.3, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="mat_cabin"]
+albedo_color = Color(0.92, 0.92, 0.88, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="mat_mast"]
+albedo_color = Color(0.35, 0.28, 0.2, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="hull_mesh"]
+size = Vector3(2.2, 0.9, 5.6)
+
+[sub_resource type="PrismMesh" id="bow_mesh"]
+size = Vector3(2.2, 1.7, 0.9)
+
+[sub_resource type="BoxMesh" id="deck_mesh"]
+size = Vector3(2.0, 0.12, 5.2)
+
+[sub_resource type="BoxMesh" id="cabin_mesh"]
+size = Vector3(1.7, 1.1, 1.6)
+
+[sub_resource type="BoxMesh" id="roof_mesh"]
+size = Vector3(1.9, 0.12, 1.8)
+
+[sub_resource type="BoxMesh" id="mast_mesh"]
+size = Vector3(0.18, 2.4, 0.18)
+
+[sub_resource type="BoxMesh" id="boom_mesh"]
+size = Vector3(0.14, 0.14, 2.2)
+
+[node name="FishingVisual" type="Node3D"]
+
+[node name="Hull" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+mesh = SubResource("hull_mesh")
+material_override = SubResource("mat_hull")
+
+[node name="Bow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.2, -3.7)
+mesh = SubResource("bow_mesh")
+material_override = SubResource("mat_hull")
+
+[node name="Deck" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 0)
+mesh = SubResource("deck_mesh")
+material_override = SubResource("mat_deck")
+
+[node name="Cabin" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -1.3)
+mesh = SubResource("cabin_mesh")
+material_override = SubResource("mat_cabin")
+
+[node name="Roof" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.92, -1.3)
+mesh = SubResource("roof_mesh")
+material_override = SubResource("mat_hull")
+
+[node name="Mast" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 0.4)
+mesh = SubResource("mast_mesh")
+material_override = SubResource("mat_mast")
+
+[node name="Boom" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.940, -0.342, 0, 0.342, 0.940, 0, 2.6, 1.3)
+mesh = SubResource("boom_mesh")
+material_override = SubResource("mat_mast")

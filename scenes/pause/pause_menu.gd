@@ -18,7 +18,7 @@ func _ready() -> void:
 	_resume_button.pressed.connect(_resume)
 	_restart_button.pressed.connect(_on_restart_pressed)
 	_fullscreen_button.pressed.connect(_on_fullscreen_pressed)
-	_quit_button.pressed.connect(get_tree().quit)
+	_quit_button.pressed.connect(_on_quit_pressed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -43,10 +43,16 @@ func _resume() -> void:
 	_root.hide()
 
 
+## Ricomincia da zero: GameState.reset cancella anche il salvataggio.
 func _on_restart_pressed() -> void:
 	_resume()
 	GameState.reset()
 	get_tree().reload_current_scene()
+
+
+func _on_quit_pressed() -> void:
+	GameState.save_game()
+	get_tree().quit()
 
 
 func _on_fullscreen_pressed() -> void:
