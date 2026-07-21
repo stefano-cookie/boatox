@@ -36,6 +36,7 @@ Fondazione del game feel. Tutto il resto poggia qui.
 - [ ] Customizzazione estetica (vernici, accessori)
 - [ ] Menu principale, pausa, impostazioni essenziali
 - [ ] Audio: mare, motore, UI, un tema musicale
+- [ ] Feedback d'impatto (flash barra scafo, scuotimento camera)
 - [ ] Traguardo di fine beta (acquisto del primo cabinato) e schermata finale provvisoria
 - [ ] Bilanciamento complessivo + bug pass
 - [ ] Export macOS/Windows, pagina itch.io (privata) per distribuire la build

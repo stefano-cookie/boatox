@@ -47,6 +47,14 @@ func _run() -> void:
 		await _wait(0.5)
 		print("BOE: in stiva=%d, valore=%d $ (attese >0)" % [GameState.cargo_count(), GameState.cargo_value()])
 
+	# --- Zone di mare: onde crescenti dal centro al largo ---
+	var sea: Sea = _main.get_node("Sea")
+	print("ZONE: moltiplicatori a 50/150/220 m = %.2f / %.2f / %.2f (attesi crescenti)" % [
+		sea.state_multiplier(Vector3(50, 0, 0)),
+		sea.state_multiplier(Vector3(150, 0, 0)),
+		sea.state_multiplier(Vector3(220, 0, 0)),
+	])
+
 	# --- Confini: fuori zona parte il countdown, poi recupero al porto ---
 	_boat.reset_motion()
 	_boat.global_position = Vector3(300, 0.0, 0.0)

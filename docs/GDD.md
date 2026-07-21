@@ -32,12 +32,15 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Navigazione e meteo
 - Guida arcade: accelerazione, virata, deriva leggera. Niente simulazione velica.
-- Meteo a stati (calmo → mosso → tempesta) che cambia a onde temporali e per zona.
-- Il mare mosso spinge e destabilizza: con la barchetta iniziale è quasi ingovernabile, con upgrade di stabilità diventa attraversabile. È il cancello di progressione principale.
+- Il mare è diviso in tre anelli concentrici statici dal centro mappa: **acque calme** (porto e partenza), **acque medie**, **acque mosse** al largo, con onde progressivamente più grosse. L'HUD mostra sempre la zona corrente.
+- Meteo dinamico (M2): stati calmo → mosso che cambiano a onde temporali sopra le zone statiche.
+- Il mare mosso spinge e destabilizza (M2): con la barchetta iniziale è quasi ingovernabile, con upgrade di stabilità diventa attraversabile. È il cancello di progressione principale.
+- Uscire dai confini mappa avvia un countdown visibile con affondamento progressivo; se non rientri in tempo, recupero gratuito al porto.
 
-### Boe (valuta)
-- Sparse sulla mappa, raccolta al passaggio. Rarità a colori: comuni in acque sicure, dorate tra scogli e mare grosso (pillar 2).
-- Respawn a tempo per sostenere il loop.
+### Boe (item da vendere)
+- Sparse sulla mappa, raccolta al passaggio; vanno in stiva e diventano denaro vendendole al porto: rientrare fa parte del loop.
+- Tre tipologie legate alla zona di mare (pillar 2): **gialla** nelle acque calme (spawn certo), **rossa** nelle acque medie (30% di spawn), **blu** rarissima nelle acque mosse (5%). Valore crescente con il rischio; i campi di scogli stanno in acque medie/mosse.
+- Ogni punto boa ritenta lo spawn a ogni ciclo di respawn con la probabilità della sua tipologia.
 
 ### Pesca
 - Zone di pesca visibili (uccelli, increspature). Minigioco breve di tempismo a tasti.

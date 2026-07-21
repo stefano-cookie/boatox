@@ -6,8 +6,15 @@ extends CanvasLayer
 ## di gioco qui.
 
 const MS_TO_KNOTS: float = 1.94384
+const ZONE_NAMES: Array[String] = ["Acque calme", "Acque medie", "Acque mosse"]
+const ZONE_COLORS: Array[Color] = [
+	Color(0.75, 0.95, 0.85),
+	Color(1.0, 0.85, 0.4),
+	Color(1.0, 0.45, 0.35),
+]
 
 @export var boat: Boat
+@export var sea: Sea
 
 @onready var _money_label: Label = $TopLeft/VBox/MoneyLabel
 @onready var _hull_bar: ProgressBar = $TopLeft/VBox/HullRow/HullBar
@@ -17,6 +24,7 @@ const MS_TO_KNOTS: float = 1.94384
 @onready var _danger_label: Label = $DangerLabel
 @onready var _speed_label: Label = $SpeedBox/SpeedLabel
 @onready var _speed_bar: ProgressBar = $SpeedBox/SpeedBar
+@onready var _zone_label: Label = $SpeedBox/ZoneLabel
 
 
 func _ready() -> void:
@@ -42,6 +50,10 @@ func _process(_delta: float) -> void:
 	var speed := absf(boat.current_speed())
 	_speed_label.text = "%d nodi" % roundi(speed * MS_TO_KNOTS)
 	_speed_bar.value = speed
+	if sea != null:
+		var zone := sea.zone_index(boat.global_position)
+		_zone_label.text = ZONE_NAMES[zone]
+		_zone_label.modulate = ZONE_COLORS[zone]
 
 
 func _on_money_changed(amount: int) -> void:

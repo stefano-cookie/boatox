@@ -49,12 +49,18 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -260.0
-offset_top = -110.0
+offset_top = -150.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 0
 grow_vertical = 0
 theme_override_constants/separation = 6
+
+[node name="ZoneLabel" type="Label" parent="SpeedBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Acque calme"
+horizontal_alignment = 2
 
 [node name="SpeedLabel" type="Label" parent="SpeedBox"]
 layout_mode = 2

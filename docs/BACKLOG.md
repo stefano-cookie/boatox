@@ -21,6 +21,9 @@ Parcheggio anti scope-creep: tutto ciò che è bello ma non serve alla beta fini
 - Pagina Steam (~92€) se la beta raccoglie interesse
 - Port mobile con controlli touch
 
+## UI e feel
+- Minimappa (voluta da Stefano, rivalutare a fine M2/M4; nel frattempo l'orientamento passa da bussola/freccia porto se serve)
+
 ## Da valutare
 - Fotografia in-game (screenshot mode) per mostrare la barca customizzata
 - Localizzazione EN/IT

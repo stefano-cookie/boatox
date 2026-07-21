@@ -2,10 +2,11 @@ extends Node3D
 
 ## La zona di mare di M1: isole e porto piazzati a mano nella scena,
 ## scogli e punti boa sparsi proceduralmente con seed fisso (stessa mappa
-## a ogni avvio, densità regolabile dall'Inspector). Le boe seguono il
-## rischio della zona (GDD pillar 2): gialle in acque aperte, rosse ai
-## margini dei campi di scogli, blu dentro i campi. Gestisce anche il
-## confine mappa (countdown e recupero) e il traino a scafo zero.
+## a ogni avvio, densità regolabile dall'Inspector). Le boe seguono gli
+## anelli di mare della Sea (GDD pillar 2): gialle nelle acque calme,
+## rosse nelle medie, blu nelle mosse — dove stanno anche i campi di
+## scogli. Gestisce anche il confine mappa (countdown e recupero) e il
+## traino a scafo zero.
 
 const BUOY_SCENE: PackedScene = preload("res://scenes/buoy/buoy.tscn")
 const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
@@ -21,8 +22,8 @@ const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 @export_group("Sparpagliamento")
 @export var scatter_seed: int = 7
 @export var yellow_buoy_count: int = 26
-@export var red_points_per_field: int = 8
-@export var blue_points_per_field: int = 6
+@export var red_point_count: int = 14
+@export var blue_point_count: int = 10
 @export var rocks_per_field: int = 9
 @export var rock_field_radius: float = 13.0
 
@@ -42,9 +43,7 @@ func _ready() -> void:
 	GameState.hull_depleted.connect(_on_hull_depleted)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)
-	for field: Node3D in _rock_fields.get_children():
-		_spawn_field_buoys(field.global_position)
-	_spawn_yellow_buoys()
+	_spawn_zone_buoys()
 
 
 func _physics_process(delta: float) -> void:
@@ -101,23 +100,21 @@ func _spawn_rock_field(center: Vector3) -> void:
 		_rock_positions.append(pos)
 
 
-## Blu dentro il campo di scogli, rosse nell'anello ai suoi margini.
-func _spawn_field_buoys(center: Vector3) -> void:
-	for i in blue_points_per_field:
-		var pos := _sample_ring(center, 2.0, rock_field_radius, _buoy_positions, 5.0)
-		if pos.is_finite() and _far_from(pos, _rock_positions, 2.5):
-			_spawn_buoy(pos, GameState.BuoyType.BLUE)
-	for i in red_points_per_field:
-		var pos := _sample_ring(center, rock_field_radius + 2.0, rock_field_radius + 10.0, _buoy_positions, 6.0)
-		if pos.is_finite():
-			_spawn_buoy(pos, GameState.BuoyType.RED)
-
-
-func _spawn_yellow_buoys() -> void:
+## Ogni tipologia vive nel suo anello di mare (GDD § Boe): gialle nelle
+## acque calme, rosse nelle medie, blu nelle mosse.
+func _spawn_zone_buoys() -> void:
 	for i in yellow_buoy_count:
-		var pos := _sample_ring(Vector3.ZERO, 25.0, bounds_radius * 0.85, _buoy_positions, 10.0)
-		if pos.is_finite() and _is_open_water(pos):
+		var pos := _sample_ring(Vector3.ZERO, 25.0, sea.calm_radius - 10.0, _buoy_positions, 10.0)
+		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.YELLOW)
+	for i in red_point_count:
+		var pos := _sample_ring(Vector3.ZERO, sea.calm_radius + 5.0, sea.medium_radius - 5.0, _buoy_positions, 10.0)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_buoy(pos, GameState.BuoyType.RED)
+	for i in blue_point_count:
+		var pos := _sample_ring(Vector3.ZERO, sea.medium_radius + 10.0, bounds_radius * 0.88, _buoy_positions, 12.0)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_buoy(pos, GameState.BuoyType.BLUE)
 
 
 func _spawn_buoy(pos: Vector3, type: int) -> void:
@@ -148,15 +145,11 @@ func _far_from(pos: Vector3, points: Array[Vector3], min_dist: float) -> bool:
 	return true
 
 
-## Vero se il punto è lontano da isole, porto e campi di scogli: le boe
-## gialle restano in acque tranquille.
-func _is_open_water(pos: Vector3) -> bool:
+## Vero se il punto non finisce dentro isole, porto o scogli.
+func _is_clear(pos: Vector3) -> bool:
 	for island: Node3D in _islands.get_children():
 		if pos.distance_to(island.global_position) < 14.0 * island.scale.x:
 			return false
 	if pos.distance_to(_port.global_position) < 26.0:
 		return false
-	for field: Node3D in _rock_fields.get_children():
-		if pos.distance_to(field.global_position) < rock_field_radius + 12.0:
-			return false
-	return true
+	return _far_from(pos, _rock_positions, 3.0)
