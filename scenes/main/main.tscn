@@ -40,19 +40,19 @@ light_energy = 1.3
 shadow_enabled = true
 directional_shadow_max_distance = 150.0
 
-[node name="Sea" parent="." instance=ExtResource("1")]
+[node name="Sea" parent="." node_paths=PackedStringArray("follow_target") instance=ExtResource("1")]
 follow_target = NodePath("../Boat")
 
-[node name="Boat" parent="." instance=ExtResource("2")]
+[node name="Boat" parent="." node_paths=PackedStringArray("sea") instance=ExtResource("2")]
 sea = NodePath("../Sea")
 
-[node name="World" parent="." instance=ExtResource("4")]
+[node name="World" parent="." node_paths=PackedStringArray("boat", "sea") instance=ExtResource("4")]
 boat = NodePath("../Boat")
 sea = NodePath("../Sea")
 
 [node name="HUD" parent="." instance=ExtResource("5")]
 
-[node name="ChaseCamera" type="Camera3D" parent="."]
+[node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 9)
 current = true
 fov = 70.0
