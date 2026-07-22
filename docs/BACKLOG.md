@@ -3,10 +3,11 @@
 Parcheggio anti scope-creep: tutto ciò che è bello ma non serve alla beta finisce qui, mai direttamente nel codice.
 
 ## Sistemi
-- Finanza/commercio: prezzi del pesce diversi tra porti → rotte commerciali; poi eventuali mercati/investimenti
+- ~~Finanza/commercio tra porti~~ e ~~equipaggio/automazioni idle~~ → promossi nella beta gestionale (ROADMAP B2/B4)
+- Diplomazia simulata città-vs-città (le città commerciano e si fanno guerra tra loro, il giocatore sfrutta i conflitti) — nella beta le città interagiscono solo col giocatore
+- Mercati/investimenti finanziari oltre le rotte commerciali della beta
 - Tempesta come terzo stato meteo (con eventi di recupero/salvataggio dedicati)
 - Ciclo giorno/notte completo con pesca notturna
-- Equipaggio da assumere (automazioni in stile idle: pesca passiva mentre non giochi)
 - Progressione idle offline (guadagni mentre il gioco è chiuso)
 
 ## Contenuti
