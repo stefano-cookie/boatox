@@ -121,8 +121,16 @@ func _on_zone_body_exited(body: Node3D) -> void:
 ## menu si aspetta un giro di fisica e si riverifica che la barca sia
 ## davvero fuori dalla zona.
 func _confirm_departure(body: Node3D) -> void:
+	# Il nodo può uscire dall'albero durante l'attesa (cambio scena /
+	# partenza): senza questa guardia get_tree() è null e crasha.
+	if not is_inside_tree():
+		return
 	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
 	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
 	if not is_instance_valid(body) or _zone.overlaps_body(body):
 		return
 	_boat = null

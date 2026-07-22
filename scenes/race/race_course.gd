@@ -80,7 +80,11 @@ func _process(delta: float) -> void:
 				if _via_left <= 0.0:
 					_big_label.hide()
 			_check_player_gate()
-			_update_status()
+			# _check_player_gate può concludere la gara (ultimo cancello →
+			# _finish_player cambia stato): aggiorna la classifica solo se
+			# siamo ancora in gara, altrimenti _player_rank legge fuori limiti.
+			if _state == State.RACING:
+				_update_status()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -232,8 +236,9 @@ func _show_standings(rank: int) -> void:
 
 
 func _player_rank() -> int:
+	var next := mini(_player_next, _waypoints.size() - 1)
 	var progress := float(_player_next) * 10000.0 \
-		- _race_boat.global_position.distance_to(_waypoints[_player_next])
+		- _race_boat.global_position.distance_to(_waypoints[next])
 	var rank := 1 + _finish_order.size()
 	for racer in _racers:
 		if not racer.has_finished() and racer.progress() > progress:
