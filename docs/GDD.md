@@ -48,7 +48,9 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Pesca
 - Zone di pesca visibili (uccelli, increspature). Minigioco in due fasi: **ferrata** a tempismo, poi il **duello** — il pesce tira, tieni premuto per recuperare ma la tensione della lenza sale; troppo a lungo al massimo e il filo si spezza. I pregiati strattonano a scatti: bisogna mollare al momento giusto.
+- La difficoltà cresce con la fascia di mare: al largo finestra di ferrata più stretta, pesci pregiati (ricciola, tonno) con duelli lunghi e strappi aggressivi. È rischio-ricompensa (pillar 2): i pesci che valgono di più stanno dove pescare è più duro.
 - Pesci con rarità e prezzi diversi; la stiva limita quanto porti (upgrade stiva).
+- **Attrezzatura da pesca** (Nino, al porto): canna, mulinello, lenza. È l'anello di progressione della pesca — senza attrezzatura i pesci del largo sono ostici, con l'attrezzatura giusta si domano. Personale (vale su tutte le barche), altra uscita per l'economia.
 
 ### Danni e riparazione
 - Urti su scogli e tempeste danneggiano lo scafo; a zero scafo sotto costa → traino al porto a pagamento, al largo → affondamento con perdita del carico (vedi Navigazione).
@@ -61,6 +63,7 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Upgrade
 - **Funzionali** (per barca): motore (velocità), scafo (resistenza), stabilità (tenuta col mare mosso), stiva (capacità pesca). Ognuno percepibile nella guida.
+- **Attrezzatura da pesca** (personale, non per barca): canna (ferrata più facile), mulinello (recupero più rapido), lenza (regge di più, doma gli strappi). Comprata da Nino al porto. Rende il minigioco della pesca una progressione, non solo abilità.
 - **Estetici**: vernici, vele, bandiere, luci, accessori. Nessun effetto sul gameplay, costi alti.
 - **Barche**: 2-3 nella beta (barchetta → pescareccio → primo cabinato), ognuna con guida distinta.
 

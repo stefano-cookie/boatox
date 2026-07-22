@@ -219,11 +219,13 @@ func _start_fight() -> void:
 ## specie in GameState.FISH_FIGHT.
 func _update_fight(delta: float) -> void:
 	var params: Dictionary = GameState.FISH_FIGHT[_fight_type]
-	var reel_time: float = params["reel_time"]
-	var rise: float = params["rise"]
+	# Il mulinello velocizza il recupero e frena la salita di tensione, la
+	# lenza ammorbidisce gli strappi (attrezzatura comprata da Nino).
+	var reel_time: float = params["reel_time"] * GameState.fishing_reel_time_mult()
+	var rise: float = params["rise"] * GameState.fishing_reel_rise_mult()
 	var surge_interval: float = params["surge_interval"]
 	var surge_duration: float = params["surge_duration"]
-	var surge_rise: float = params["surge_rise"]
+	var surge_rise: float = params["surge_rise"] * GameState.fishing_surge_mult()
 	var holding := Input.is_action_pressed("interact")
 	if _surge_left > 0.0:
 		_surge_left -= delta
@@ -247,7 +249,7 @@ func _update_fight(delta: float) -> void:
 	_tension = clampf(_tension, 0.0, 1.0)
 	if _tension >= 0.999:
 		_snap_time += delta
-		if _snap_time >= GameState.FISH_SNAP_GRACE:
+		if _snap_time >= GameState.fishing_snap_grace():
 			_show_result("Il filo si spezza! Pesce perso…")
 			return
 	else:
@@ -332,8 +334,10 @@ func _sweep_time() -> float:
 	return GameState.FISHING_SWEEP_TIME[zone_tier]
 
 
+## Finestra di ferrata: base della fascia più il bonus della canna
+## (clampata così il centro resta piazzabile sulla barra).
 func _window_width() -> float:
-	return GameState.FISHING_WINDOW[zone_tier]
+	return clampf(GameState.FISHING_WINDOW[zone_tier] + GameState.fishing_window_bonus(), 0.05, 0.6)
 
 
 ## Posizione del cursore 0..1: avanti e indietro sulla barra.

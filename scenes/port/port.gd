@@ -16,9 +16,11 @@ var _boat: Boat = null
 var _docked_boat: Boat = null
 var _open: bool = false
 var _shipyard_open: bool = false
+var _tackle_open: bool = false
 
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
+var _gear_buttons: Dictionary[int, Button] = {}
 
 @onready var _zone: Area3D = $DockZone
 @onready var _tow_spawn: Marker3D = $TowSpawn
@@ -29,6 +31,7 @@ var _upgrade_buttons: Dictionary[int, Button] = {}
 @onready var _repair_button: Button = $PortUI/Panel/Margin/VBox/RepairButton
 @onready var _refuel_button: Button = $PortUI/Panel/Margin/VBox/RefuelButton
 @onready var _shipyard_button: Button = $PortUI/Panel/Margin/VBox/ShipyardButton
+@onready var _tackle_button: Button = $PortUI/Panel/Margin/VBox/TackleButton
 @onready var _leave_button: Button = $PortUI/Panel/Margin/VBox/LeaveButton
 @onready var _shipyard: PanelContainer = $PortUI/Shipyard
 @onready var _shipyard_money: Label = $PortUI/Shipyard/Margin/VBox/Money
@@ -36,6 +39,10 @@ var _upgrade_buttons: Dictionary[int, Button] = {}
 @onready var _upgrades_title: Label = $PortUI/Shipyard/Margin/VBox/UpgradesTitle
 @onready var _upgrades_box: VBoxContainer = $PortUI/Shipyard/Margin/VBox/UpgradesBox
 @onready var _back_button: Button = $PortUI/Shipyard/Margin/VBox/BackButton
+@onready var _tackle: PanelContainer = $PortUI/Tackle
+@onready var _tackle_money: Label = $PortUI/Tackle/Margin/VBox/Money
+@onready var _gear_box: VBoxContainer = $PortUI/Tackle/Margin/VBox/GearBox
+@onready var _tackle_back: Button = $PortUI/Tackle/Margin/VBox/BackButton
 
 
 func _ready() -> void:
@@ -45,11 +52,15 @@ func _ready() -> void:
 	_repair_button.pressed.connect(_on_repair_pressed)
 	_refuel_button.pressed.connect(_on_refuel_pressed)
 	_shipyard_button.pressed.connect(_open_shipyard)
+	_tackle_button.pressed.connect(_open_tackle)
 	_leave_button.pressed.connect(_close_menu)
 	_back_button.pressed.connect(_close_shipyard)
+	_tackle_back.pressed.connect(_close_tackle)
 	_build_shipyard_rows()
+	_build_tackle_rows()
 	_panel.hide()
 	_shipyard.hide()
+	_tackle.hide()
 	_hint.hide()
 
 
@@ -69,6 +80,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _shipyard_open:
 			get_viewport().set_input_as_handled()
 			_close_shipyard()
+		elif _tackle_open:
+			get_viewport().set_input_as_handled()
+			_close_tackle()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -80,6 +94,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _shipyard_open:
 			get_viewport().set_input_as_handled()
 			_close_shipyard()
+		elif _tackle_open:
+			get_viewport().set_input_as_handled()
+			_close_tackle()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -127,8 +144,10 @@ func _open_menu() -> void:
 func _close_menu() -> void:
 	_open = false
 	_shipyard_open = false
+	_tackle_open = false
 	_panel.hide()
 	_shipyard.hide()
+	_tackle.hide()
 	GameState.pop_ui_focus()
 	GameState.save_game()
 	if _docked_boat != null:
@@ -150,6 +169,22 @@ func _close_shipyard() -> void:
 	_refresh()
 	_panel.show()
 	_shipyard_button.grab_focus()
+
+
+func _open_tackle() -> void:
+	_tackle_open = true
+	_panel.hide()
+	_refresh_tackle()
+	_tackle.show()
+	_tackle_back.grab_focus()
+
+
+func _close_tackle() -> void:
+	_tackle_open = false
+	_tackle.hide()
+	_refresh()
+	_panel.show()
+	_tackle_button.grab_focus()
 
 
 func _on_sell_pressed() -> void:
@@ -263,5 +298,49 @@ func _refresh_shipyard() -> void:
 		else:
 			button.text = "%s liv. %d → %d (-%d $)" % [
 				GameState.UPGRADE_NAME[type], level, level + 1, cost,
+			]
+			button.disabled = GameState.money < cost
+
+
+# --- Bottega di Nino (attrezzatura da pesca) ---------------------------------
+
+## Una riga per attrezzo (canna, mulinello, lenza): descrizione a
+## sinistra, bottone d'acquisto a destra. Costruite una volta sola, come
+## le righe del cantiere.
+func _build_tackle_rows() -> void:
+	for gear: int in GameState.FISHING_GEAR_NAME:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var label := Label.new()
+		label.text = "%s\n%s" % [GameState.FISHING_GEAR_NAME[gear], GameState.FISHING_GEAR_DESC[gear]]
+		label.add_theme_font_size_override("font_size", 20)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 22)
+		button.custom_minimum_size = Vector2(190, 0)
+		button.pressed.connect(_on_gear_pressed.bind(gear))
+		row.add_child(button)
+		_gear_box.add_child(row)
+		_gear_buttons[gear] = button
+
+
+func _on_gear_pressed(gear: int) -> void:
+	GameState.buy_fishing_gear(gear)
+	_refresh_tackle()
+
+
+func _refresh_tackle() -> void:
+	_tackle_money.text = "Denaro: %d $" % GameState.money
+	for gear: int in _gear_buttons:
+		var button := _gear_buttons[gear]
+		var level := GameState.fishing_gear_level(gear)
+		var cost := GameState.fishing_gear_cost(gear)
+		if cost < 0:
+			button.text = "%s liv. %d — MAX" % [GameState.FISHING_GEAR_NAME[gear], level]
+			button.disabled = true
+		else:
+			button.text = "%s liv. %d → %d (-%d $)" % [
+				GameState.FISHING_GEAR_NAME[gear], level, level + 1, cost,
 			]
 			button.disabled = GameState.money < cost

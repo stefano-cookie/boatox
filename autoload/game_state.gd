@@ -28,6 +28,12 @@ enum BuoyType { YELLOW, RED, BLUE }
 ## Upgrade funzionali (GDD § Upgrade): ognuno si sente nella guida.
 enum UpgradeType { MOTOR, HULL, STABILITY, CARGO }
 
+## Attrezzatura da pesca, comprata da Nino al porto: è personale, non
+## della barca (vale su tutte). Canna = ferrata più facile (fase 1),
+## mulinello = recupero più rapido (fase 2), lenza = più tolleranza alla
+## tensione e agli strappi (fase 2).
+enum FishingGear { ROD, REEL, LINE }
+
 ## Specie di pesce (GDD § Pesca): ogni fascia di mare ha una specie
 ## comune e una pregiata che premia il tempismo perfetto.
 enum FishType { SARDINE, BREAM, AMBERJACK, TUNA }
@@ -133,18 +139,48 @@ const FISH_FIGHT: Dictionary[int, Dictionary] = {
 	FishType.SARDINE: {"reel_time": 3.0, "rise": 0.35,
 		"surge_interval": 0.0, "surge_duration": 0.0, "surge_rise": 0.0},
 	FishType.BREAM: {"reel_time": 4.5, "rise": 0.45,
-		"surge_interval": 3.2, "surge_duration": 1.0, "surge_rise": 0.6},
-	FishType.AMBERJACK: {"reel_time": 6.0, "rise": 0.5,
-		"surge_interval": 2.6, "surge_duration": 1.4, "surge_rise": 0.7},
-	FishType.TUNA: {"reel_time": 8.0, "rise": 0.6,
-		"surge_interval": 2.2, "surge_duration": 1.8, "surge_rise": 0.85},
+		"surge_interval": 3.4, "surge_duration": 1.0, "surge_rise": 0.5},
+	FishType.AMBERJACK: {"reel_time": 5.5, "rise": 0.48,
+		"surge_interval": 2.8, "surge_duration": 1.3, "surge_rise": 0.6},
+	FishType.TUNA: {"reel_time": 7.0, "rise": 0.55,
+		"surge_interval": 2.4, "surge_duration": 1.6, "surge_rise": 0.72},
 }
 ## Discesa della tensione a lenza mollata, in frazione/s.
-const FISH_TENSION_FALL: float = 0.9
+const FISH_TENSION_FALL: float = 0.95
 ## Il pesce riprende lenza mentre molli: progresso perso in frazione/s.
 const FISH_PROGRESS_DECAY: float = 0.05
-## Secondi concessi a tensione piena prima che il filo si spezzi.
-const FISH_SNAP_GRACE: float = 0.45
+## Secondi concessi a tensione piena prima che il filo si spezzi (di base;
+## la lenza li aumenta).
+const FISH_SNAP_GRACE: float = 0.55
+
+## Attrezzatura da pesca (indice = livello, 0 = base). Costo del livello
+## successivo in FISHING_GEAR_COSTS. Gli effetti si applicano in
+## FishingZone leggendo i getter fishing_* qui sotto.
+const FISHING_GEAR_NAME: Dictionary[int, String] = {
+	FishingGear.ROD: "Canna",
+	FishingGear.REEL: "Mulinello",
+	FishingGear.LINE: "Lenza",
+}
+const FISHING_GEAR_DESC: Dictionary[int, String] = {
+	FishingGear.ROD: "finestra di ferrata più larga",
+	FishingGear.REEL: "recupero più rapido, tensione più lenta",
+	FishingGear.LINE: "regge di più e doma gli strappi",
+}
+const FISHING_GEAR_COSTS: Dictionary[int, Array] = {
+	FishingGear.ROD: [200, 450, 900],
+	FishingGear.REEL: [250, 550, 1100],
+	FishingGear.LINE: [220, 500, 1000],
+}
+## Canna: quota aggiunta alla larghezza della finestra di ferrata.
+const FISHING_ROD_WINDOW_BONUS: Array[float] = [0.0, 0.03, 0.06, 0.09]
+## Mulinello: moltiplicatori (per livello) di tempo di recupero e salita
+## della tensione — più bassi = più facile.
+const FISHING_REEL_TIME_MULT: Array[float] = [1.0, 0.88, 0.78, 0.68]
+const FISHING_REEL_RISE_MULT: Array[float] = [1.0, 0.9, 0.82, 0.74]
+## Lenza: secondi di grazia extra a tensione piena e moltiplicatore della
+## forza degli strappi (più basso = strappi più gestibili).
+const FISHING_LINE_GRACE_BONUS: Array[float] = [0.0, 0.2, 0.45, 0.75]
+const FISHING_LINE_SURGE_MULT: Array[float] = [1.0, 0.85, 0.72, 0.6]
 
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
@@ -215,6 +251,9 @@ var owned_boats: Array[StringName] = [&"dinghy"]
 var current_boat_id: StringName = &"dinghy"
 ## Livelli upgrade per barca: id barca -> { UpgradeType -> livello }.
 var upgrades: Dictionary[StringName, Dictionary] = {}
+## Livelli dell'attrezzatura da pesca (FishingGear -> livello): globale,
+## comprata da Nino al porto.
+var fishing_gear: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -356,6 +395,64 @@ func _upgrade_costs(def: BoatDefinition, type: int) -> Array[int]:
 			return def.stability_costs
 		_:
 			return def.cargo_costs
+
+
+# --- Attrezzatura da pesca (bottega di Nino) ---------------------------------
+
+func fishing_gear_level(gear: int) -> int:
+	return fishing_gear.get(gear, 0)
+
+
+func fishing_gear_max_level(gear: int) -> int:
+	return FISHING_GEAR_COSTS[gear].size()
+
+
+## Costo del prossimo livello; -1 se già al massimo.
+func fishing_gear_cost(gear: int) -> int:
+	var costs: Array = FISHING_GEAR_COSTS[gear]
+	var level := fishing_gear_level(gear)
+	if level >= costs.size():
+		return -1
+	return costs[level]
+
+
+func buy_fishing_gear(gear: int) -> bool:
+	var cost := fishing_gear_cost(gear)
+	if cost < 0 or money < cost:
+		return false
+	money -= cost
+	fishing_gear[gear] = fishing_gear_level(gear) + 1
+	money_changed.emit(money)
+	post_notice("%s livello %d" % [FISHING_GEAR_NAME[gear], fishing_gear_level(gear)])
+	save_game()
+	return true
+
+
+## Effetti dell'attrezzatura, letti da FishingZone. Un valore per livello
+## posseduto (indice clampato alla curva, così un save con livelli fuori
+## scala non esplode).
+func fishing_window_bonus() -> float:
+	return _gear_curve(FISHING_ROD_WINDOW_BONUS, FishingGear.ROD)
+
+
+func fishing_reel_time_mult() -> float:
+	return _gear_curve(FISHING_REEL_TIME_MULT, FishingGear.REEL)
+
+
+func fishing_reel_rise_mult() -> float:
+	return _gear_curve(FISHING_REEL_RISE_MULT, FishingGear.REEL)
+
+
+func fishing_snap_grace() -> float:
+	return FISH_SNAP_GRACE + _gear_curve(FISHING_LINE_GRACE_BONUS, FishingGear.LINE)
+
+
+func fishing_surge_mult() -> float:
+	return _gear_curve(FISHING_LINE_SURGE_MULT, FishingGear.LINE)
+
+
+func _gear_curve(curve: Array[float], gear: int) -> float:
+	return curve[clampi(fishing_gear_level(gear), 0, curve.size() - 1)]
 
 
 # --- Stiva e denaro ----------------------------------------------------------
@@ -580,6 +677,9 @@ func save_game() -> void:
 	var owned_out: Array[String] = []
 	for id in owned_boats:
 		owned_out.append(String(id))
+	var gear_out: Dictionary = {}
+	for gear in fishing_gear:
+		gear_out[str(gear)] = fishing_gear[gear]
 	var data := {
 		"version": SAVE_VERSION,
 		"money": money,
@@ -591,6 +691,7 @@ func save_game() -> void:
 		"owned_boats": owned_out,
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
+		"fishing_gear": gear_out,
 	}
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -638,6 +739,10 @@ func load_game() -> void:
 	var fish_in: Dictionary = data.get("fish", {})
 	for type: String in fish_in:
 		fish_cargo[int(type)] = int(fish_in[type])
+	fishing_gear.clear()
+	var gear_in: Dictionary = data.get("fishing_gear", {})
+	for gear: String in gear_in:
+		fishing_gear[int(gear)] = int(gear_in[gear])
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
@@ -660,6 +765,7 @@ func reset() -> void:
 	owned_boats.append(&"dinghy")
 	current_boat_id = &"dinghy"
 	upgrades.clear()
+	fishing_gear.clear()
 	hull = hull_max()
 	fuel = fuel_capacity()
 	_ui_focus_count = 0

@@ -70,9 +70,32 @@ func _run() -> void:
 	var held_tension: float = zone._tension
 	for i in 30:
 		zone._update_fight(1.0 / 30.0)
-	print("DUELLO: dopo 2 s di recupero progresso %.2f (atteso ~0.72) e tensione %.2f (attesa ~0.95); mollando la tensione cala a %.2f" % [
+	print("DUELLO: dopo 2 s di recupero progresso %.2f e tensione %.2f (alta); mollando la tensione cala a %.2f" % [
 		held_progress, held_tension, zone._tension])
 	zone._end_fishing()
+
+	# --- Attrezzatura di Nino: comprarla cambia gli effetti sul minigioco ---
+	GameState.reset()
+	GameState.money = 5000
+	var base_window := GameState.FISHING_WINDOW[2] + GameState.fishing_window_bonus()
+	var base_grace := GameState.fishing_snap_grace()
+	var base_reel := GameState.fishing_reel_time_mult()
+	var rod_ok := GameState.buy_fishing_gear(GameState.FishingGear.ROD)
+	var reel_ok := GameState.buy_fishing_gear(GameState.FishingGear.REEL)
+	var line_ok := GameState.buy_fishing_gear(GameState.FishingGear.LINE)
+	print("BOTTEGA: acquisti canna/mulinello/lenza %s/%s/%s (attesi true)" % [rod_ok, reel_ok, line_ok])
+	print("EFFETTI: finestra largo %.2f -> %.2f (più larga), grazia %.2f -> %.2f (più alta), recupero ×%.2f -> ×%.2f (più basso)" % [
+		base_window, GameState.FISHING_WINDOW[2] + GameState.fishing_window_bonus(),
+		base_grace, GameState.fishing_snap_grace(),
+		base_reel, GameState.fishing_reel_time_mult()])
+
+	# --- Salvataggio: i livelli dell'attrezzatura fanno il roundtrip ---
+	GameState.save_game()
+	GameState.fishing_gear.clear()
+	GameState.load_game()
+	print("SALVATAGGIO ATTREZZATURA: canna liv. %d (atteso 1), lenza liv. %d (atteso 1)" % [
+		GameState.fishing_gear_level(GameState.FishingGear.ROD),
+		GameState.fishing_gear_level(GameState.FishingGear.LINE)])
 
 	GameState.reset()
 	get_tree().quit()
