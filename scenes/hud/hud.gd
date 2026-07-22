@@ -7,11 +7,20 @@ extends CanvasLayer
 ## logica di gioco qui.
 
 const MS_TO_KNOTS: float = 1.94384
-const ZONE_NAMES: Array[String] = ["Acque calme", "Acque medie", "Acque mosse"]
-const ZONE_COLORS: Array[Color] = [
+const ZONE_NAMES: Array[String] = ["Acque calme", "Acque medie", "Mare aperto"]
+## Stato locale del mare nel punto della barca (feedback playtest M3):
+## soglie di agitazione (zona × vento × meteo) e nomi/colori affiancati.
+## Le soglie alte ricalcano quelle di caos e danni della barca.
+const SEA_STATE_STEPS: Array[float] = [1.1, 1.9, 2.8, 3.4]
+const SEA_STATE_NAMES: Array[String] = [
+	"calmo", "increspato", "agitato", "grosso", "tempesta",
+]
+const SEA_STATE_COLORS: Array[Color] = [
 	Color(0.75, 0.95, 0.85),
+	Color(0.85, 0.95, 0.6),
 	Color(1.0, 0.85, 0.4),
-	Color(1.0, 0.45, 0.35),
+	Color(1.0, 0.6, 0.35),
+	Color(1.0, 0.4, 0.3),
 ]
 const WEATHER_CALM_COLOR := Color(0.75, 0.95, 0.85)
 const WEATHER_ROUGH_COLOR := Color(1.0, 0.45, 0.35)
@@ -73,8 +82,17 @@ func _process(_delta: float) -> void:
 	_speed_bar.value = speed
 	if sea != null:
 		var zone := sea.zone_index(boat.global_position)
-		_zone_label.text = ZONE_NAMES[zone]
-		_zone_label.modulate = ZONE_COLORS[zone]
+		var state := _sea_state_index(sea.agitation(boat.global_position))
+		_zone_label.text = "%s · %s" % [ZONE_NAMES[zone], SEA_STATE_NAMES[state]]
+		_zone_label.modulate = SEA_STATE_COLORS[state]
+
+
+## Indice dello stato locale del mare a partire dall'agitazione.
+func _sea_state_index(agitation: float) -> int:
+	for i in SEA_STATE_STEPS.size():
+		if agitation < SEA_STATE_STEPS[i]:
+			return i
+	return SEA_STATE_STEPS.size()
 
 
 func _on_money_changed(amount: int) -> void:

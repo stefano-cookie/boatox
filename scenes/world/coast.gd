@@ -12,7 +12,7 @@ extends Node3D
 @export var build_seed: int = 12
 ## Mezza larghezza della costa: più larga dei confini di gioco, così
 ## dall'acqua non se ne vede mai la fine.
-@export var half_width: float = 380.0
+@export var half_width: float = 520.0
 ## Linea di costa: deve coincidere con shore_z della Sea.
 @export var shore_z: float = -140.0
 @export var house_count: int = 22

@@ -61,6 +61,9 @@ var input_enabled: bool = true
 ## nell'acqua e appruata, senza toccare la guida (deve restare facile
 ## rientrare).
 var sink_amount: float = 0.0
+## Beccheggio extra (radianti) imposto dal duello di pesca: la barca
+## si inclina verso il pesce che tira. Solo visuale.
+var fight_pitch: float = 0.0
 
 # Guida corrente, copiata dalla BoatDefinition in _apply_definition.
 var max_speed: float = 14.0
@@ -266,7 +269,7 @@ func _update_attitude(throttle: float, steer: float, delta: float) -> void:
 	var wave_roll := atan2(h_right - h_left, _sample_right.x - _sample_left.x) * damp
 
 	var target_pitch := wave_pitch + deg_to_rad(accel_pitch_deg) * throttle \
-		+ deg_to_rad(sink_pitch_deg) * sink_amount
+		+ deg_to_rad(sink_pitch_deg) * sink_amount + fight_pitch
 	var target_roll := wave_roll + steer * deg_to_rad(bank_max_deg) * _turn_factor()
 
 	var t_att := 1.0 - exp(-attitude_smoothing * delta)

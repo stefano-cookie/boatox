@@ -149,14 +149,20 @@ func _start_race() -> void:
 	_update_status()
 
 
+## Le IA si tarano sul giocatore al via (feedback playtest M3): frazioni
+## della sua velocità effettiva e scarti sulla sua stabilità, upgrade
+## compresi. La gara resta combattuta con ogni barca: il rivale veloce
+## si batte con le traiettorie, non comprando motore.
 func _spawn_racers() -> void:
+	var player_speed := GameState.effective_max_speed()
+	var player_stability := GameState.effective_stability()
 	for i in GameState.RACE_AI.size():
 		var def: Dictionary = GameState.RACE_AI[i]
 		var racer := AIRacer.new()
 		racer.racer_name = def["name"]
 		racer.visual_scene = load(def["visual"])
-		racer.max_speed = def["speed"]
-		racer.stability = def["stability"]
+		racer.max_speed = player_speed * def["speed_ratio"]
+		racer.stability = clampf(player_stability + def["stability_delta"], 0.0, 1.0)
 		racer.turn_speed_deg = def["turn"]
 		racer.sea = sea
 		add_child(racer)
@@ -217,10 +223,10 @@ func _show_standings(rank: int) -> void:
 	for racer: AIRacer in unfinished:
 		place += 1
 		lines.append("%d°  %s (in mare)" % [place, racer.racer_name])
-	var prize: int = GameState.RACE_PRIZES[rank - 1] if rank - 1 < GameState.RACE_PRIZES.size() else 0
 	lines.append("")
-	lines.append("Premio: %d $" % prize)
+	lines.append("Premio: %d $" % GameState.race_prize(rank))
 	_standings.text = "\n".join(lines)
+	GameState.push_ui_focus()
 	_panel.show()
 	_close_button.grab_focus()
 
@@ -248,6 +254,7 @@ func _retire(message: String) -> void:
 
 func _close_result() -> void:
 	_panel.hide()
+	GameState.pop_ui_focus()
 	_cleanup()
 
 

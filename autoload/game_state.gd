@@ -15,6 +15,10 @@ signal boat_changed(def: BoatDefinition)
 signal notice_posted(text: String)
 signal danger_changed(text: String)
 signal danger_cleared
+## Vero quando almeno un pannello con puntatore (porto, pesca, regata,
+## pausa) è aperto: la ChaseCamera rilascia/ricattura il mouse su questo
+## segnale, senza duplicare la logica in ogni pannello.
+signal ui_focus_changed(open: bool)
 
 ## Tipologie di boa legate al rischio della zona (GDD pillar 2):
 ## gialla in acque tranquille, rossa ai margini degli scogli, blu
@@ -100,11 +104,12 @@ const FISHING_PRIZE: Dictionary[int, int] = {
 	1: FishType.AMBERJACK,
 	2: FishType.TUNA,
 }
-## Larghezza della finestra di cattura, in frazione della barra.
+## Larghezza della finestra di cattura, in frazione della barra (più
+## stretta dal feedback playtest M3: la ferrata è solo la fase 1).
 const FISHING_WINDOW: Dictionary[int, float] = {
-	0: 0.26,
-	1: 0.20,
-	2: 0.15,
+	0: 0.22,
+	1: 0.16,
+	2: 0.12,
 }
 ## Secondi per una traversata completa del cursore.
 const FISHING_SWEEP_TIME: Dictionary[int, float] = {
@@ -118,17 +123,46 @@ const FISHING_PRIZE_FRACTION: float = 0.4
 const FISHING_STOCK: int = 3
 const FISHING_REST: float = 150.0
 
-## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA
-## usano le stesse regole di rallentamento da mare grosso del giocatore:
-## motore e stabilità sono il banco di prova degli upgrade.
+## Fase 2 della pesca, il duello (feedback playtest M3): tieni premuto E
+## per recuperare, molla per far calare la tensione; a tensione piena
+## troppo a lungo il filo si spezza. Per specie: reel_time = secondi di
+## recupero effettivo, rise = tensione/s mentre si recupera, surge_* =
+## scatti casuali (i pregiati strappano: bisogna mollare al momento
+## giusto). Tutto qui, si bilancia senza toccare la scena.
+const FISH_FIGHT: Dictionary[int, Dictionary] = {
+	FishType.SARDINE: {"reel_time": 3.0, "rise": 0.35,
+		"surge_interval": 0.0, "surge_duration": 0.0, "surge_rise": 0.0},
+	FishType.BREAM: {"reel_time": 4.5, "rise": 0.45,
+		"surge_interval": 3.2, "surge_duration": 1.0, "surge_rise": 0.6},
+	FishType.AMBERJACK: {"reel_time": 6.0, "rise": 0.5,
+		"surge_interval": 2.6, "surge_duration": 1.4, "surge_rise": 0.7},
+	FishType.TUNA: {"reel_time": 8.0, "rise": 0.6,
+		"surge_interval": 2.2, "surge_duration": 1.8, "surge_rise": 0.85},
+}
+## Discesa della tensione a lenza mollata, in frazione/s.
+const FISH_TENSION_FALL: float = 0.9
+## Il pesce riprende lenza mentre molli: progresso perso in frazione/s.
+const FISH_PROGRESS_DECAY: float = 0.05
+## Secondi concessi a tensione piena prima che il filo si spezzi.
+const FISH_SNAP_GRACE: float = 0.45
+
+## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
+## hanno velocità assolute ma frazioni della velocità effettiva del
+## giocatore al via (feedback playtest M3): la gara resta combattuta con
+## ogni barca e upgrade — vincere richiede traiettorie, non solo motore.
+## speed_ratio moltiplica effective_max_speed(), stability_delta si somma
+## a effective_stability() (clampata 0..1).
 const RACE_PRIZES: Array[int] = [300, 120, 50]
+## Moltiplicatore dei premi per tier di barca (indice in BOAT_DEFS): la
+## regata resta redditizia senza diventare farming facile.
+const RACE_PRIZE_TIER_MULT: Array[float] = [1.0, 1.6, 2.4]
 const RACE_AI: Array[Dictionary] = [
 	{"name": "Ciccio", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
-		"speed": 11.5, "stability": 0.2, "turn": 60.0},
+		"speed_ratio": 0.90, "stability_delta": -0.1, "turn": 60.0},
 	{"name": "Rosa", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
-		"speed": 12.8, "stability": 0.35, "turn": 55.0},
+		"speed_ratio": 0.97, "stability_delta": 0.0, "turn": 55.0},
 	{"name": "Turi", "visual": "res://scenes/boat/visuals/fishing_visual.tscn",
-		"speed": 13.8, "stability": 0.5, "turn": 50.0},
+		"speed_ratio": 1.03, "stability_delta": 0.15, "turn": 50.0},
 ]
 
 const UPGRADE_NAME: Dictionary[int, String] = {
@@ -156,6 +190,9 @@ const FUEL_CAN_RESPAWN: float = 60.0
 const TOW_FEE: int = 30
 ## Scafo restituito dal traino: quanto basta per ripartire, non di più.
 const TOW_HULL_RESTORE: float = 20.0
+## Recupero dopo l'affondamento al largo (feedback playtest M3): più caro
+## del traino, e il carico è perso — il vero rischio del mare aperto.
+const SALVAGE_FEE: int = 100
 
 const SAVE_VERSION: int = 1
 ## Var e non const: i test headless la reindirizzano su un file proprio
@@ -417,10 +454,26 @@ func repair_hull() -> void:
 
 # --- Regata ------------------------------------------------------------------
 
+## Tier della barca: il suo indice nell'ordine di progressione BOAT_DEFS.
+func boat_tier(id: StringName = current_boat_id) -> int:
+	for i in BOAT_DEFS.size():
+		if BOAT_DEFS[i].id == id:
+			return i
+	return 0
+
+
+## Premio per piazzamento, scalato col tier della barca corrente
+## (feedback playtest M3): la regata rende anche a fine progressione.
+func race_prize(rank: int) -> int:
+	if rank - 1 >= RACE_PRIZES.size():
+		return 0
+	return roundi(RACE_PRIZES[rank - 1] * RACE_PRIZE_TIER_MULT[boat_tier()])
+
+
 ## Piazzamento a fine gara: accredita il premio e conta le vittorie
 ## (la prima sblocca il Cabinato in cantiere).
 func record_race_result(rank: int, total: int) -> void:
-	var prize: int = RACE_PRIZES[rank - 1] if rank - 1 < RACE_PRIZES.size() else 0
+	var prize := race_prize(rank)
 	if prize > 0:
 		money += prize
 		money_changed.emit(money)
@@ -489,6 +542,24 @@ func pay_tow() -> void:
 	money_changed.emit(money)
 	hull_changed.emit(hull, hull_max())
 	post_notice("Scafo a pezzi: rimorchiato al porto (-%d $)" % TOW_FEE)
+
+
+## Affondamento al largo (feedback playtest M3): il carico va perso e il
+## recupero costa più del traino. Chiamato dal World a barca già in porto.
+func salvage_after_sinking() -> void:
+	var lost := cargo_value()
+	cargo.clear()
+	fish_cargo.clear()
+	money = maxi(money - SALVAGE_FEE, 0)
+	hull = TOW_HULL_RESTORE
+	money_changed.emit(money)
+	hull_changed.emit(hull, hull_max())
+	cargo_changed.emit()
+	if lost > 0:
+		post_notice("Affondato! Carico perso (%d $) · recupero -%d $" % [lost, SALVAGE_FEE])
+	else:
+		post_notice("Affondato! Recupero al porto -%d $" % SALVAGE_FEE)
+	save_game()
 
 
 # --- Salvataggio -------------------------------------------------------------
@@ -591,6 +662,7 @@ func reset() -> void:
 	upgrades.clear()
 	hull = hull_max()
 	fuel = fuel_capacity()
+	_ui_focus_count = 0
 	delete_save()
 	money_changed.emit(money)
 	hull_changed.emit(hull, hull_max())
@@ -602,6 +674,31 @@ func reset() -> void:
 
 func post_notice(text: String) -> void:
 	notice_posted.emit(text)
+
+
+# --- Focus UI (mouse) --------------------------------------------------------
+
+## Conteggio dei pannelli aperti: le chiamate vanno sempre in coppia
+## (aperto/chiuso) da ogni pannello.
+var _ui_focus_count: int = 0
+
+
+func push_ui_focus() -> void:
+	_ui_focus_count += 1
+	if _ui_focus_count == 1:
+		ui_focus_changed.emit(true)
+
+
+func pop_ui_focus() -> void:
+	if _ui_focus_count <= 0:
+		return
+	_ui_focus_count -= 1
+	if _ui_focus_count == 0:
+		ui_focus_changed.emit(false)
+
+
+func ui_focus_open() -> bool:
+	return _ui_focus_count > 0
 
 
 ## Avviso persistente a schermo (es. countdown fuori zona), aggiornato

@@ -166,6 +166,55 @@ offset_right = 5.0
 offset_bottom = 26.0
 color = Color(1, 1, 1, 1)
 
+[node name="FightBox" type="VBoxContainer" parent="FishUI/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ReelLabel" type="Label" parent="FishUI/Panel/Margin/VBox/FightBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+modulate = Color(1, 1, 1, 0.7)
+text = "Recupero"
+
+[node name="ReelBar" type="Control" parent="FishUI/Panel/Margin/VBox/FightBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(460, 16)
+
+[node name="Bg" type="ColorRect" parent="FishUI/Panel/Margin/VBox/FightBox/ReelBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.06, 0.1, 1)
+
+[node name="Fill" type="ColorRect" parent="FishUI/Panel/Margin/VBox/FightBox/ReelBar"]
+offset_right = 0.0
+offset_bottom = 16.0
+color = Color(0.35, 0.7, 1, 1)
+
+[node name="TensionLabel" type="Label" parent="FishUI/Panel/Margin/VBox/FightBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+modulate = Color(1, 1, 1, 0.7)
+text = "Tensione"
+
+[node name="TensionBar" type="Control" parent="FishUI/Panel/Margin/VBox/FightBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(460, 16)
+
+[node name="Bg" type="ColorRect" parent="FishUI/Panel/Margin/VBox/FightBox/TensionBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.06, 0.1, 1)
+
+[node name="Fill" type="ColorRect" parent="FishUI/Panel/Margin/VBox/FightBox/TensionBar"]
+offset_right = 0.0
+offset_bottom = 16.0
+color = Color(0.3, 0.85, 0.45, 1)
+
 [node name="Tip" type="Label" parent="FishUI/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 17

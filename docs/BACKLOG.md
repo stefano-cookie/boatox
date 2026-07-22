@@ -21,8 +21,12 @@ Parcheggio anti scope-creep: tutto ciò che è bello ma non serve alla beta fini
 - Pagina Steam (~92€) se la beta raccoglie interesse
 - Port mobile con controlli touch
 
+## Grafica
+- Modelli barche dal watercraft/pirate kit di Kenney (CC0): il sito non espone link zip scaricabili da script, servono download manuale + import GLB; nel frattempo i primitivi sono stati arricchiti (parabrezza, luci di via, sartiame, radar)
+
 ## UI e feel
 - Minimappa (voluta da Stefano, rivalutare a fine M2/M4; nel frattempo l'orientamento passa da bussola/freccia porto se serve)
+- Zoom camera con la rotella del mouse (l'orbita col mouse è in M3)
 
 ## Da valutare
 - Fotografia in-game (screenshot mode) per mostrare la barca customizzata

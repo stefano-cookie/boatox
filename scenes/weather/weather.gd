@@ -20,7 +20,7 @@ signal state_changed(rough: bool)
 @export var sun: DirectionalLight3D
 @export var rough_sun_energy: float = 0.7
 @export var rough_fog_color: Color = Color(0.52, 0.56, 0.6)
-@export var rough_fog_depth_end: float = 150.0
+@export var rough_fog_depth_end: float = 220.0
 ## Col mosso la foschia mangia anche il cielo: niente tempesta col sole.
 @export var rough_fog_sky_affect: float = 0.55
 

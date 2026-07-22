@@ -22,6 +22,7 @@ const ROCK_COLOR := Color(0.32, 0.34, 0.38)
 const ISLAND_COLOR := Color(0.45, 0.62, 0.4)
 const PORT_COLOR := Color(1.0, 0.62, 0.2)
 const FUEL_COLOR := Color(0.9, 0.15, 0.1)
+const WIND_COLOR := Color(0.03, 0.07, 0.16)
 const FISHING_COLOR := Color(0.55, 0.9, 1.0)
 const RACE_COLOR := Color(0.35, 1.0, 0.55)
 const BOAT_COLOR := Color(1, 1, 1)
@@ -117,6 +118,7 @@ func _draw() -> void:
 	draw_style_box(_panel_style, Rect2(Vector2.ZERO, size))
 	var rect := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
 	_draw_bands(rect)
+	_draw_wind_cells(rect)
 	_draw_bounds(rect)
 	_draw_rocks(rect)
 	_draw_islands(rect)
@@ -145,6 +147,21 @@ func _draw_bands(rect: Rect2) -> void:
 	var separator := Color(1, 1, 1, 0.12)
 	draw_line(Vector2(rect.position.x, calm_y), Vector2(rect.end.x, calm_y), separator, 1.0)
 	draw_line(Vector2(rect.position.x, medium_y), Vector2(rect.end.x, medium_y), separator, 1.0)
+
+
+## Celle di vento attive come macchie scure sul mare (feedback playtest
+## M3): dentro una macchia il mare è più grosso del previsto.
+func _draw_wind_cells(rect: Rect2) -> void:
+	var field := get_tree().get_first_node_in_group(&"wind_field") as WindField
+	if field == null:
+		return
+	for cell in field.cells_packed():
+		if cell.w < 0.15:
+			continue
+		var center := _to_map(rect, Vector3(cell.x, 0.0, cell.y))
+		var radius := _px(rect, cell.z)
+		draw_circle(center, radius, Color(WIND_COLOR, 0.45 * cell.w))
+		draw_arc(center, radius, 0.0, TAU, 28, Color(WIND_COLOR, 0.7 * cell.w), 1.5)
 
 
 ## Bordo rosso sui lati di mare aperto: oltre scatta il countdown.
@@ -273,6 +290,9 @@ func _draw_legend(rect: Rect2) -> void:
 	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, FISHING_COLOR, 2.0)
 	x += 10.0
 	x = _legend_label(font, x, y, "pesca")
+	draw_circle(Vector2(x, y - 5.0), 5.0, Color(WIND_COLOR, 0.8))
+	x += 10.0
+	x = _legend_label(font, x, y, "vento")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, PORT_COLOR)
 	x += 11.0
 	_legend_label(font, x, y, "porto")

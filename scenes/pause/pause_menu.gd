@@ -33,6 +33,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _open() -> void:
 	get_tree().paused = true
+	GameState.push_ui_focus()
 	_refresh_fullscreen_label()
 	_root.show()
 	_resume_button.grab_focus()
@@ -40,6 +41,7 @@ func _open() -> void:
 
 func _resume() -> void:
 	get_tree().paused = false
+	GameState.pop_ui_focus()
 	_root.hide()
 
 

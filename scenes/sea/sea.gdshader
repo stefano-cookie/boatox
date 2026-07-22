@@ -13,25 +13,43 @@ uniform vec4 wave_c = vec4(-0.643, -0.766, 0.06, 4.5);
 uniform vec3 wave_speeds = vec3(3.0, 2.4, 1.8);
 
 // Zone di mare a fasce parallele alla costa (terra a z < shore_z):
-// risacca sulla battigia, poi acque calme -> medie -> mosse col largo.
+// risacca sulla battigia, poi acque calme -> medie -> mare aperto, dove
+// l'agitazione di base cresce con la distanza (curva continua).
 uniform float shore_z = -140.0;
 uniform float calm_width = 110.0;
 uniform float medium_width = 220.0;
 uniform float zone_blend = 40.0;
-// moltiplicatori: x = calme, y = medie, z = mosse
-uniform vec3 zone_amps = vec3(0.6, 1.5, 2.8);
+// moltiplicatori: x = calme, y = medie, z = inizio largo, w = largo estremo
+uniform vec4 zone_amps = vec4(0.6, 1.5, 1.7, 2.6);
+uniform float open_far_distance = 700.0;
 uniform float shore_lap_distance = 30.0;
 uniform float shore_min_multiplier = 0.25;
 // Meteo dinamico sopra le zone statiche: 1 = calmo, >1 = mosso.
 uniform float weather_mult = 1.0;
+// Celle di vento del WindField: xy = centro, z = raggio, w = intensità.
+// Falloff identico a WindField.wind_multiplier (le copie vanno allineate).
+uniform vec4 wind_cells[6];
+uniform float wind_strength = 0.9;
 
 float sea_state(vec2 p) {
 	float d = p.y - shore_z;
+	float open_amp = mix(zone_amps.z, zone_amps.w,
+		clamp((d - medium_width) / max(open_far_distance - medium_width, 1.0), 0.0, 1.0));
 	float m = mix(zone_amps.x, zone_amps.y,
 		smoothstep(calm_width - zone_blend * 0.5, calm_width + zone_blend * 0.5, d));
-	m = mix(m, zone_amps.z,
+	m = mix(m, open_amp,
 		smoothstep(medium_width - zone_blend * 0.5, medium_width + zone_blend * 0.5, d));
 	m *= mix(shore_min_multiplier, 1.0, smoothstep(0.0, shore_lap_distance, d));
+	float wind = 0.0;
+	for (int i = 0; i < 6; i++) {
+		float r = wind_cells[i].z;
+		if (wind_cells[i].w <= 0.0 || r <= 0.0) {
+			continue;
+		}
+		float fall = 1.0 - smoothstep(r * 0.35, r, distance(p, wind_cells[i].xy));
+		wind += wind_cells[i].w * fall;
+	}
+	m *= 1.0 + wind_strength * wind;
 	return m * weather_mult;
 }
 

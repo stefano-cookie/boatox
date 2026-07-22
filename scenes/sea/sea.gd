@@ -22,13 +22,24 @@ extends MeshInstance3D
 @export var shore_z: float = -140.0
 ## Larghezza della fascia di acque calme, misurata dalla costa.
 @export var calm_width: float = 110.0
-## Fino a questa distanza dalla costa acque medie; oltre, mosse.
+## Fino a questa distanza dalla costa acque medie; oltre, mare aperto.
 @export var medium_width: float = 220.0
 ## Larghezza della transizione tra una fascia e l'altra.
 @export var zone_blend: float = 40.0
 @export var calm_multiplier: float = 0.6
 @export var medium_multiplier: float = 1.5
-@export var rough_multiplier: float = 2.8
+
+@export_group("Mare aperto")
+## Oltre le acque medie non c'è una fascia uniforme ma una curva continua
+## (feedback playtest M3): agitazione di base media all'inizio del largo,
+## che cresce con la distanza fino a open_far_multiplier. Sopra ci
+## lavorano meteo e celle di vento: la tempesta perenne non esiste più.
+@export var open_base_multiplier: float = 1.7
+@export var open_far_multiplier: float = 2.6
+## Distanza dalla costa a cui la curva raggiunge open_far_multiplier.
+@export var open_far_distance: float = 700.0
+## Celle di vento che ingrossano il mare localmente (nodo WindField).
+@export var wind_field: WindField
 
 @export_group("Battigia")
 ## Entro questa distanza dalla costa le onde si spengono (risacca).
@@ -94,11 +105,15 @@ func shore_distance(world_pos: Vector3) -> float:
 ## Replica di sea_state nello shader: le due copie vanno tenute allineate.
 func state_multiplier(world_pos: Vector3) -> float:
 	var d := shore_distance(world_pos)
+	var open_amp := lerpf(open_base_multiplier, open_far_multiplier,
+		clampf((d - medium_width) / maxf(open_far_distance - medium_width, 1.0), 0.0, 1.0))
 	var m: float = lerpf(calm_multiplier, medium_multiplier,
 		smoothstep(calm_width - zone_blend * 0.5, calm_width + zone_blend * 0.5, d))
-	m = lerpf(m, rough_multiplier,
+	m = lerpf(m, open_amp,
 		smoothstep(medium_width - zone_blend * 0.5, medium_width + zone_blend * 0.5, d))
 	m *= lerpf(shore_min_multiplier, 1.0, smoothstep(0.0, shore_lap_distance, d))
+	if wind_field != null:
+		m *= wind_field.wind_multiplier(world_pos)
 	return m * weather_multiplier
 
 
@@ -116,7 +131,7 @@ func wave_push_direction() -> Vector3:
 	return Vector3(dir.x, 0.0, dir.y)
 
 
-## 0 = calme, 1 = medie, 2 = mosse (per HUD e spawn delle boe).
+## 0 = calme, 1 = medie, 2 = mare aperto (per HUD e spawn delle boe).
 func zone_index(world_pos: Vector3) -> int:
 	var d := shore_distance(world_pos)
 	if d < calm_width:
@@ -144,10 +159,15 @@ func _update_uniforms() -> void:
 	_material.set_shader_parameter("calm_width", calm_width)
 	_material.set_shader_parameter("medium_width", medium_width)
 	_material.set_shader_parameter("zone_blend", zone_blend)
-	_material.set_shader_parameter("zone_amps", Vector3(calm_multiplier, medium_multiplier, rough_multiplier))
+	_material.set_shader_parameter("zone_amps",
+		Vector4(calm_multiplier, medium_multiplier, open_base_multiplier, open_far_multiplier))
+	_material.set_shader_parameter("open_far_distance", open_far_distance)
 	_material.set_shader_parameter("shore_lap_distance", shore_lap_distance)
 	_material.set_shader_parameter("shore_min_multiplier", shore_min_multiplier)
 	_material.set_shader_parameter("weather_mult", weather_multiplier)
+	if wind_field != null:
+		_material.set_shader_parameter("wind_cells", wind_field.cells_packed())
+		_material.set_shader_parameter("wind_strength", wind_field.strength)
 
 
 func _wave_vec(dir_deg: float, amplitude: float, length: float) -> Vector4:

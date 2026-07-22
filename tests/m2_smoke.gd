@@ -70,7 +70,9 @@ func _run() -> void:
 	GameState.select_boat(&"dinghy")
 	await _wait(0.2)
 	_boat.reset_motion()
-	_boat.global_position = Vector3(0, 0.0, 160)
+	# Mare aperto profondo: con la curva continua il danno da tempesta
+	# scatta solo molto al largo (o dentro una cella di vento).
+	_boat.global_position = Vector3(0, 0.0, 480)
 	_boat.rotation.y = 0.0
 	var hull_before := GameState.hull
 	Input.action_press("move_forward")

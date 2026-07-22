@@ -35,6 +35,14 @@ func _run() -> void:
 		second_money, GameState.money, GameState.race_wins])
 	print("SBLOCCO: cabinato sbloccato %s (atteso true)" % GameState.boat_unlocked(&"cruiser"))
 
+	# --- Premi scalati col tier: col peschereccio il 2° vale 120 × 1.6 ---
+	GameState.owned_boats.append(&"fishing_boat")
+	GameState.select_boat(&"fishing_boat")
+	var tier_prize := GameState.race_prize(2)
+	print("PREMI TIER: 2° col peschereccio %d $ (attesi 192), fuori podio %d (atteso 0)" % [
+		tier_prize, GameState.race_prize(4)])
+	GameState.select_boat(&"dinghy")
+
 	# --- Salvataggio: le vittorie fanno il roundtrip ---
 	GameState.save_game()
 	GameState.race_wins = 0
@@ -52,6 +60,13 @@ func _run() -> void:
 	course._start_race()
 	print("PARTENZA: IA in griglia %d (attese 3), stato %d (atteso COUNTDOWN=1)" % [
 		course._racers.size(), course._state])
+
+	# --- IA relative: velocità come frazioni di quella del giocatore ---
+	var player_speed := GameState.effective_max_speed()
+	var ratios: Array[String] = []
+	for racer: AIRacer in course._racers:
+		ratios.append("%.2f" % (racer.max_speed / player_speed))
+	print("IA RELATIVE: rapporti %s (attesi [0.90, 0.97, 1.03])" % [ratios])
 	await _wait(3.5)
 	var start_positions: Array[Vector3] = []
 	for racer: AIRacer in course._racers:

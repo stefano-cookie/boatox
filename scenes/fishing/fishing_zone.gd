@@ -3,10 +3,14 @@ extends Area3D
 
 ## Zona di pesca (GDD § Pesca): un punto visibile da lontano — uccelli in
 ## cerchio e anelli d'increspatura sull'acqua — dove fermarsi e pescare
-## con E. Minigioco di tempismo: lanci la lenza, aspetti l'abboccata, poi
-## fermi il cursore nella finestra verde; il centro dorato vale il pesce
-## pregiato della fascia. Esaurito lo stock gli uccelli se ne vanno e la
-## zona riposa. Specie, valori e difficoltà per fascia in GameState.
+## con E. Minigioco in due fasi (feedback playtest M3): la ferrata a
+## tempismo (cursore nella finestra verde, centro dorato = pesce
+## pregiato), poi il duello — il pesce tira, tieni premuto E per
+## recuperare ma la tensione sale; molla per farla calare. Tensione al
+## massimo troppo a lungo e il filo si spezza. I pregiati fanno scatti
+## casuali: bisogna mollare al momento giusto. Esaurito lo stock gli
+## uccelli se ne vanno e la zona riposa. Specie, valori, difficoltà e
+## parametri del duello per specie in GameState.
 
 ## Fascia di mare della zona: decide specie e difficoltà (0 = calme).
 @export_range(0, 2) var zone_tier: int = 0
@@ -20,7 +24,14 @@ extends Area3D
 ## Secondi di permanenza del risultato a schermo.
 @export var result_time: float = 1.6
 
-enum State { IDLE, WAITING, BITE, RESULT }
+enum State { IDLE, WAITING, BITE, FIGHT, RESULT }
+
+## Angolo di beccheggio della barca a tensione piena durante il duello.
+const FIGHT_PITCH_DEG: float = -4.5
+## Colori della barra tensione: verde → giallo → rosso.
+const TENSION_OK := Color(0.3, 0.85, 0.45)
+const TENSION_WARN := Color(1.0, 0.84, 0.3)
+const TENSION_DANGER := Color(0.95, 0.3, 0.25)
 
 ## Assegnata da chi la spawna: serve per le increspature sull'acqua.
 var sea: Sea
@@ -38,6 +49,14 @@ var _result_left: float = 0.0
 var _cursor_time: float = 0.0
 var _window_center: float = 0.5
 var _time: float = 0.0
+# Stato del duello (fase 2).
+var _fight_type: int = GameState.FishType.SARDINE
+var _fight_prize: bool = false
+var _progress: float = 0.0
+var _tension: float = 0.0
+var _snap_time: float = 0.0
+var _surge_left: float = 0.0
+var _surge_timer: float = 0.0
 
 @onready var _visual: Node3D = $Visual
 @onready var _birds_pivot: Node3D = $Visual/BirdsPivot
@@ -50,6 +69,12 @@ var _time: float = 0.0
 @onready var _window_rect: ColorRect = $FishUI/Panel/Margin/VBox/Bar/Window
 @onready var _prize_rect: ColorRect = $FishUI/Panel/Margin/VBox/Bar/Prize
 @onready var _cursor_rect: ColorRect = $FishUI/Panel/Margin/VBox/Bar/Cursor
+@onready var _fight_box: VBoxContainer = $FishUI/Panel/Margin/VBox/FightBox
+@onready var _reel_bar: Control = $FishUI/Panel/Margin/VBox/FightBox/ReelBar
+@onready var _reel_fill: ColorRect = $FishUI/Panel/Margin/VBox/FightBox/ReelBar/Fill
+@onready var _tension_bar: Control = $FishUI/Panel/Margin/VBox/FightBox/TensionBar
+@onready var _tension_fill: ColorRect = $FishUI/Panel/Margin/VBox/FightBox/TensionBar/Fill
+@onready var _tip: Label = $FishUI/Panel/Margin/VBox/Tip
 
 
 func _ready() -> void:
@@ -75,6 +100,8 @@ func _process(delta: float) -> void:
 			_place_cursor()
 			if _bite_left <= 0.0:
 				_show_result("Scappato! Riprova…")
+		State.FIGHT:
+			_update_fight(delta)
 		State.RESULT:
 			_result_left -= delta
 			if _result_left <= 0.0:
@@ -125,12 +152,16 @@ func _start_fishing() -> void:
 	_fishing_boat = _boat
 	_fishing_boat.input_enabled = false
 	_fishing_boat.reset_motion()
+	GameState.push_ui_focus()
 	_state = State.WAITING
 	_wait_left = randf_range(bite_wait_min, bite_wait_max)
 	_info.text = "Lenza in acqua… aspetta l'abboccata"
+	_tip.text = "E per ferrare  ·  Esc per annullare"
 	_window_rect.hide()
 	_prize_rect.hide()
 	_cursor_rect.hide()
+	_fight_box.hide()
+	_bar.show()
 	_panel.show()
 
 
@@ -153,21 +184,112 @@ func _start_bite() -> void:
 	_place_cursor()
 
 
+## Ferrata riuscita: non si incassa subito, inizia il duello (fase 2).
 func _strike() -> void:
 	var offset := absf(_cursor_position() - _window_center)
 	var half := _window_width() * 0.5
 	if offset > half:
 		_show_result("Scappato! Riprova…")
 		return
-	var prize := offset <= half * GameState.FISHING_PRIZE_FRACTION
-	var type: int = GameState.FISHING_PRIZE[zone_tier] if prize \
+	_fight_prize = offset <= half * GameState.FISHING_PRIZE_FRACTION
+	_fight_type = GameState.FISHING_PRIZE[zone_tier] if _fight_prize \
 		else GameState.FISHING_COMMON[zone_tier]
-	if not GameState.collect_fish(type):
+	_start_fight()
+
+
+# --- Fase 2: il duello -------------------------------------------------------
+
+func _start_fight() -> void:
+	_state = State.FIGHT
+	_progress = 0.05
+	_tension = 0.25
+	_snap_time = 0.0
+	_surge_left = 0.0
+	_surge_timer = _next_surge_delay()
+	_info.text = "ABBOCCATO! Il pesce combatte"
+	_tip.text = "Tieni premuto E per recuperare  ·  molla per la tensione"
+	_bar.hide()
+	_fight_box.show()
+	_refresh_fight_bars()
+
+
+## Il tira-e-molla: E premuto recupera lenza ma alza la tensione, mollare
+## la fa calare (e il pesce riprende un po' di lenza). Gli scatti alzano
+## la tensione anche a lenza mollata: vanno assecondati. Parametri per
+## specie in GameState.FISH_FIGHT.
+func _update_fight(delta: float) -> void:
+	var params: Dictionary = GameState.FISH_FIGHT[_fight_type]
+	var reel_time: float = params["reel_time"]
+	var rise: float = params["rise"]
+	var surge_interval: float = params["surge_interval"]
+	var surge_duration: float = params["surge_duration"]
+	var surge_rise: float = params["surge_rise"]
+	var holding := Input.is_action_pressed("interact")
+	if _surge_left > 0.0:
+		_surge_left -= delta
+		if _surge_left <= 0.0:
+			_info.text = "Il pesce combatte"
+	elif surge_interval > 0.0:
+		_surge_timer -= delta
+		if _surge_timer <= 0.0:
+			_surge_left = surge_duration * randf_range(0.8, 1.2)
+			_surge_timer = _next_surge_delay()
+			_info.text = "STRAPPO! Molla la lenza!"
+	var surging := _surge_left > 0.0
+	if holding:
+		_progress = minf(_progress + delta / reel_time, 1.0)
+		_tension += rise * delta
+	else:
+		_progress = maxf(_progress - GameState.FISH_PROGRESS_DECAY * delta, 0.0)
+		_tension -= GameState.FISH_TENSION_FALL * delta
+	if surging:
+		_tension += surge_rise * delta
+	_tension = clampf(_tension, 0.0, 1.0)
+	if _tension >= 0.999:
+		_snap_time += delta
+		if _snap_time >= GameState.FISH_SNAP_GRACE:
+			_show_result("Il filo si spezza! Pesce perso…")
+			return
+	else:
+		_snap_time = 0.0
+	# La barca si inclina verso il pesce che tira: si sente il duello.
+	if _fishing_boat != null:
+		_fishing_boat.fight_pitch = deg_to_rad(FIGHT_PITCH_DEG) * (0.35 + 0.65 * _tension)
+	if _progress >= 1.0:
+		_finish_catch()
+		return
+	_refresh_fight_bars()
+
+
+func _finish_catch() -> void:
+	if not GameState.collect_fish(_fight_type):
 		_show_result("Stiva piena! Vendi al porto")
 		return
 	_stock -= 1
-	var label := "Pesce pregiato: %s! (+%d $ in stiva)" if prize else "Preso: %s (+%d $ in stiva)"
-	_show_result(label % [GameState.FISH_NAME[type], GameState.FISH_VALUE[type]])
+	var label := "Pesce pregiato: %s! (+%d $ in stiva)" if _fight_prize \
+		else "Preso: %s (+%d $ in stiva)"
+	_show_result(label % [GameState.FISH_NAME[_fight_type], GameState.FISH_VALUE[_fight_type]])
+
+
+func _refresh_fight_bars() -> void:
+	_reel_fill.size.x = _progress * _reel_bar.size.x
+	_tension_fill.size.x = _tension * _tension_bar.size.x
+	if _tension < 0.55:
+		_tension_fill.color = TENSION_OK
+	elif _tension < 0.8:
+		_tension_fill.color = TENSION_WARN
+	else:
+		_tension_fill.color = TENSION_DANGER
+	# Piccolo shake sull'ultimo tratto del recupero: il pesce è quasi su.
+	_panel.pivot_offset = _panel.size * 0.5
+	_panel.rotation = randf_range(-0.006, 0.006) if _progress > 0.82 else 0.0
+
+
+func _next_surge_delay() -> float:
+	var surge_interval: float = GameState.FISH_FIGHT[_fight_type]["surge_interval"]
+	if surge_interval <= 0.0:
+		return INF
+	return surge_interval * randf_range(0.7, 1.4)
 
 
 ## Il cursore resta fermo dov'è stato colpito: si vede quanto ci si è
@@ -176,12 +298,18 @@ func _show_result(text: String) -> void:
 	_state = State.RESULT
 	_result_left = result_time
 	_info.text = text
+	_panel.rotation = 0.0
+	if _fishing_boat != null:
+		_fishing_boat.fight_pitch = 0.0
 
 
 func _end_fishing() -> void:
 	_state = State.IDLE
 	_panel.hide()
+	_panel.rotation = 0.0
+	GameState.pop_ui_focus()
 	if _fishing_boat != null:
+		_fishing_boat.fight_pitch = 0.0
 		_fishing_boat.input_enabled = true
 		_fishing_boat = null
 	if _stock <= 0:

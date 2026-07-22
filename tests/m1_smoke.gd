@@ -69,8 +69,9 @@ func _run() -> void:
 
 	# --- Confini: fuori zona parte il countdown, poi recupero al porto ---
 	_boat.reset_motion()
-	_boat.global_position = Vector3(0, 0.0, 260)
 	var world: Node3D = _main.get_node("World")
+	# Appena oltre il limite di profondità della baia, qualunque esso sia.
+	_boat.global_position = Vector3(0, 0.0, sea.shore_z + world.bounds_depth + 20.0)
 	await _wait(world.escape_countdown + 2.0)
 	var port_dist := _boat.global_position.distance_to(Vector3(36, 0, -132))
 	print("CONFINI: dopo il countdown la barca è a %.1f m dal molo (atteso <10)" % port_dist)

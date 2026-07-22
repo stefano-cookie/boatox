@@ -49,12 +49,30 @@ func _run() -> void:
 	print("SALVATAGGIO: %d ricciole (attese 2)" % GameState.fish_cargo.get(
 		GameState.FishType.AMBERJACK, 0))
 
-	# --- Mondo: una zona di pesca per fascia di mare ---
+	# --- Mondo: una zona di pesca per fascia di mare (due al largo) ---
 	var tiers: Array[int] = []
 	for node in get_tree().get_nodes_in_group(&"fishing_zones"):
 		tiers.append((node as FishingZone).zone_tier)
 	tiers.sort()
-	print("ZONE: %d nel mondo, fasce %s (attese [0, 1, 2])" % [tiers.size(), tiers])
+	print("ZONE: %d nel mondo, fasce %s (attese [0, 1, 2, 2])" % [tiers.size(), tiers])
+
+	# --- Duello (fase 2): tenere E recupera lenza ma alza la tensione ---
+	GameState.reset()
+	var zone := get_tree().get_first_node_in_group(&"fishing_zones") as FishingZone
+	zone._fight_type = GameState.FishType.SARDINE
+	zone._fight_prize = false
+	zone._start_fight()
+	Input.action_press("interact")
+	for i in 60:
+		zone._update_fight(1.0 / 30.0)
+	Input.action_release("interact")
+	var held_progress: float = zone._progress
+	var held_tension: float = zone._tension
+	for i in 30:
+		zone._update_fight(1.0 / 30.0)
+	print("DUELLO: dopo 2 s di recupero progresso %.2f (atteso ~0.72) e tensione %.2f (attesa ~0.95); mollando la tensione cala a %.2f" % [
+		held_progress, held_tension, zone._tension])
+	zone._end_fishing()
 
 	GameState.reset()
 	get_tree().quit()

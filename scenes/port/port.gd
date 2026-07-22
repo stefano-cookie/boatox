@@ -118,6 +118,7 @@ func _open_menu() -> void:
 	_docked_boat = _boat
 	_docked_boat.input_enabled = false
 	_docked_boat.reset_motion()
+	GameState.push_ui_focus()
 	_refresh()
 	_panel.show()
 	_sell_button.grab_focus()
@@ -128,6 +129,7 @@ func _close_menu() -> void:
 	_shipyard_open = false
 	_panel.hide()
 	_shipyard.hide()
+	GameState.pop_ui_focus()
 	GameState.save_game()
 	if _docked_boat != null:
 		_docked_boat.input_enabled = true

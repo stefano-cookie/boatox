@@ -20,7 +20,7 @@ Gioco 3D low-poly per PC. Parti con una barchetta scassata e arrivi allo yacht: 
 
 ## Camera
 
-Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — si vedono barca, mare circostante, oggetti e orizzonte. Altezza/distanza/inclinazione esposte come `@export` e tarate col playtest.
+Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — si vedono barca, mare circostante, oggetti e orizzonte. Col mouse si orbita attorno alla barca (guardare dietro e di lato); dopo qualche secondo senza input la camera torna da sola dietro la poppa. Altezza/distanza/inclinazione/sensibilità esposte come `@export` e tarate col playtest.
 
 ## Core loop
 
@@ -32,11 +32,13 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Navigazione e meteo
 - Guida arcade: accelerazione, virata, deriva leggera. Niente simulazione velica.
-- La mappa è una baia: costa a nord (spiaggia, paese, porto), mare aperto a sud. Lo stato del mare cresce con la distanza dalla costa, a fasce statiche parallele: **battigia** (risacca minima), **acque calme** sotto costa, **acque medie**, **acque mosse** al largo. L'HUD mostra sempre la fascia corrente; sotto costa si è sempre al sicuro.
+- La mappa è una baia grande: costa a nord (spiaggia, paese, porto), mare aperto vasto a sud — il giocatore può passarci molto tempo. Lo stato del mare cresce con la distanza dalla costa: **battigia** (risacca minima), **acque calme** sotto costa, **acque medie**, poi il **mare aperto**, dove l'agitazione di base è media e continua a crescere col largo (curva continua, non gradini). L'HUD mostra sempre lo stato locale; sotto costa si è sempre al sicuro.
+- **Celle di vento** sul mare aperto: aree circolari che derivano lentamente, si rafforzano e si spengono nel tempo. Dentro una cella attiva il mare si ingrossa davvero (guida e danni compresi): il largo non è sempre grosso, ma non è mai prevedibile.
 - Geografia del rischio: scogli vicino a costa e promontori, isole e campi di scogli al largo nelle acque medie/mosse.
 - Meteo dinamico (M2): stati calmo → mosso che cambiano a onde temporali sopra le fasce statiche; cielo, luce e foschia si incupiscono insieme alle onde.
 - Il mare mosso spinge (verso costa, mai al largo), destabilizza e **frena**: la velocità massima cala con l'agitazione, mitigata dalla stabilità. Con la barchetta iniziale il largo in tempesta è quasi ingovernabile; con upgrade di stabilità diventa attraversabile. È il cancello di progressione principale.
-- Nelle condizioni estreme (acque mosse + meteo mosso) il mare **danneggia lo scafo** a tick visibili, con allarme a schermo: restare al largo in tempesta è una scommessa, la costa è la salvezza.
+- Nelle condizioni estreme (mare aperto + cella di vento attiva) il mare **danneggia lo scafo** a tick visibili, con allarme a schermo: restare al largo in tempesta è una scommessa, la costa è la salvezza.
+- A scafo zero **al largo la barca affonda**: carico perso e recupero a pagamento. Sotto costa resta il traino. Il mare aperto deve poter punire davvero (pillar 2), senza però cancellare la progressione (denaro e upgrade restano).
 - Uscire dai confini mappa avvia un countdown visibile con affondamento progressivo; se non rientri in tempo, recupero gratuito al porto.
 
 ### Boe (item da vendere)
@@ -45,11 +47,11 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 - Ogni punto boa ritenta lo spawn a ogni ciclo di respawn con la probabilità della sua tipologia.
 
 ### Pesca
-- Zone di pesca visibili (uccelli, increspature). Minigioco breve di tempismo a tasti.
+- Zone di pesca visibili (uccelli, increspature). Minigioco in due fasi: **ferrata** a tempismo, poi il **duello** — il pesce tira, tieni premuto per recuperare ma la tensione della lenza sale; troppo a lungo al massimo e il filo si spezza. I pregiati strattonano a scatti: bisogna mollare al momento giusto.
 - Pesci con rarità e prezzi diversi; la stiva limita quanto porti (upgrade stiva).
 
 ### Danni e riparazione
-- Urti su scogli e tempeste danneggiano lo scafo; a zero scafo → traino al porto a pagamento (niente game over punitivo).
+- Urti su scogli e tempeste danneggiano lo scafo; a zero scafo sotto costa → traino al porto a pagamento, al largo → affondamento con perdita del carico (vedi Navigazione).
 - Riparare costa: è la valvola di sfogo dell'economia.
 
 ### Economia
@@ -64,6 +66,7 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 ### Corse
 - Regate a checkpoint (boe da toccare) contro 2-3 avversari IA su percorso fisso.
+- Le IA si scalano sulla barca del giocatore al via (velocità e stabilità relative alle sue): la gara è combattuta a ogni tier, si vince con le traiettorie, non comprando velocità.
 - Motore e stabilità contano davvero: sono il banco di prova degli upgrade.
 - Premi in denaro; vincere una gara può sbloccare zone/contenuti (cancello di progressione).
 
