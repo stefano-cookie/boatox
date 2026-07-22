@@ -22,6 +22,7 @@ const ROCK_COLOR := Color(0.32, 0.34, 0.38)
 const ISLAND_COLOR := Color(0.45, 0.62, 0.4)
 const PORT_COLOR := Color(1.0, 0.62, 0.2)
 const FUEL_COLOR := Color(0.9, 0.15, 0.1)
+const FISHING_COLOR := Color(0.55, 0.9, 1.0)
 const BOAT_COLOR := Color(1, 1, 1)
 const TEXT_COLOR := Color(0.85, 0.9, 0.95)
 
@@ -119,6 +120,7 @@ func _draw() -> void:
 	_draw_rocks(rect)
 	_draw_islands(rect)
 	_draw_port(rect)
+	_draw_fishing_zones(rect)
 	_draw_pickups(rect)
 	_draw_boat(rect)
 	if _expanded:
@@ -171,6 +173,17 @@ func _draw_port(rect: Rect2) -> void:
 	if _expanded:
 		draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), "Porto",
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+
+
+## Zone di pesca attive, come anelli (quelle a riposo non si disegnano:
+## gli uccelli se ne sono andati anche dalla mappa).
+func _draw_fishing_zones(rect: Rect2) -> void:
+	var radius := maxf(_px(rect, 9.0), 4.0)
+	for node in get_tree().get_nodes_in_group(&"fishing_zones"):
+		var zone := node as FishingZone
+		if zone == null or zone.is_resting():
+			continue
+		draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
 
 
 ## Boe e taniche effettivamente presenti in acqua (i punti non spawnati
@@ -243,6 +256,9 @@ func _draw_legend(rect: Rect2) -> void:
 	draw_rect(Rect2(x - 5.0, y - 10.0, 10.0, 10.0), FUEL_COLOR)
 	x += 10.0
 	x = _legend_label(font, x, y, "benzina")
+	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, FISHING_COLOR, 2.0)
+	x += 10.0
+	x = _legend_label(font, x, y, "pesca")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, PORT_COLOR)
 	x += 11.0
 	_legend_label(font, x, y, "porto")

@@ -13,6 +13,7 @@ extends Node3D
 const BUOY_SCENE: PackedScene = preload("res://scenes/buoy/buoy.tscn")
 const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
+const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zone.tscn")
 
 @export var boat: Boat
 @export var sea: Sea
@@ -32,6 +33,8 @@ const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 @export var blue_point_count: int = 10
 ## Punti tanica di benzina, sparsi su tutta la baia (spawn al 5%).
 @export var fuel_point_count: int = 12
+## Zone di pesca per fascia di mare (GDD beta: 2-3 zone in tutto).
+@export var fishing_zones_per_band: int = 1
 ## Le boe vengono campionate con |x| entro questo limite, per non
 ## finire dentro i promontori.
 @export var scatter_half_width: float = 255.0
@@ -41,6 +44,7 @@ const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 var _rng := RandomNumberGenerator.new()
 var _rock_positions: Array[Vector3] = []
 var _buoy_positions: Array[Vector3] = []
+var _fishing_positions: Array[Vector3] = []
 ## -1 quando la barca è dentro i confini.
 var _outside_elapsed: float = -1.0
 var _storm_alarmed: bool = false
@@ -55,6 +59,9 @@ func _ready() -> void:
 	GameState.hull_depleted.connect(_on_hull_depleted)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)
+	# Le zone di pesca prima delle boe: prendono posto pulito e le boe
+	# non finiscono dentro gli anelli.
+	_spawn_fishing_zones()
 	_spawn_zone_buoys()
 
 
@@ -159,6 +166,30 @@ func _spawn_zone_buoys() -> void:
 			_spawn_fuel_can(pos)
 
 
+## Una zona di pesca per fascia di mare (GDD § Pesca): specie e
+## difficoltà crescono col rischio, come le boe.
+func _spawn_fishing_zones() -> void:
+	var bands: Array[Vector2] = [
+		Vector2(25.0, sea.calm_width - 20.0),
+		Vector2(sea.calm_width + 15.0, sea.medium_width - 15.0),
+		Vector2(sea.medium_width + 20.0, bounds_depth - 70.0),
+	]
+	for tier in bands.size():
+		for i in fishing_zones_per_band:
+			var pos := _sample_band(bands[tier].x, bands[tier].y, _fishing_positions, 60.0)
+			if pos.is_finite() and _is_clear(pos):
+				_spawn_fishing_zone(pos, tier)
+
+
+func _spawn_fishing_zone(pos: Vector3, tier: int) -> void:
+	var zone := FISHING_ZONE_SCENE.instantiate() as FishingZone
+	zone.zone_tier = tier
+	zone.sea = sea
+	add_child(zone)
+	zone.global_position = Vector3(pos.x, 0.0, pos.z)
+	_fishing_positions.append(pos)
+
+
 func _spawn_buoy(pos: Vector3, type: int) -> void:
 	var buoy := BUOY_SCENE.instantiate() as Buoy
 	buoy.type = type
@@ -205,11 +236,13 @@ func _far_from(pos: Vector3, points: Array[Vector3], min_dist: float) -> bool:
 	return true
 
 
-## Vero se il punto non finisce dentro isole, porto o scogli.
+## Vero se il punto non finisce dentro isole, porto, scogli o zone di pesca.
 func _is_clear(pos: Vector3) -> bool:
 	for island: Node3D in _islands.get_children():
 		if pos.distance_to(island.global_position) < 14.0 * island.scale.x:
 			return false
 	if pos.distance_to(_port.global_position) < 26.0:
+		return false
+	if not _far_from(pos, _fishing_positions, 16.0):
 		return false
 	return _far_from(pos, _rock_positions, 3.0)

@@ -24,6 +24,10 @@ enum BuoyType { YELLOW, RED, BLUE }
 ## Upgrade funzionali (GDD § Upgrade): ognuno si sente nella guida.
 enum UpgradeType { MOTOR, HULL, STABILITY, CARGO }
 
+## Specie di pesce (GDD § Pesca): ogni fascia di mare ha una specie
+## comune e una pregiata che premia il tempismo perfetto.
+enum FishType { SARDINE, BREAM, AMBERJACK, TUNA }
+
 const BUOY_VALUE: Dictionary[int, int] = {
 	BuoyType.YELLOW: 10,
 	BuoyType.RED: 40,
@@ -56,6 +60,63 @@ const BUOY_HEX: Dictionary[int, String] = {
 	BuoyType.RED: "ff7b6b",
 	BuoyType.BLUE: "7da2ff",
 }
+
+const FISH_VALUE: Dictionary[int, int] = {
+	FishType.SARDINE: 8,
+	FishType.BREAM: 30,
+	FishType.AMBERJACK: 90,
+	FishType.TUNA: 250,
+}
+const FISH_NAME: Dictionary[int, String] = {
+	FishType.SARDINE: "sardina",
+	FishType.BREAM: "orata",
+	FishType.AMBERJACK: "ricciola",
+	FishType.TUNA: "tonno",
+}
+const FISH_NAME_PLURAL: Dictionary[int, String] = {
+	FishType.SARDINE: "sardine",
+	FishType.BREAM: "orate",
+	FishType.AMBERJACK: "ricciole",
+	FishType.TUNA: "tonni",
+}
+## Colori BBCode per il dettaglio stiva (HUD e porto).
+const FISH_HEX: Dictionary[int, String] = {
+	FishType.SARDINE: "b8c7d4",
+	FishType.BREAM: "e8c37a",
+	FishType.AMBERJACK: "8fd4c8",
+	FishType.TUNA: "e07a7a",
+}
+
+## Pesca per fascia di mare (GDD pillar 2): più al largo pesci migliori,
+## finestra di tempismo più stretta e cursore più rapido. Chiave: indice
+## fascia di Sea.zone_index (0 = calme, 1 = medie, 2 = mosse).
+const FISHING_COMMON: Dictionary[int, int] = {
+	0: FishType.SARDINE,
+	1: FishType.BREAM,
+	2: FishType.AMBERJACK,
+}
+const FISHING_PRIZE: Dictionary[int, int] = {
+	0: FishType.BREAM,
+	1: FishType.AMBERJACK,
+	2: FishType.TUNA,
+}
+## Larghezza della finestra di cattura, in frazione della barra.
+const FISHING_WINDOW: Dictionary[int, float] = {
+	0: 0.26,
+	1: 0.20,
+	2: 0.15,
+}
+## Secondi per una traversata completa del cursore.
+const FISHING_SWEEP_TIME: Dictionary[int, float] = {
+	0: 1.1,
+	1: 0.9,
+	2: 0.7,
+}
+## Quota centrale della finestra che vale il pesce pregiato.
+const FISHING_PRIZE_FRACTION: float = 0.4
+## Catture per zona prima che i pesci se ne vadano, e secondi di riposo.
+const FISHING_STOCK: int = 3
+const FISHING_REST: float = 150.0
 
 const UPGRADE_NAME: Dictionary[int, String] = {
 	UpgradeType.MOTOR: "Motore",
@@ -93,6 +154,9 @@ var hull: float = 100.0
 var fuel: float = 40.0
 ## Conteggio boe in stiva per tipologia (chiave: BuoyType).
 var cargo: Dictionary[int, int] = {}
+## Conteggio pesci in stiva per specie (chiave: FishType); condivide la
+## capacità con le boe: la stiva è una sola (GDD § Pesca).
+var fish_cargo: Dictionary[int, int] = {}
 
 var owned_boats: Array[StringName] = [&"dinghy"]
 var current_boat_id: StringName = &"dinghy"
@@ -250,10 +314,22 @@ func collect_buoy(type: int) -> bool:
 	return true
 
 
+## Falso a stiva piena, come per le boe: il pesce resta in acqua.
+func collect_fish(type: int) -> bool:
+	if cargo_count() >= cargo_capacity():
+		post_notice("Stiva piena! Vendi al porto")
+		return false
+	fish_cargo[type] = fish_cargo.get(type, 0) + 1
+	cargo_changed.emit()
+	return true
+
+
 func cargo_count() -> int:
 	var total := 0
 	for type in cargo:
 		total += cargo[type]
+	for type in fish_cargo:
+		total += fish_cargo[type]
 	return total
 
 
@@ -261,10 +337,12 @@ func cargo_value() -> int:
 	var total := 0
 	for type in cargo:
 		total += cargo[type] * BUOY_VALUE[type]
+	for type in fish_cargo:
+		total += fish_cargo[type] * FISH_VALUE[type]
 	return total
 
 
-## Dettaglio stiva in BBCode ("2× gialle · 1× rossa"), condiviso da HUD
+## Dettaglio stiva in BBCode ("2× gialle · 1× tonno"), condiviso da HUD
 ## e pannello del porto: cosa hai raccolto si capisce a colpo d'occhio.
 func cargo_detail_bbcode() -> String:
 	var parts: Array[String] = []
@@ -274,6 +352,12 @@ func cargo_detail_bbcode() -> String:
 			continue
 		var buoy_name: String = BUOY_NAME[type] if count == 1 else BUOY_NAME_PLURAL[type]
 		parts.append("[color=#%s]%d× %s[/color]" % [BUOY_HEX[type], count, buoy_name])
+	for type: int in FishType.values():
+		var count: int = fish_cargo.get(type, 0)
+		if count <= 0:
+			continue
+		var fish_name: String = FISH_NAME[type] if count == 1 else FISH_NAME_PLURAL[type]
+		parts.append("[color=#%s]%d× %s[/color]" % [FISH_HEX[type], count, fish_name])
 	return " · ".join(parts)
 
 
@@ -283,6 +367,7 @@ func sell_cargo() -> int:
 		return 0
 	money += earned
 	cargo.clear()
+	fish_cargo.clear()
 	money_changed.emit(money)
 	cargo_changed.emit()
 	post_notice("Carico venduto: +%d $" % earned)
@@ -370,6 +455,9 @@ func save_game() -> void:
 	var cargo_out: Dictionary = {}
 	for type in cargo:
 		cargo_out[str(type)] = cargo[type]
+	var fish_out: Dictionary = {}
+	for type in fish_cargo:
+		fish_out[str(type)] = fish_cargo[type]
 	var upgrades_out: Dictionary = {}
 	for boat_id in upgrades:
 		var levels: Dictionary = {}
@@ -385,6 +473,7 @@ func save_game() -> void:
 		"hull": hull,
 		"fuel": fuel,
 		"cargo": cargo_out,
+		"fish": fish_out,
 		"owned_boats": owned_out,
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
@@ -430,6 +519,10 @@ func load_game() -> void:
 	var cargo_in: Dictionary = data.get("cargo", {})
 	for type: String in cargo_in:
 		cargo[int(type)] = int(cargo_in[type])
+	fish_cargo.clear()
+	var fish_in: Dictionary = data.get("fish", {})
+	for type: String in fish_in:
+		fish_cargo[int(type)] = int(fish_in[type])
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
@@ -446,6 +539,7 @@ func delete_save() -> void:
 func reset() -> void:
 	money = 0
 	cargo.clear()
+	fish_cargo.clear()
 	owned_boats.clear()
 	owned_boats.append(&"dinghy")
 	current_boat_id = &"dinghy"
