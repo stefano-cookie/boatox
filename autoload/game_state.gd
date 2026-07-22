@@ -18,6 +18,13 @@ signal danger_cleared
 ## Urto contro qualcosa: forza = velocità d'impatto (m/s). L'HUD lampeggia
 ## la barra scafo e la ChaseCamera scuote, in proporzione alla forza.
 signal boat_hit(force: float)
+## Momenti di gioco per l'audio (Audio autoload): raccolta boa (blu = suono
+## speciale), pesce catturato, carico venduto (il cha-ching del pagoff),
+## impulso radar. Event-driven: nessuna scena conosce l'audio.
+signal buoy_collected(type: int)
+signal fish_caught(type: int)
+signal cargo_sold(amount: int)
+signal radar_pinged
 ## Obiettivo guidato d'avvio cambiato (feedback playtest round 2): il
 ## nuovo giocatore ha sempre una riga che gli dice cosa fare. step = tappa
 ## corrente (TUTORIAL_DONE quando finito), text = riga da mostrare.
@@ -645,6 +652,7 @@ func collect_buoy(type: int) -> bool:
 	if type == BuoyType.BLUE:
 		post_notice("Boa blu! Rarissima: +%d $ di carico" % BUOY_VALUE[type])
 	cargo_changed.emit()
+	buoy_collected.emit(type)
 	if tutorial_step == TUTORIAL_COLLECT and cargo_count() >= TUTORIAL_BUOY_GOAL:
 		_advance_tutorial(TUTORIAL_COLLECT)
 	return true
@@ -657,6 +665,7 @@ func collect_fish(type: int) -> bool:
 		return false
 	fish_cargo[type] = fish_cargo.get(type, 0) + 1
 	cargo_changed.emit()
+	fish_caught.emit(type)
 	_advance_tutorial(TUTORIAL_EXPLORE)
 	return true
 
@@ -707,6 +716,7 @@ func sell_cargo() -> int:
 	fish_cargo.clear()
 	money_changed.emit(money)
 	cargo_changed.emit()
+	cargo_sold.emit(earned)
 	post_notice("Carico venduto: +%d $" % earned)
 	_advance_tutorial(TUTORIAL_SELL)
 	return earned

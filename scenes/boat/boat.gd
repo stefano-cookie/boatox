@@ -130,6 +130,17 @@ func _physics_process(delta: float) -> void:
 	global_position.y = 0.0
 	_handle_impacts(pre_impact_velocity)
 	_update_attitude(throttle, steer, delta)
+	_update_audio(throttle)
+
+
+## Regime motore e volume del mare all'Audio autoload (loop continui pilotati
+## da qui: la barca è l'unica a conoscere velocità, gas e agitazione locale).
+func _update_audio(throttle: float) -> void:
+	var speed01 := clampf(absf(_speed) / maxf(max_speed, 0.01), 0.0, 1.0)
+	var drive := throttle if input_enabled else 0.0
+	Audio.update_engine(speed01, drive)
+	if sea != null:
+		Audio.update_sea(sea.agitation(global_position))
 
 
 func current_speed() -> float:

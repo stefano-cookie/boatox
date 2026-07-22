@@ -11,6 +11,8 @@ extends CanvasLayer
 @onready var _restart_button: Button = $Root/Panel/Margin/VBox/RestartButton
 @onready var _fullscreen_button: Button = $Root/Panel/Margin/VBox/FullscreenButton
 @onready var _quit_button: Button = $Root/Panel/Margin/VBox/QuitButton
+@onready var _music_slider: HSlider = $Root/Panel/Margin/VBox/AudioBox/MusicRow/MusicSlider
+@onready var _sfx_slider: HSlider = $Root/Panel/Margin/VBox/AudioBox/SfxRow/SfxSlider
 
 
 func _ready() -> void:
@@ -19,6 +21,12 @@ func _ready() -> void:
 	_restart_button.pressed.connect(_on_restart_pressed)
 	_fullscreen_button.pressed.connect(_on_fullscreen_pressed)
 	_quit_button.pressed.connect(_on_quit_pressed)
+	# Slider volume: valore iniziale dalle impostazioni salvate, poi ogni
+	# variazione la applica e salva l'Audio autoload.
+	_music_slider.value = Audio.music_volume
+	_sfx_slider.value = Audio.sfx_volume
+	_music_slider.value_changed.connect(func(v: float) -> void: Audio.set_music_volume(v))
+	_sfx_slider.value_changed.connect(func(v: float) -> void: Audio.set_sfx_volume(v))
 
 
 func _unhandled_input(event: InputEvent) -> void:
