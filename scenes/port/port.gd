@@ -9,11 +9,19 @@ extends Node3D
 
 ## Sopra questa velocità non si può attraccare: prima si rallenta.
 @export var docking_max_speed: float = 1.5
+## Rallentamento assistito in avvicinamento (feedback playtest round 2:
+## arrivare e fermarsi dev'essere naturale, non un gate secco). Dentro la
+## ApproachZone il cap di velocità cala col ridursi della distanza dal
+## molo: da nessun limite al bordo fino a approach_min_speed all'attracco.
+@export var approach_slow_radius: float = 22.0
+@export var approach_min_speed: float = 3.0
 
 var _boat: Boat = null
 ## La barca a cui il menu ha spento la guida: la riaccende sempre lui,
 ## anche se nel frattempo _boat è stato azzerato dall'uscita di zona.
 var _docked_boat: Boat = null
+## Barca nella zona di rallentamento (più larga della DockZone).
+var _approach_boat: Boat = null
 var _open: bool = false
 var _shipyard_open: bool = false
 var _tackle_open: bool = false
@@ -24,6 +32,7 @@ var _upgrade_labels: Dictionary[int, Label] = {}
 var _gear_buttons: Dictionary[int, Button] = {}
 
 @onready var _zone: Area3D = $DockZone
+@onready var _approach_zone: Area3D = $ApproachZone
 @onready var _tow_spawn: Marker3D = $TowSpawn
 @onready var _hint: Label = $PortUI/Hint
 @onready var _panel: PanelContainer = $PortUI/Panel
@@ -49,6 +58,8 @@ var _gear_buttons: Dictionary[int, Button] = {}
 func _ready() -> void:
 	_zone.body_entered.connect(_on_zone_body_entered)
 	_zone.body_exited.connect(_on_zone_body_exited)
+	_approach_zone.body_entered.connect(_on_approach_entered)
+	_approach_zone.body_exited.connect(_on_approach_exited)
 	_sell_button.pressed.connect(_on_sell_pressed)
 	_repair_button.pressed.connect(_on_repair_pressed)
 	_refuel_button.pressed.connect(_on_refuel_pressed)
@@ -66,6 +77,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_update_approach_cap()
 	if _boat == null or _open:
 		_hint.hide()
 		return
@@ -74,6 +86,36 @@ func _process(_delta: float) -> void:
 		_hint.text = "Premi E per attraccare"
 	else:
 		_hint.text = "Rallenta per attraccare"
+
+
+## Cap di velocità progressivo in avvicinamento: nessun limite al bordo
+## della zona, sceso ad approach_min_speed sul molo. Col menu aperto la
+## guida è già spenta, quindi non tocchiamo il cap.
+func _update_approach_cap() -> void:
+	if _approach_boat == null or _open:
+		return
+	var d := _approach_boat.global_position.distance_to(_dock_center())
+	if d >= approach_slow_radius:
+		_approach_boat.approach_speed_cap = INF
+	else:
+		var t := d / approach_slow_radius
+		_approach_boat.approach_speed_cap = lerpf(approach_min_speed, _approach_boat.max_speed, t)
+
+
+## Centro dell'attracco in coordinate mondo (la DockZone è a z+6 locale).
+func _dock_center() -> Vector3:
+	return to_global(Vector3(0.0, 0.0, 6.0))
+
+
+func _on_approach_entered(body: Node3D) -> void:
+	if body is Boat:
+		_approach_boat = body
+
+
+func _on_approach_exited(body: Node3D) -> void:
+	if body == _approach_boat:
+		_approach_boat.approach_speed_cap = INF
+		_approach_boat = null
 
 
 func _unhandled_input(event: InputEvent) -> void:

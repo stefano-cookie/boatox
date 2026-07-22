@@ -14,8 +14,12 @@ extends MeshInstance3D
 @export var follow_target: Node3D
 ## Limite sud dell'inseguimento: il piano non scorre oltre, così il suo
 ## bordo nord resta sempre infilato sotto la spiaggia (niente buchi
-## d'acqua guardando la costa dal largo).
-@export var follow_z_max: float = 160.0
+## d'acqua guardando la costa dal largo). Feedback playtest round 2: il
+## mare sembrava finire come un muro al largo. Col piano ora 1400×1400
+## (mezzo lato 700), a follow_z_max=500 il bordo nord resta a z≈-200
+## (sotto la costa a shore_z=-140) e quello sud arriva oltre z=1200 —
+## ben oltre bounds_depth: l'orizzonte resta acqua, la nebbia lo sfuma.
+@export var follow_z_max: float = 500.0
 
 @export_group("Costa e zone di mare")
 ## Linea di costa: la terra occupa z < shore_z.

@@ -20,24 +20,24 @@ func _ready() -> void:
 func _run() -> void:
 	await _wait(0.5)
 
-	# --- Stiva condivisa: boe + pesci contro la stessa capacità (8) ---
-	for i in 4:
-		GameState.collect_fish(GameState.FishType.SARDINE)
+	# --- Stiva condivisa: boe + pesci contro la stessa capacità (5, dopo
+	# il ribilanciamento round 2: la barchetta porta meno) ---
 	for i in 3:
-		GameState.collect_buoy(GameState.BuoyType.YELLOW)
+		GameState.collect_fish(GameState.FishType.SARDINE)
+	GameState.collect_buoy(GameState.BuoyType.YELLOW)
 	GameState.collect_fish(GameState.FishType.TUNA)
 	var overflow := GameState.collect_fish(GameState.FishType.BREAM)
-	print("STIVA: %d/%d dopo 8 raccolte (attesi 8/8), nona rifiutata: %s (atteso false)" % [
+	print("STIVA: %d/%d dopo 6 raccolte (attesi 5/5), sesta rifiutata: %s (atteso false)" % [
 		GameState.cargo_count(), GameState.cargo_capacity(), overflow])
 
-	# --- Valore misto: 4 sardine (32) + 3 gialle (30) + 1 tonno (250) ---
-	print("VALORE: %d $ (attesi 312) — dettaglio: %s" % [
+	# --- Valore misto: 3 sardine (24) + 1 gialla (10) + 1 tonno (250) ---
+	print("VALORE: %d $ (attesi 284) — dettaglio: %s" % [
 		GameState.cargo_value(), GameState.cargo_detail_bbcode()])
 
 	# --- Vendita: incassa tutto e svuota anche i pesci ---
 	GameState.money = 0
 	var earned := GameState.sell_cargo()
-	print("VENDITA: +%d $ (attesi 312), stiva %d (attesa 0), pesci %d (attesi 0)" % [
+	print("VENDITA: +%d $ (attesi 284), stiva %d (attesa 0), pesci %d (attesi 0)" % [
 		earned, GameState.cargo_count(), GameState.fish_cargo.size()])
 
 	# --- Salvataggio: i pesci fanno il roundtrip ---

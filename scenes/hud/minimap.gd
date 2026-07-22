@@ -198,7 +198,7 @@ func _draw_port(rect: Rect2) -> void:
 ## Zone di pesca attive, come anelli (quelle a riposo non si disegnano:
 ## gli uccelli se ne sono andati anche dalla mappa).
 func _draw_fishing_zones(rect: Rect2) -> void:
-	var radius := maxf(_px(rect, 9.0), 4.0)
+	var radius := maxf(_px(rect, 15.0), 4.0)
 	for node in get_tree().get_nodes_in_group(&"fishing_zones"):
 		var zone := node as FishingZone
 		if zone == null or zone.is_resting():
@@ -210,28 +210,32 @@ func _draw_fishing_zones(rect: Rect2) -> void:
 ## giocatore deve sapere che c'è e dov'è, non solo durante la gara). Rombo
 ## verde con anello, distinto dal rombo arancio del porto.
 func _draw_race_start(rect: Rect2) -> void:
-	var course := get_tree().get_first_node_in_group(&"race_course") as RaceCourse
-	if course == null:
-		return
-	var p := _to_map(rect, course.start_position())
 	var s := 7.0 if _expanded else 4.5
-	draw_arc(p, s + 2.0, 0.0, TAU, 18, RACE_COLOR, 1.5)
-	_draw_diamond(p, s, RACE_COLOR)
-	if _expanded:
-		draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), "Regata",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+	for node in get_tree().get_nodes_in_group(&"race_course"):
+		var course := node as RaceCourse
+		if course == null:
+			continue
+		var p := _to_map(rect, course.start_position())
+		draw_arc(p, s + 2.0, 0.0, TAU, 18, RACE_COLOR, 1.5)
+		_draw_diamond(p, s, RACE_COLOR)
+		if _expanded:
+			# Lo spot difficile al largo si etichetta come tale.
+			var label := "Regata largo" if course.ai_hard else "Regata"
+			draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), label,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 
 
 ## Solo durante la regata: il prossimo cancello da prendere, dello
 ## stesso verde della colonna di luce in 3D.
 func _draw_race_gate(rect: Rect2) -> void:
-	var course := get_tree().get_first_node_in_group(&"race_course") as RaceCourse
-	if course == null or not course.is_racing():
-		return
-	var p := _to_map(rect, course.next_gate_position())
 	var radius := 7.0 if _expanded else 5.0
-	draw_arc(p, radius, 0.0, TAU, 16, RACE_COLOR, 2.5)
-	draw_circle(p, 2.0, RACE_COLOR)
+	for node in get_tree().get_nodes_in_group(&"race_course"):
+		var course := node as RaceCourse
+		if course == null or not course.is_racing():
+			continue
+		var p := _to_map(rect, course.next_gate_position())
+		draw_arc(p, radius, 0.0, TAU, 16, RACE_COLOR, 2.5)
+		draw_circle(p, 2.0, RACE_COLOR)
 
 
 ## Boe e taniche effettivamente presenti in acqua (i punti non spawnati

@@ -33,7 +33,8 @@ const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zo
 
 @export_group("Sparpagliamento")
 @export var scatter_seed: int = 7
-@export var yellow_buoy_count: int = 28
+## Feedback playtest round 2: le gialle intasavano la mappa (28 → 14).
+@export var yellow_buoy_count: int = 14
 @export var red_point_count: int = 18
 @export var blue_point_count: int = 24
 ## Punti tanica di benzina, sparsi su tutta la baia (spawn al 5%).
@@ -61,12 +62,14 @@ var _sinking: bool = false
 @onready var _islands: Node3D = $Islands
 @onready var _rock_fields: Node3D = $RockFields
 @onready var _port: Port = $Port
-@onready var _race_course: RaceCourse = $RaceCourse
 
 
 func _ready() -> void:
 	_rng.seed = scatter_seed
-	_race_course.sea = sea
+	# Ogni spot di gara (sotto costa + al largo) ha bisogno della Sea per
+	# IA e classifica: i figli sono già in gruppo (add_to_group in _ready).
+	for node in get_tree().get_nodes_in_group(&"race_course"):
+		(node as RaceCourse).sea = sea
 	GameState.hull_depleted.connect(_on_hull_depleted)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)
@@ -297,6 +300,7 @@ func _is_clear(pos: Vector3) -> bool:
 			return false
 	if pos.distance_to(_port.global_position) < 26.0:
 		return false
-	if not _far_from(pos, _fishing_positions, 16.0):
+	# Le zone di pesca ora sono più larghe (raggio ~15): niente boe dentro.
+	if not _far_from(pos, _fishing_positions, 22.0):
 		return false
 	return _far_from(pos, _rock_positions, 3.0)

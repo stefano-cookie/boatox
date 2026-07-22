@@ -7,9 +7,9 @@
 shader = ExtResource("2")
 
 [sub_resource type="PlaneMesh" id="sea_mesh"]
-size = Vector2(900, 900)
-subdivide_width = 359
-subdivide_depth = 359
+size = Vector2(1400, 1400)
+subdivide_width = 559
+subdivide_depth = 559
 
 [node name="Sea" type="MeshInstance3D"]
 cast_shadow = 0

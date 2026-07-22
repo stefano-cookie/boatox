@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scenes/port/port.gd" id="1"]
 
@@ -33,6 +33,9 @@ size = Vector3(3, 1.2, 12)
 
 [sub_resource type="BoxShape3D" id="zone_shape"]
 size = Vector3(18, 4, 18)
+
+[sub_resource type="BoxShape3D" id="approach_shape"]
+size = Vector3(44, 6, 44)
 
 [sub_resource type="StandardMaterial3D" id="mat_skin"]
 albedo_color = Color(0.83, 0.62, 0.46, 1)
@@ -168,6 +171,12 @@ outline_size = 12
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DockZone"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
 shape = SubResource("zone_shape")
+
+[node name="ApproachZone" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ApproachZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+shape = SubResource("approach_shape")
 
 [node name="TowSpawn" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 6)

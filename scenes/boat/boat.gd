@@ -57,6 +57,10 @@ extends CharacterBody3D
 @export_range(0.0, 1.0) var stability_damping: float = 0.5
 
 var input_enabled: bool = true
+## Cap esterno alla velocità massima (m/s), impostato dal Port in
+## avvicinamento: più vicino all'attracco, più basso — frenata assistita
+## naturale (feedback playtest round 2). INF = nessun limite.
+var approach_speed_cap: float = INF
 ## 0..1, impostato dal World fuori dai confini: la barca si abbassa
 ## nell'acqua e appruata, senza toccare la guida (deve restare facile
 ## rientrare).
@@ -205,6 +209,9 @@ func _update_speed(throttle: float, delta: float) -> void:
 	var cap := max_speed * (1.0 - rough_slow_max * _chaos)
 	if GameState.fuel <= 0.0:
 		cap = minf(cap, reserve_speed)
+	# In avvicinamento al porto il cap scende: se eri lanciato, il ramo
+	# _speed > cap qui sotto frena da solo (arrivo naturale, non un muro).
+	cap = minf(cap, approach_speed_cap)
 	if _speed > cap:
 		_speed = move_toward(_speed, cap, (_water_drag + _brake_force * 0.5) * delta)
 	if throttle > 0.0:

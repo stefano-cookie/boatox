@@ -14,6 +14,10 @@ extends Area3D
 
 ## Fascia di mare della zona: decide specie e difficoltà (0 = calme).
 @export_range(0, 2) var zone_tier: int = 0
+## Raggio della zona (feedback playtest round 2: sembravano spot troppo
+## piccoli, 9 → 15). Guida il CylinderShape3D e la scala degli anelli
+## visivi all'_ready — si tara da Inspector senza toccare la scena.
+@export var zone_radius: float = 15.0
 ## Sopra questa velocità non si pesca: prima ci si ferma.
 @export var fishing_max_speed: float = 1.5
 ## Attesa dell'abboccata, tra minimo e massimo.
@@ -58,6 +62,10 @@ var _snap_time: float = 0.0
 var _surge_left: float = 0.0
 var _surge_timer: float = 0.0
 
+## Scala degli anelli e del giro d'uccelli rispetto al raggio base (9 m).
+var _ripple_factor: float = 1.0
+
+@onready var _collision: CollisionShape3D = $CollisionShape3D
 @onready var _visual: Node3D = $Visual
 @onready var _birds_pivot: Node3D = $Visual/BirdsPivot
 @onready var _ripple_inner: MeshInstance3D = $Visual/RippleInner
@@ -81,8 +89,19 @@ func _ready() -> void:
 	add_to_group(&"fishing_zones")
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	_apply_radius()
 	_panel.hide()
 	_hint.hide()
+
+
+## Adatta collisione e anelli visivi al zone_radius (9 = base della scena).
+## Duplica la shape per non mutare la sottorisorsa condivisa tra istanze.
+func _apply_radius() -> void:
+	var shape := (_collision.shape as CylinderShape3D).duplicate() as CylinderShape3D
+	shape.radius = zone_radius
+	_collision.shape = shape
+	_ripple_factor = zone_radius / 9.0
+	_birds_pivot.scale = Vector3(_ripple_factor, 1.0, _ripple_factor)
 
 
 func _process(delta: float) -> void:
@@ -353,8 +372,8 @@ func _animate_visual() -> void:
 	if _resting:
 		return
 	_birds_pivot.rotation.y = _time * 0.7
-	_ripple_inner.scale = Vector3.ONE * (1.0 + 0.10 * sin(_time * 1.8))
-	_ripple_outer.scale = Vector3.ONE * (1.0 + 0.06 * sin(_time * 1.3 + 1.7))
+	_ripple_inner.scale = Vector3.ONE * _ripple_factor * (1.0 + 0.10 * sin(_time * 1.8))
+	_ripple_outer.scale = Vector3.ONE * _ripple_factor * (1.0 + 0.06 * sin(_time * 1.3 + 1.7))
 	if sea != null:
 		# Segue le onde solo in parte: gli anelli restano leggibili anche
 		# col mare grosso.

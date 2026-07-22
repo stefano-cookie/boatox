@@ -74,3 +74,26 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -138)
 
 [node name="RaceCourse" parent="." instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0, -120)
+
+[node name="RaceCourseOffshore" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 250)
+ai_hard = true
+prize_multiplier = 1.8
+
+[node name="Cp1" parent="RaceCourseOffshore/Checkpoints" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 140, 0, 50)
+
+[node name="Cp2" parent="RaceCourseOffshore/Checkpoints" index="1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 150, 0, 170)
+
+[node name="Cp3" parent="RaceCourseOffshore/Checkpoints" index="2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 220)
+
+[node name="Cp4" parent="RaceCourseOffshore/Checkpoints" index="3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -160, 0, 170)
+
+[node name="Cp5" parent="RaceCourseOffshore/Checkpoints" index="4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -180, 0, 50)
+
+[node name="Cp6" parent="RaceCourseOffshore/Checkpoints" index="5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 0, -40)

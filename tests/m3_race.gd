@@ -66,7 +66,7 @@ func _run() -> void:
 	var ratios: Array[String] = []
 	for racer: AIRacer in course._racers:
 		ratios.append("%.2f" % (racer.max_speed / player_speed))
-	print("IA RELATIVE: rapporti %s (attesi [0.90, 0.97, 1.03])" % [ratios])
+	print("IA RELATIVE: rapporti %s (attesi [0.88, 0.95, 0.99])" % [ratios])
 	await _wait(3.5)
 	var start_positions: Array[Vector3] = []
 	for racer: AIRacer in course._racers:

@@ -15,6 +15,12 @@ enum State { IDLE, COUNTDOWN, RACING, RESULT }
 ## Raggio entro cui un cancello conta come preso dal giocatore.
 @export var gate_radius: float = 16.0
 @export var countdown_seconds: float = 3.0
+## Spot difficile al largo (feedback playtest round 2): usa il set IA
+## aggressivo GameState.RACE_AI_HARD invece di quello sotto costa.
+@export var ai_hard: bool = false
+## Moltiplicatore dei premi dello spot: al largo si rischia di più e si
+## guadagna di più (GDD pillar 2). 1.0 = gara base sotto costa.
+@export var prize_multiplier: float = 1.0
 
 ## Assegnata dal World: serve a IA e classifica (rallentamento a zone).
 var sea: Sea
@@ -166,8 +172,9 @@ func _start_race() -> void:
 func _spawn_racers() -> void:
 	var player_speed := GameState.effective_max_speed()
 	var player_stability := GameState.effective_stability()
-	for i in GameState.RACE_AI.size():
-		var def: Dictionary = GameState.RACE_AI[i]
+	var ai_set := GameState.race_ai_set(ai_hard)
+	for i in ai_set.size():
+		var def: Dictionary = ai_set[i]
 		var racer := AIRacer.new()
 		racer.racer_name = def["name"]
 		racer.visual_scene = load(def["visual"])
@@ -213,7 +220,7 @@ func _on_racer_finished(racer: AIRacer) -> void:
 func _finish_player() -> void:
 	var rank := _finish_order.size() + 1
 	_finish_order.append("Tu")
-	GameState.record_race_result(rank, _racers.size() + 1)
+	GameState.record_race_result(rank, _racers.size() + 1, prize_multiplier)
 	_state = State.RESULT
 	_race_boat.input_enabled = false
 	_race_boat.reset_motion()
@@ -234,7 +241,7 @@ func _show_standings(rank: int) -> void:
 		place += 1
 		lines.append("%d°  %s (in mare)" % [place, racer.racer_name])
 	lines.append("")
-	lines.append("Premio: %d $" % GameState.race_prize(rank))
+	lines.append("Premio: %d $" % GameState.race_prize(rank, prize_multiplier))
 	_standings.text = "\n".join(lines)
 	GameState.push_ui_focus()
 	_panel.show()
@@ -338,6 +345,12 @@ func _refresh_gates() -> void:
 
 
 func _update_hint() -> void:
+	# Durante la gara (e il countdown) l'hint ricorda la ritirata gratuita
+	# (feedback playtest round 2: la ritirata esisteva ma era invisibile).
+	if _state == State.COUNTDOWN or _state == State.RACING:
+		_hint.show()
+		_hint.text = "Esc — abbandona la regata (gratis)"
+		return
 	if _boat == null or _state != State.IDLE:
 		_hint.hide()
 		return

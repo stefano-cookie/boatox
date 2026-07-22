@@ -199,14 +199,35 @@ const RACE_PRIZES: Array[int] = [300, 120, 50]
 ## Moltiplicatore dei premi per tier di barca (indice in BOAT_DEFS): la
 ## regata resta redditizia senza diventare farming facile.
 const RACE_PRIZE_TIER_MULT: Array[float] = [1.0, 1.6, 2.4]
+## Set IA della gara sotto costa (spot facile). Feedback playtest round 2:
+## Turi era troppo forte (1.03× e molto stabile), la gara base non si
+## vinceva con la barchetta. Ora tutte le IA sono ≤ della velocità del
+## giocatore: si vince con traiettorie pulite, non solo col motore.
 const RACE_AI: Array[Dictionary] = [
 	{"name": "Ciccio", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
-		"speed_ratio": 0.90, "stability_delta": -0.1, "turn": 60.0},
+		"speed_ratio": 0.88, "stability_delta": -0.1, "turn": 60.0},
 	{"name": "Rosa", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
-		"speed_ratio": 0.97, "stability_delta": 0.0, "turn": 55.0},
+		"speed_ratio": 0.95, "stability_delta": 0.0, "turn": 55.0},
 	{"name": "Turi", "visual": "res://scenes/boat/visuals/fishing_visual.tscn",
-		"speed_ratio": 1.03, "stability_delta": 0.15, "turn": 50.0},
+		"speed_ratio": 0.99, "stability_delta": 0.06, "turn": 52.0},
 ]
+## Set IA della gara al largo (spot difficile, feedback playtest round 2):
+## rivali più veloci e stabili del giocatore — la vince solo chi sfrutta
+## le loro frenate in curva e il mare. Ricompensa maggiore (vedi lo spot
+## RaceCourse.prize_multiplier al largo).
+const RACE_AI_HARD: Array[Dictionary] = [
+	{"name": "Saro", "visual": "res://scenes/boat/visuals/fishing_visual.tscn",
+		"speed_ratio": 1.0, "stability_delta": 0.1, "turn": 54.0},
+	{"name": "Nunzio", "visual": "res://scenes/boat/visuals/fishing_visual.tscn",
+		"speed_ratio": 1.06, "stability_delta": 0.18, "turn": 50.0},
+	{"name": "Peppe", "visual": "res://scenes/boat/visuals/cruiser_visual.tscn",
+		"speed_ratio": 1.12, "stability_delta": 0.25, "turn": 46.0},
+]
+
+
+## Set IA di uno spot: difficile al largo, facile sotto costa.
+func race_ai_set(hard: bool) -> Array[Dictionary]:
+	return RACE_AI_HARD if hard else RACE_AI
 
 const UPGRADE_NAME: Dictionary[int, String] = {
 	UpgradeType.MOTOR: "Motore",
@@ -621,17 +642,19 @@ func boat_tier(id: StringName = current_boat_id) -> int:
 
 
 ## Premio per piazzamento, scalato col tier della barca corrente
-## (feedback playtest M3): la regata rende anche a fine progressione.
-func race_prize(rank: int) -> int:
+## (feedback playtest M3) e col moltiplicatore dello spot (feedback round
+## 2: la gara al largo paga di più).
+func race_prize(rank: int, prize_mult: float = 1.0) -> int:
 	if rank - 1 >= RACE_PRIZES.size():
 		return 0
-	return roundi(RACE_PRIZES[rank - 1] * RACE_PRIZE_TIER_MULT[boat_tier()])
+	return roundi(RACE_PRIZES[rank - 1] * RACE_PRIZE_TIER_MULT[boat_tier()] * prize_mult)
 
 
 ## Piazzamento a fine gara: accredita il premio e conta le vittorie
-## (la prima sblocca il Cabinato in cantiere).
-func record_race_result(rank: int, total: int) -> void:
-	var prize := race_prize(rank)
+## (la prima sblocca il Cabinato in cantiere). prize_mult è il bonus dello
+## spot (1.0 sotto costa, più alto al largo).
+func record_race_result(rank: int, total: int, prize_mult: float = 1.0) -> void:
+	var prize := race_prize(rank, prize_mult)
 	if prize > 0:
 		money += prize
 		money_changed.emit(money)
