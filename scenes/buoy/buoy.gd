@@ -26,6 +26,7 @@ const _COLORS: Dictionary[int, Color] = {
 
 
 func _ready() -> void:
+	add_to_group(&"buoys")
 	body_entered.connect(_on_body_entered)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = _COLORS[type]

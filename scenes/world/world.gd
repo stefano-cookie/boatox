@@ -1,3 +1,4 @@
+class_name World
 extends Node3D
 
 ## La baia di gioco: la costa a nord (scena Coast), isole e porto
@@ -86,6 +87,20 @@ func _physics_process(delta: float) -> void:
 	elif _storm_alarmed:
 		_storm_alarmed = false
 		GameState.clear_danger()
+
+
+# --- Dati per la minimappa ---------------------------------------------------
+
+func port_position() -> Vector3:
+	return _port.global_position
+
+
+func map_islands() -> Array[Node]:
+	return _islands.get_children()
+
+
+func map_rocks() -> Array[Vector3]:
+	return _rock_positions
 
 
 func _on_hull_depleted() -> void:

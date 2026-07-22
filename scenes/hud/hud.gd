@@ -23,6 +23,7 @@ const FUEL_LOW_RATIO: float = 0.2
 @export var boat: Boat
 @export var sea: Sea
 @export var weather: Weather
+@export var world: World
 
 @onready var _money_label: Label = $TopLeft/Margin/VBox/MoneyLabel
 @onready var _boat_label: Label = $TopLeft/Margin/VBox/BoatLabel
@@ -38,6 +39,7 @@ const FUEL_LOW_RATIO: float = 0.2
 @onready var _speed_bar: ProgressBar = $SpeedBox/Margin/VBox/SpeedBar
 @onready var _zone_label: Label = $SpeedBox/Margin/VBox/ZoneLabel
 @onready var _weather_label: Label = $SpeedBox/Margin/VBox/WeatherLabel
+@onready var _minimap: Minimap = $Minimap
 
 
 func _ready() -> void:
@@ -52,6 +54,7 @@ func _ready() -> void:
 	if weather != null:
 		weather.state_changed.connect(_on_weather_changed)
 		_on_weather_changed(weather.rough)
+	_minimap.setup(boat, sea, world)
 	_notice_timer.timeout.connect(_notice_label.hide)
 	_notice_label.hide()
 	_danger_label.hide()

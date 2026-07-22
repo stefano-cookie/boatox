@@ -16,6 +16,7 @@ var _bob_time: float = 0.0
 
 
 func _ready() -> void:
+	add_to_group(&"fuel_cans")
 	body_entered.connect(_on_body_entered)
 	_set_present(false)
 	_try_spawn()
