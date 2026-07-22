@@ -118,6 +118,19 @@ const FISHING_PRIZE_FRACTION: float = 0.4
 const FISHING_STOCK: int = 3
 const FISHING_REST: float = 150.0
 
+## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA
+## usano le stesse regole di rallentamento da mare grosso del giocatore:
+## motore e stabilità sono il banco di prova degli upgrade.
+const RACE_PRIZES: Array[int] = [300, 120, 50]
+const RACE_AI: Array[Dictionary] = [
+	{"name": "Ciccio", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
+		"speed": 11.5, "stability": 0.2, "turn": 60.0},
+	{"name": "Rosa", "visual": "res://scenes/boat/visuals/dinghy_visual.tscn",
+		"speed": 12.8, "stability": 0.35, "turn": 55.0},
+	{"name": "Turi", "visual": "res://scenes/boat/visuals/fishing_visual.tscn",
+		"speed": 13.8, "stability": 0.5, "turn": 50.0},
+]
+
 const UPGRADE_NAME: Dictionary[int, String] = {
 	UpgradeType.MOTOR: "Motore",
 	UpgradeType.HULL: "Scafo",
@@ -157,6 +170,9 @@ var cargo: Dictionary[int, int] = {}
 ## Conteggio pesci in stiva per specie (chiave: FishType); condivide la
 ## capacità con le boe: la stiva è una sola (GDD § Pesca).
 var fish_cargo: Dictionary[int, int] = {}
+
+## Vittorie in regata: la prima sblocca le barche con requires_race_win.
+var race_wins: int = 0
 
 var owned_boats: Array[StringName] = [&"dinghy"]
 var current_boat_id: StringName = &"dinghy"
@@ -238,9 +254,15 @@ func fuel_capacity() -> float:
 	return current_def().fuel_capacity
 
 
+## Vero se la barca è acquistabile: alcune chiedono una vittoria in
+## regata (GDD § Corse: vincere sblocca contenuti).
+func boat_unlocked(id: StringName) -> bool:
+	return not boat_def(id).requires_race_win or race_wins > 0
+
+
 func buy_boat(id: StringName) -> bool:
 	var def := boat_def(id)
-	if owns_boat(id) or money < def.price:
+	if owns_boat(id) or money < def.price or not boat_unlocked(id):
 		return false
 	money -= def.price
 	owned_boats.append(id)
@@ -393,6 +415,26 @@ func repair_hull() -> void:
 	hull_changed.emit(hull, hull_max())
 
 
+# --- Regata ------------------------------------------------------------------
+
+## Piazzamento a fine gara: accredita il premio e conta le vittorie
+## (la prima sblocca il Cabinato in cantiere).
+func record_race_result(rank: int, total: int) -> void:
+	var prize: int = RACE_PRIZES[rank - 1] if rank - 1 < RACE_PRIZES.size() else 0
+	if prize > 0:
+		money += prize
+		money_changed.emit(money)
+	if rank == 1:
+		race_wins += 1
+		if race_wins == 1:
+			post_notice("Prima vittoria! Il Cabinato è sbloccato in cantiere")
+		else:
+			post_notice("Regata vinta: +%d $" % prize)
+	else:
+		post_notice("Regata: %d° su %d (+%d $)" % [rank, total, prize])
+	save_game()
+
+
 # --- Carburante --------------------------------------------------------------
 
 func consume_fuel(amount: float) -> void:
@@ -474,6 +516,7 @@ func save_game() -> void:
 		"fuel": fuel,
 		"cargo": cargo_out,
 		"fish": fish_out,
+		"race_wins": race_wins,
 		"owned_boats": owned_out,
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
@@ -500,6 +543,7 @@ func load_game() -> void:
 		fuel = fuel_capacity()
 		return
 	money = int(data.get("money", 0))
+	race_wins = int(data.get("race_wins", 0))
 	current_boat_id = StringName(data.get("current_boat", "dinghy"))
 	owned_boats.clear()
 	for id: String in data.get("owned_boats", ["dinghy"]):
@@ -538,6 +582,7 @@ func delete_save() -> void:
 ## reload della scena).
 func reset() -> void:
 	money = 0
+	race_wins = 0
 	cargo.clear()
 	fish_cargo.clear()
 	owned_boats.clear()

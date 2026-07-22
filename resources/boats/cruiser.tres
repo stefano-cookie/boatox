@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"cruiser"
 display_name = "Cabinato"
 price = 1800
+requires_race_win = true
 visual_scene = ExtResource("2")
 collision_size = Vector3(2.7, 1.4, 8.6)
 max_speed = 20.0

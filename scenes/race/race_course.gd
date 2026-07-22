@@ -1,0 +1,330 @@
+class_name RaceCourse
+extends Node3D
+
+## Regata a checkpoint (GDD § Corse): percorso fisso di cancelli che
+## attraversa le tre fasce di mare — motore e stabilità contano davvero —
+## contro le IA di GameState.RACE_AI. Fermi nella zona di partenza, E
+## avvia il conto alla rovescia. Il cancello da prendere è verde (e
+## segnato in minimappa), i presi spariscono. Premi per piazzamento in
+## GameState.RACE_PRIZES; la prima vittoria sblocca il Cabinato.
+
+enum State { IDLE, COUNTDOWN, RACING, RESULT }
+
+## Sopra questa velocità non si parte: prima ci si ferma.
+@export var start_max_speed: float = 1.5
+## Raggio entro cui un cancello conta come preso dal giocatore.
+@export var gate_radius: float = 16.0
+@export var countdown_seconds: float = 3.0
+
+## Assegnata dal World: serve a IA e classifica (rallentamento a zone).
+var sea: Sea
+
+## Griglia di partenza delle IA, dietro la linea (verso -X, il percorso
+## parte verso +X).
+const START_OFFSETS: Array[Vector3] = [
+	Vector3(-8.0, 0.0, -7.0), Vector3(-11.0, 0.0, 1.0), Vector3(-8.0, 0.0, 9.0),
+]
+const BEAM_NEXT_COLOR := Color(0.35, 1.0, 0.55, 0.5)
+const BEAM_FAR_COLOR := Color(1.0, 1.0, 1.0, 0.12)
+
+var _state := State.IDLE
+## Barca in zona di partenza; _race_boat è quella a cui la gara ha
+## spento la guida (pattern del Port).
+var _boat: Boat = null
+var _race_boat: Boat = null
+var _waypoints: Array[Vector3] = []
+var _gates: Array[Node3D] = []
+var _beam_materials: Array[StandardMaterial3D] = []
+var _racers: Array[AIRacer] = []
+## Ordine d'arrivo (nomi); il giocatore entra come "Tu".
+var _finish_order: Array[String] = []
+var _player_next: int = 0
+var _count_left: float = 0.0
+var _via_left: float = 0.0
+
+@onready var _start_zone: Area3D = $StartZone
+@onready var _checkpoints: Node3D = $Checkpoints
+@onready var _hint: Label = $RaceUI/Hint
+@onready var _status: Label = $RaceUI/Status
+@onready var _big_label: Label = $RaceUI/BigLabel
+@onready var _panel: PanelContainer = $RaceUI/Panel
+@onready var _standings: Label = $RaceUI/Panel/Margin/VBox/Standings
+@onready var _close_button: Button = $RaceUI/Panel/Margin/VBox/CloseButton
+
+
+func _ready() -> void:
+	add_to_group(&"race_course")
+	_start_zone.body_entered.connect(_on_zone_body_entered)
+	_start_zone.body_exited.connect(_on_zone_body_exited)
+	_close_button.pressed.connect(_close_result)
+	GameState.hull_depleted.connect(_on_hull_depleted)
+	_build_gates()
+	_panel.hide()
+	_hint.hide()
+	_status.hide()
+	_big_label.hide()
+
+
+func _process(delta: float) -> void:
+	_update_hint()
+	match _state:
+		State.COUNTDOWN:
+			_count_left -= delta
+			if _count_left <= 0.0:
+				_go()
+			else:
+				_big_label.text = str(ceili(_count_left))
+		State.RACING:
+			if _via_left > 0.0:
+				_via_left -= delta
+				if _via_left <= 0.0:
+					_big_label.hide()
+			_check_player_gate()
+			_update_status()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
+		if _state == State.RESULT:
+			get_viewport().set_input_as_handled()
+			_close_result()
+		elif _state == State.IDLE and _can_start():
+			get_viewport().set_input_as_handled()
+			_start_race()
+	elif event.is_action_pressed("ui_cancel") and _state != State.IDLE:
+		# Consumato: altrimenti lo stesso Esc aprirebbe anche la pausa.
+		get_viewport().set_input_as_handled()
+		if _state == State.RESULT:
+			_close_result()
+		else:
+			_retire("Regata abbandonata")
+
+
+# --- Stato per la minimappa --------------------------------------------------
+
+func is_racing() -> bool:
+	return _state == State.COUNTDOWN or _state == State.RACING
+
+
+func next_gate_position() -> Vector3:
+	return _waypoints[mini(_player_next, _waypoints.size() - 1)]
+
+
+# --- Partenza ----------------------------------------------------------------
+
+func _can_start() -> bool:
+	return _boat != null and absf(_boat.current_speed()) <= start_max_speed
+
+
+func _on_zone_body_entered(body: Node3D) -> void:
+	if body is Boat:
+		_boat = body
+
+
+func _on_zone_body_exited(body: Node3D) -> void:
+	if body == _boat:
+		_boat = null
+
+
+func _on_hull_depleted() -> void:
+	if _state == State.COUNTDOWN or _state == State.RACING:
+		_retire("Regata annullata: scafo a pezzi")
+
+
+func _start_race() -> void:
+	_state = State.COUNTDOWN
+	_race_boat = _boat
+	_race_boat.input_enabled = false
+	_race_boat.reset_motion()
+	_player_next = 0
+	_finish_order.clear()
+	_count_left = countdown_seconds
+	_spawn_racers()
+	for gate in _gates:
+		gate.show()
+	_refresh_gates()
+	_big_label.text = str(ceili(countdown_seconds))
+	_big_label.show()
+	_status.show()
+	_update_status()
+
+
+func _spawn_racers() -> void:
+	for i in GameState.RACE_AI.size():
+		var def: Dictionary = GameState.RACE_AI[i]
+		var racer := AIRacer.new()
+		racer.racer_name = def["name"]
+		racer.visual_scene = load(def["visual"])
+		racer.max_speed = def["speed"]
+		racer.stability = def["stability"]
+		racer.turn_speed_deg = def["turn"]
+		racer.sea = sea
+		add_child(racer)
+		racer.global_position = global_position + START_OFFSETS[i % START_OFFSETS.size()]
+		racer.begin_course(_waypoints)
+		racer.finished_course.connect(_on_racer_finished)
+		_racers.append(racer)
+
+
+func _go() -> void:
+	_state = State.RACING
+	_race_boat.input_enabled = true
+	for racer in _racers:
+		racer.go()
+	_big_label.text = "VIA!"
+	_via_left = 1.0
+
+
+# --- Gara --------------------------------------------------------------------
+
+func _check_player_gate() -> void:
+	var target := _waypoints[_player_next]
+	var flat := _race_boat.global_position - target
+	flat.y = 0.0
+	if flat.length() > gate_radius:
+		return
+	_player_next += 1
+	if _player_next >= _waypoints.size():
+		_finish_player()
+	else:
+		_refresh_gates()
+
+
+func _on_racer_finished(racer: AIRacer) -> void:
+	_finish_order.append(racer.racer_name)
+
+
+func _finish_player() -> void:
+	var rank := _finish_order.size() + 1
+	_finish_order.append("Tu")
+	GameState.record_race_result(rank, _racers.size() + 1)
+	_state = State.RESULT
+	_race_boat.input_enabled = false
+	_race_boat.reset_motion()
+	_status.hide()
+	_big_label.hide()
+	_show_standings(rank)
+
+
+func _show_standings(rank: int) -> void:
+	var lines: Array[String] = []
+	for i in _finish_order.size():
+		lines.append("%d°  %s" % [i + 1, _finish_order[i]])
+	# Chi è ancora in mare, in ordine di avanzamento.
+	var unfinished := _racers.filter(func(r: AIRacer) -> bool: return not r.has_finished())
+	unfinished.sort_custom(func(a: AIRacer, b: AIRacer) -> bool: return a.progress() > b.progress())
+	var place := _finish_order.size()
+	for racer: AIRacer in unfinished:
+		place += 1
+		lines.append("%d°  %s (in mare)" % [place, racer.racer_name])
+	var prize: int = GameState.RACE_PRIZES[rank - 1] if rank - 1 < GameState.RACE_PRIZES.size() else 0
+	lines.append("")
+	lines.append("Premio: %d $" % prize)
+	_standings.text = "\n".join(lines)
+	_panel.show()
+	_close_button.grab_focus()
+
+
+func _player_rank() -> int:
+	var progress := float(_player_next) * 10000.0 \
+		- _race_boat.global_position.distance_to(_waypoints[_player_next])
+	var rank := 1 + _finish_order.size()
+	for racer in _racers:
+		if not racer.has_finished() and racer.progress() > progress:
+			rank += 1
+	return rank
+
+
+func _update_status() -> void:
+	_status.text = "Cancello %d/%d  ·  Posizione %d°/%d" % [
+		_player_next + 1, _waypoints.size(), _player_rank(), _racers.size() + 1,
+	]
+
+
+func _retire(message: String) -> void:
+	GameState.post_notice(message)
+	_cleanup()
+
+
+func _close_result() -> void:
+	_panel.hide()
+	_cleanup()
+
+
+func _cleanup() -> void:
+	_state = State.IDLE
+	_status.hide()
+	_big_label.hide()
+	_panel.hide()
+	for gate in _gates:
+		gate.hide()
+	for racer in _racers:
+		racer.queue_free()
+	_racers.clear()
+	if _race_boat != null:
+		_race_boat.input_enabled = true
+		_race_boat = null
+
+
+# --- Cancelli ----------------------------------------------------------------
+
+## Un pilone luminoso con colonna di luce per ogni marker in Checkpoints
+## (l'ultimo è il traguardo, sulla linea di partenza). Visibili solo in
+## gara: il prossimo è verde, i presi spariscono.
+func _build_gates() -> void:
+	var pylon_mesh := CylinderMesh.new()
+	pylon_mesh.top_radius = 0.4
+	pylon_mesh.bottom_radius = 0.55
+	pylon_mesh.height = 4.0
+	var pylon_mat := StandardMaterial3D.new()
+	pylon_mat.albedo_color = Color(1.0, 0.55, 0.15)
+	pylon_mat.emission_enabled = true
+	pylon_mat.emission = Color(1.0, 0.55, 0.15)
+	pylon_mat.emission_energy_multiplier = 0.5
+	var beam_mesh := CylinderMesh.new()
+	beam_mesh.top_radius = 1.4
+	beam_mesh.bottom_radius = 1.4
+	beam_mesh.height = 30.0
+	for marker: Node3D in _checkpoints.get_children():
+		var pos := marker.global_position
+		pos.y = 0.0
+		_waypoints.append(pos)
+		var gate := Node3D.new()
+		add_child(gate)
+		gate.global_position = pos
+		var pylon := MeshInstance3D.new()
+		pylon.mesh = pylon_mesh
+		pylon.material_override = pylon_mat
+		pylon.position.y = 1.6
+		gate.add_child(pylon)
+		var beam := MeshInstance3D.new()
+		beam.mesh = beam_mesh
+		var beam_mat := StandardMaterial3D.new()
+		beam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		beam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		beam_mat.albedo_color = BEAM_FAR_COLOR
+		beam.material_override = beam_mat
+		beam.position.y = 15.0
+		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		gate.add_child(beam)
+		gate.hide()
+		_gates.append(gate)
+		_beam_materials.append(beam_mat)
+
+
+func _refresh_gates() -> void:
+	for i in _gates.size():
+		_gates[i].visible = i >= _player_next
+		_beam_materials[i].albedo_color = BEAM_NEXT_COLOR if i == _player_next \
+			else BEAM_FAR_COLOR
+
+
+func _update_hint() -> void:
+	if _boat == null or _state != State.IDLE:
+		_hint.hide()
+		return
+	_hint.show()
+	if absf(_boat.current_speed()) <= start_max_speed:
+		_hint.text = "Premi E per la regata"
+	else:
+		_hint.text = "Rallenta per la regata"

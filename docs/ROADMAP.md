@@ -38,7 +38,7 @@ La mappa diventa un luogo: la baia di Bova Marina.
 - [x] Migliora la UI/UX dei pannelli. Dev'essere facile capire cosa si ha raccolto, lo shop ecc
 - [x] Benzina barca, possibilità di fare rifornimento pagando e trovare la benzina in mare con 5% di probabilità
 - [x] Minigioco pesca + zone di pesca + stiva
-- [ ] Gara a checkpoint con 2-3 IA, premi, sblocco contenuti
+- [x] Gara a checkpoint con 2-3 IA, premi, sblocco contenuti
 - [ ] Missioni di consegna/recupero dai porti
 - [ ] Eventi casuali con scelta + reputazione
 - [ ] **Criterio di uscita**: una sessione da 20 minuti offre almeno 3 attività diverse sensate

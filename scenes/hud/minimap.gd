@@ -23,6 +23,7 @@ const ISLAND_COLOR := Color(0.45, 0.62, 0.4)
 const PORT_COLOR := Color(1.0, 0.62, 0.2)
 const FUEL_COLOR := Color(0.9, 0.15, 0.1)
 const FISHING_COLOR := Color(0.55, 0.9, 1.0)
+const RACE_COLOR := Color(0.35, 1.0, 0.55)
 const BOAT_COLOR := Color(1, 1, 1)
 const TEXT_COLOR := Color(0.85, 0.9, 0.95)
 
@@ -121,6 +122,7 @@ func _draw() -> void:
 	_draw_islands(rect)
 	_draw_port(rect)
 	_draw_fishing_zones(rect)
+	_draw_race_gate(rect)
 	_draw_pickups(rect)
 	_draw_boat(rect)
 	if _expanded:
@@ -184,6 +186,18 @@ func _draw_fishing_zones(rect: Rect2) -> void:
 		if zone == null or zone.is_resting():
 			continue
 		draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
+
+
+## Solo durante la regata: il prossimo cancello da prendere, dello
+## stesso verde della colonna di luce in 3D.
+func _draw_race_gate(rect: Rect2) -> void:
+	var course := get_tree().get_first_node_in_group(&"race_course") as RaceCourse
+	if course == null or not course.is_racing():
+		return
+	var p := _to_map(rect, course.next_gate_position())
+	var radius := 7.0 if _expanded else 5.0
+	draw_arc(p, radius, 0.0, TAU, 16, RACE_COLOR, 2.5)
+	draw_circle(p, 2.0, RACE_COLOR)
 
 
 ## Boe e taniche effettivamente presenti in acqua (i punti non spawnati

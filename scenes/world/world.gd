@@ -52,10 +52,12 @@ var _storm_alarmed: bool = false
 @onready var _islands: Node3D = $Islands
 @onready var _rock_fields: Node3D = $RockFields
 @onready var _port: Port = $Port
+@onready var _race_course: RaceCourse = $RaceCourse
 
 
 func _ready() -> void:
 	_rng.seed = scatter_seed
+	_race_course.sea = sea
 	GameState.hull_depleted.connect(_on_hull_depleted)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)

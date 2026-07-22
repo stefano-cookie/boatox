@@ -244,6 +244,9 @@ func _refresh_shipyard() -> void:
 		elif GameState.owns_boat(def.id):
 			button.text = "Usa"
 			button.disabled = false
+		elif not GameState.boat_unlocked(def.id):
+			button.text = "Vinci la regata"
+			button.disabled = true
 		else:
 			button.text = "Compra (%d $)" % def.price
 			button.disabled = GameState.money < def.price

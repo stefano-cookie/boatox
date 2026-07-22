@@ -10,6 +10,8 @@ extends Resource
 @export var display_name: String = ""
 ## Prezzo d'acquisto; 0 = barca di partenza.
 @export var price: int = 0
+## Vero se serve una vittoria in regata per comprarla (GDD § Corse).
+@export var requires_race_win: bool = false
 @export var visual_scene: PackedScene
 @export var collision_size: Vector3 = Vector3(1.8, 1.0, 5.4)
 
