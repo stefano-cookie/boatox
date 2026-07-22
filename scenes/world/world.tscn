@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/world/island.tscn" id="2"]
@@ -6,6 +6,9 @@
 [ext_resource type="PackedScene" path="res://scenes/world/coast.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/race/race_course.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/npc/rescue_npc.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/town/build_slot.tscn" id="7"]
+[ext_resource type="Script" path="res://scenes/town/town_growth.gd" id="8"]
+[ext_resource type="Script" path="res://scenes/town/fleet.gd" id="9"]
 
 [node name="World" type="Node3D"]
 script = ExtResource("1")
@@ -83,7 +86,47 @@ service_refuel = false
 service_shipyard = false
 service_tackle = false
 service_missions = false
+service_town = false
 is_delivery_target = true
+
+[node name="TownGrowth" type="Node3D" parent="."]
+script = ExtResource("8")
+
+[node name="Fleet" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, -130)
+script = ExtResource("9")
+
+[node name="BuildSlots" type="Node3D" parent="."]
+
+[node name="SlotMolo" parent="BuildSlots" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, -138)
+slot_id = &"molo"
+display_name = "Molo di ponente"
+allowed = Array[StringName]([&"molo_grande"])
+
+[node name="SlotLungomare" parent="BuildSlots" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 1.4, -152)
+slot_id = &"lungomare"
+display_name = "Lungomare"
+allowed = Array[StringName]([&"conserva", &"magazzino"])
+
+[node name="SlotPaese" parent="BuildSlots" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, 1.4, -154)
+slot_id = &"paese"
+display_name = "Vico del paese"
+allowed = Array[StringName]([&"conserva", &"magazzino"])
+
+[node name="SlotPromontorio" parent="BuildSlots" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 296, 1.8, -26)
+slot_id = &"promontorio"
+display_name = "Punta di levante"
+allowed = Array[StringName]([&"faro"])
+
+[node name="SlotIsola" parent="BuildSlots" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117, 1.9, 56.5)
+slot_id = &"isola"
+display_name = "Isolotto di mezzo"
+allowed = Array[StringName]([&"faro", &"magazzino"])
 
 [node name="RaceCourse" parent="." instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0, -120)

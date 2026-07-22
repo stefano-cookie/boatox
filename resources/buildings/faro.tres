@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"faro"
+display_name = "Faro"
+desc = "guida le barche a casa: la flottiglia rende il 50% in più"
+costs = Array[int]([1600])
+yield_mult = Array[float]([1.0, 1.5])

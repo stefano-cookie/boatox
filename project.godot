@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameState="*res://autoload/game_state.gd"
 Diplomacy="*res://autoload/diplomacy.gd"
+Town="*res://autoload/town.gd"
 Radar="*res://autoload/radar.gd"
 Audio="*res://autoload/audio.gd"
 

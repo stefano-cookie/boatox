@@ -46,6 +46,9 @@ signal customization_changed
 ## Acquisto del primo Cabinato: il traguardo dell'alpha (roadmap A2).
 ## La schermata di fine alpha si mostra su questo, una volta sola.
 signal alpha_completed
+## Il world_state è tornato ai default (azzeramento partita): l'autoload
+## Town lo rilancia alle scene del paese (slot, crescita, flottiglia).
+signal world_state_reset
 
 ## Tipologie di boa legate al rischio della zona (GDD pillar 2):
 ## gialla in acque tranquille, rossa ai margini degli scogli, blu
@@ -1350,10 +1353,14 @@ func salvage_after_sinking() -> void:
 
 # --- Salvataggio -------------------------------------------------------------
 
-## Forma di partenza del world_state: Bova povera, nessuna difesa.
+## Forma di partenza del world_state: Bova povera, nessuna difesa,
+## nessun edificio e magazzino vuoto (le regole vivono nell'autoload Town).
 func _default_world_state() -> Dictionary:
 	return {
 		"bova_prosperity": 0,
+		"prosperity_points": 0,
+		"buildings": {},
+		"warehouse": {},
 		"defenses": [],
 	}
 
@@ -1504,6 +1511,7 @@ func load_game() -> void:
 	for key: String in ws_in:
 		world_state[key] = ws_in[key]
 	world_state["bova_prosperity"] = int(world_state.get("bova_prosperity", 0))
+	world_state["prosperity_points"] = int(world_state.get("prosperity_points", 0))
 	active_mission.clear()
 	var mission_in: Dictionary = data.get("mission", {})
 	for key: String in mission_in:
@@ -1609,6 +1617,7 @@ func reset() -> void:
 	tutorial_changed.emit(tutorial_step, tutorial_hint())
 	reputation_changed.emit(FACTION_BOVA, 0)
 	mission_changed.emit()
+	world_state_reset.emit()
 	clear_danger()
 
 

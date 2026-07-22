@@ -136,6 +136,12 @@ func map_rocks() -> Array[Vector3]:
 	return _rock_positions
 
 
+## Le zone di pesca della baia: la flottiglia di Bova (roadmap B2) ci
+## manda le sue barche a lavorare.
+func fishing_positions() -> Array[Vector3]:
+	return _fishing_positions
+
+
 # --- Missioni della bacheca (roadmap A1) -------------------------------------
 
 ## L'approdo che riceve le casse delle consegne (flag sul Port parametrico).

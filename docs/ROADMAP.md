@@ -96,11 +96,16 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 *Il cuore del feedback visivo: l'economia si vede, non si legge.*
 
-- [ ] **Slot di costruzione** predefiniti sulla costa (e sulle isole): pannello al porto per costruire/potenziare — molo grande, conserva (trasforma pesce in prodotto di valore ×N), cantiere di guerra, magazzino, faro…
-- [ ] **Prosperità di Bova** (0..N livelli): il bottino e la produzione la alzano; ogni livello trasforma visivamente il paese — più case, luci di notte, barche ormeggiate, gente sul molo, il campanile che si abbellisce
-- [ ] **Automazione**: la flottiglia di pesca (sbloccata con un edificio) pesca passivamente nelle zone conosciute; le barche si vedono lavorare in mare; rendimento e capienza potenziabili
-- [ ] Produzione/consumo a tick semplici (niente catene complesse: 3-4 risorse leggibili), tutto in `Resource` bilanciabili
+- [x] **Slot di costruzione** predefiniti sulla costa (e sulle isole): pannello al porto per costruire/potenziare — molo grande, conserva (trasforma pesce in prodotto di valore ×N), cantiere di guerra, magazzino, faro…
+	- 5 slot disegnati a mano in `world.tscn` (molo, lungomare, vico del paese, punta di levante, isolotto), ognuno coi suoi edifici ammessi — la geografia decide (`scenes/town/build_slot.gd`). 4 edifici in `resources/buildings/*.tres` (`BuildingDefinition`): molo grande (flottiglia), conserva (pesce → conserve), magazzino (capienza), faro (+50% resa). Il cantiere di guerra arriva in B3 con le difese, negli slot rimasti liberi. Pannello "Bova (costruzioni)" nel menu porto, solo al porto di casa (`service_town`).
+- [x] **Prosperità di Bova** (0..N livelli): il bottino e la produzione la alzano; ogni livello trasforma visivamente il paese — più case, luci di notte, barche ormeggiate, gente sul molo, il campanile che si abbellisce
+	- 5 livelli a soglie di punti (autoload `Town`): costruire e vendere (carico o produzione, via `cargo_sold`) danno punti. Ogni livello aggiunge props procedurali (`scenes/town/town_growth.gd`): case coi vetri accesi, barche ormeggiate che dondolano, paesani e filo di luci sul lungomare, campanile dorato. Stato in `world_state` (salvato, retrocompatibile B0).
+- [x] **Automazione**: la flottiglia di pesca (sbloccata con un edificio) pesca passivamente nelle zone conosciute; le barche si vedono lavorare in mare; rendimento e capienza potenziabili
+	- Il molo grande vara 1-3 pescherecci visibili (`scenes/town/fleet.gd`) che fanno la spola rada → zone di pesca del World e girano in tondo mentre lavorano. La resa vera è nei tick di `Town` (30 s): pesce nel magazzino del paese, conversione in conserve, vendita dal pannello.
+- [x] Produzione/consumo a tick semplici (niente catene complesse: 3-4 risorse leggibili), tutto in `Resource` bilanciabili
+	- Due risorse (pesce, conserve) più il denaro: la flottiglia produce, la conserva trasforma 1:1 alzando il valore, il magazzino fa da tetto. Curve per livello nei `.tres`, costanti di bilancio in `autoload/town.gd`. Test headless `tests/b2_town.tscn`.
 - [ ] **Criterio di uscita**: si distingue a colpo d'occhio una Bova povera da una ricca, e viene voglia di arricchirla
+	- *Da verificare in gioco: leggibilità dei cartelli-lotto e degli edifici dai vari livelli; posizioni degli slot (promontorio e isolotto a occhio); ritmo dei tick e valori di pesce/conserve; soglie di prosperità (ora 120/300/560/900 punti); l'effetto del faro; il colpo d'occhio povera → ricca.*
 
 ## B3 — Difendere casa
 

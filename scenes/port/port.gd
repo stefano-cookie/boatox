@@ -29,6 +29,8 @@ extends Node3D
 @export var service_shipyard: bool = true
 @export var service_tackle: bool = true
 @export var service_missions: bool = true
+## Pannello di costruzione di Bova (roadmap B2): solo al porto di casa.
+@export var service_town: bool = true
 ## Vero per l'approdo che riceve le casse delle missioni di consegna.
 @export var is_delivery_target: bool = false
 
@@ -56,6 +58,7 @@ var _shipyard_open: bool = false
 var _tackle_open: bool = false
 var _board_open: bool = false
 var _style_open: bool = false
+var _town_open: bool = false
 
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
@@ -101,6 +104,12 @@ var _offers: Array[Dictionary] = []
 @onready var _offers_box: VBoxContainer = $PortUI/Board/Margin/VBox/OffersBox
 @onready var _abandon_button: Button = $PortUI/Board/Margin/VBox/AbandonButton
 @onready var _board_back: Button = $PortUI/Board/Margin/VBox/BackButton
+@onready var _town_button: Button = $PortUI/Panel/Margin/VBox/TownButton
+@onready var _town: PanelContainer = $PortUI/Town
+@onready var _town_info: RichTextLabel = $PortUI/Town/Margin/VBox/Info
+@onready var _town_sell: Button = $PortUI/Town/Margin/VBox/SellButton
+@onready var _slots_box: VBoxContainer = $PortUI/Town/Margin/VBox/SlotsBox
+@onready var _town_back: Button = $PortUI/Town/Margin/VBox/BackButton
 
 
 func _ready() -> void:
@@ -122,6 +131,9 @@ func _ready() -> void:
 	_tackle_back.pressed.connect(_close_tackle)
 	_board_back.pressed.connect(_close_board)
 	_abandon_button.pressed.connect(_on_abandon_pressed)
+	_town_button.pressed.connect(_open_town)
+	_town_back.pressed.connect(_close_town)
+	_town_sell.pressed.connect(_on_town_sell_pressed)
 	_apply_services()
 	_build_shipyard_rows()
 	_build_style_rows()
@@ -131,6 +143,7 @@ func _ready() -> void:
 	_style.hide()
 	_tackle.hide()
 	_board.hide()
+	_town.hide()
 	_hint.hide()
 
 
@@ -146,6 +159,7 @@ func _apply_services() -> void:
 	_shipyard_button.visible = service_shipyard
 	_tackle_button.visible = service_tackle
 	_board_button.visible = service_missions
+	_town_button.visible = service_town
 	($Nino as Node3D).visible = service_tackle
 
 
@@ -205,6 +219,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _board_open:
 			get_viewport().set_input_as_handled()
 			_close_board()
+		elif _town_open:
+			get_viewport().set_input_as_handled()
+			_close_town()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -225,6 +242,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _board_open:
 			get_viewport().set_input_as_handled()
 			_close_board()
+		elif _town_open:
+			get_viewport().set_input_as_handled()
+			_close_town()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -289,12 +309,14 @@ func _close_menu() -> void:
 	_tackle_open = false
 	_board_open = false
 	_style_open = false
+	_town_open = false
 	GameState.clear_paint_preview()
 	_panel.hide()
 	_shipyard.hide()
 	_style.hide()
 	_tackle.hide()
 	_board.hide()
+	_town.hide()
 	GameState.pop_ui_focus()
 	GameState.save_game()
 	if _docked_boat != null:
@@ -458,6 +480,119 @@ func _on_abandon_pressed() -> void:
 	GameState.abandon_mission()
 	_refresh_board()
 	_board_back.grab_focus()
+
+
+# --- Bova cresce: costruzione e magazzino (roadmap B2) -----------------------
+
+func _open_town() -> void:
+	_town_open = true
+	_panel.hide()
+	_refresh_town()
+	_town.show()
+	_town_back.grab_focus()
+
+
+func _close_town() -> void:
+	_town_open = false
+	_town.hide()
+	_refresh()
+	_panel.show()
+	_town_button.grab_focus()
+
+
+func _on_town_sell_pressed() -> void:
+	Town.sell_warehouse()
+	_refresh_town()
+	_town_back.grab_focus()
+
+
+func _on_build_pressed(slot_id: StringName, building_id: StringName) -> void:
+	Town.build(slot_id, building_id)
+	_refresh_town()
+	_town_back.grab_focus()
+
+
+func _on_slot_upgrade_pressed(slot_id: StringName) -> void:
+	Town.upgrade(slot_id)
+	_refresh_town()
+	_town_back.grab_focus()
+
+
+## Le righe si ricostruiscono a ogni refresh, come la bacheca: cambiano
+## forma con lo stato (slot libero → bottoni di costruzione, occupato →
+## potenziamento), non conviene tenerle vive.
+func _refresh_town() -> void:
+	var next_threshold := Town.next_level_threshold()
+	var progress_text := "al massimo splendore"
+	if next_threshold > 0:
+		progress_text = "%d/%d punti per crescere" % [Town.prosperity_points(), next_threshold]
+	_town_info.text = "Prosperità: [b]%s[/b] (liv. %d/%d) · %s\nMagazzino: %d pesce · %d conserve (capienza %d)\nFlottiglia: %d barche · %d pesce ogni %d s\nDenaro: [color=#%s]%d $[/color]" % [
+		Town.level_name(), Town.prosperity_level(), Town.max_prosperity_level(),
+		progress_text,
+		Town.fish_stock(), Town.conserve_stock(), Town.storage_capacity(),
+		Town.fleet_boat_count(), Town.fish_rate_per_tick(), int(Town.TICK_SECONDS),
+		Town.MONEY_HEX, GameState.money,
+	]
+	_town_sell.text = "Vendi la produzione (+%d $)" % Town.warehouse_value()
+	_town_sell.disabled = Town.warehouse_value() <= 0
+	for child in _slots_box.get_children():
+		child.queue_free()
+	for node in get_tree().get_nodes_in_group(&"build_slots"):
+		var slot := node as BuildSlot
+		if slot == null:
+			continue
+		_slots_box.add_child(_build_slot_row(slot))
+
+
+## Riga di uno slot: nome e stato a sinistra; a destra il bottone di
+## potenziamento (se costruito) o un bottone per ogni edificio ammesso
+## ancora da costruire (se libero).
+func _build_slot_row(slot: BuildSlot) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", 18)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+	var info := Town.slot_building(slot.slot_id)
+	if not info.is_empty():
+		var def: BuildingDefinition = Town.building_def(info["id"])
+		var level: int = info["level"]
+		label.text = "%s — %s liv. %d/%d\n%s" % [
+			slot.display_name, def.display_name, level, def.max_level(), def.desc,
+		]
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 20)
+		button.custom_minimum_size = Vector2(200, 0)
+		var cost := def.next_cost(level)
+		if cost < 0:
+			button.text = "MAX"
+			button.disabled = true
+		else:
+			button.text = "Potenzia (-%d $)" % cost
+			button.disabled = GameState.money < cost
+			button.pressed.connect(_on_slot_upgrade_pressed.bind(slot.slot_id))
+		row.add_child(button)
+		return row
+	label.text = "%s — libero" % slot.display_name
+	var any_option := false
+	for def in Town.BUILDINGS:
+		if not slot.can_host(def.id) or Town.built_slot(def.id) != &"":
+			continue
+		any_option = true
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 20)
+		button.custom_minimum_size = Vector2(200, 0)
+		var cost := def.next_cost(0)
+		button.text = "%s (-%d $)" % [def.display_name, cost]
+		button.tooltip_text = def.desc
+		button.disabled = GameState.money < cost
+		button.pressed.connect(_on_build_pressed.bind(slot.slot_id, def.id))
+		row.add_child(button)
+	if not any_option:
+		label.text = "%s — libero (niente da costruire qui, per ora)" % slot.display_name
+	return row
 
 
 # --- Cantiere ----------------------------------------------------------------

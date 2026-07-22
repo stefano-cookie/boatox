@@ -266,6 +266,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Bacheca missioni"
 
+[node name="TownButton" type="Button" parent="PortUI/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Bova (costruzioni)"
+
 [node name="LeaveButton" type="Button" parent="PortUI/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
@@ -497,6 +502,64 @@ theme_override_font_sizes/font_size = 24
 text = "Abbandona la missione"
 
 [node name="BackButton" type="Button" parent="PortUI/Board/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Torna al porto"
+
+[node name="Town" type="PanelContainer" parent="PortUI"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -390.0
+offset_top = -310.0
+offset_right = 390.0
+offset_bottom = 310.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("menu_style")
+
+[node name="Margin" type="MarginContainer" parent="PortUI/Town"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="PortUI/Town/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="PortUI/Town/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "BOVA CRESCE"
+horizontal_alignment = 1
+
+[node name="Info" type="RichTextLabel" parent="PortUI/Town/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 22
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="SellButton" type="Button" parent="PortUI/Town/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Vendi la produzione"
+
+[node name="SlotsTitle" type="Label" parent="PortUI/Town/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+modulate = Color(0.75, 0.85, 1, 1)
+text = "Cantieri del paese"
+
+[node name="SlotsBox" type="VBoxContainer" parent="PortUI/Town/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BackButton" type="Button" parent="PortUI/Town/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Torna al porto"

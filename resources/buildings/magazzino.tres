@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"magazzino"
+display_name = "Magazzino"
+desc = "più spazio per il pescato e le conserve della flottiglia"
+costs = Array[int]([500, 1100, 2200])
+storage_bonus = Array[int]([0, 30, 70, 140])

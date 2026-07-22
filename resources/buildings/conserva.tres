@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"conserva"
+display_name = "Conserva"
+desc = "trasforma il pescato in conserve che valgono molto di più"
+costs = Array[int]([900, 1800])
+convert_per_tick = Array[int]([0, 1, 2])
