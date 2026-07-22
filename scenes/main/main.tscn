@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/pause/pause_menu.tscn" id="6"]
 [ext_resource type="Script" path="res://scenes/weather/weather.gd" id="7"]
 [ext_resource type="Script" path="res://scenes/weather/wind_field.gd" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/inventory/inventory_panel.tscn" id="9"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -80,3 +81,5 @@ fov = 70.0
 far = 1100.0
 script = ExtResource("3")
 target = NodePath("../Boat")
+
+[node name="InventoryPanel" parent="." instance=ExtResource("9")]

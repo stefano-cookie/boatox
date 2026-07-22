@@ -134,10 +134,10 @@ Sostituisce la visibilità gratuita di boe e zone in minimappa con una progressi
 
 #### P2 — Inventario (stiva) su tasto I, con icone
 
-- [ ] **Pannello inventario apribile con "I", ogni item con immagine**
+- [x] **Pannello inventario apribile con "I", ogni item con immagine**
   - Oggi la stiva è solo testuale (BBCode colorato in `cargo_detail_bbcode`, [game_state.gd:503-517](autoload/game_state.gd#L503)); nessuna icona esiste (`assets/` ha solo `CREDITS.md`). Nuova action `inventory` su tasto **I** che apre/chiude un pannello CanvasLayer con una **griglia di item**: per ogni tipo di boa e di pesce un'icona + quantità + valore unitario, e il totale/capacità stiva.
   - **Icone**: generarle o procurarle CC0 (una per tipo: gialla/rossa/blu, sardina/orata/ricciola/tonno). Registrare i crediti in `assets/CREDITS.md`. In assenza di asset, come primo step icone procedurali a colori (i colori già esistono in `BUOY_HEX`/`FISH_HEX`).
-  - Rispettare il pattern UI: `push_ui_focus/pop_ui_focus`, `input_enabled=false` mentre è aperto, chiusura con I o Esc. Non deve aprirsi durante porto/pesca/regata/pausa (controllare lo stato focus).
+  - Rispettare il pattern UI: `push_ui_focus/pop_ui_focus`, `input_enabled=false` mentre è aperto, chiusura con I o Esc. Non deve aprirsi durante porto/pesca/regata/pausa (controllare lo stato focus). *Fatto: [scenes/inventory/inventory_panel.tscn](scenes/inventory/inventory_panel.tscn) — griglia Boe (3) + Pesci (4), icone procedurali disegnate ([item_icon.gd](scenes/inventory/item_icon.gd): boa tonda con antenna, pesce con coda/occhio, colori da `BUOY_HEX`/`FISH_HEX`), righe a 0 smorzate come catalogo. Apre col tasto I mettendo l'albero in pausa (come il menu pausa, `process_mode=ALWAYS`) + `push_ui_focus` (libera il mouse); Esc consumato per non aprire la pausa; guardia `ui_focus_open()` per la mutua esclusione con porto/pesca/regata/pausa. Hint "(I)" nella riga stiva dell'HUD. Icone procedurali (asset CC0 non scaricabili da script, come i modelli Kenney): nessun credito da registrare. Test: [tests/p2_inventory.tscn](tests/p2_inventory.tscn).* **Da verificare in gioco**: leggibilità delle icone procedurali e dimensione del pannello.
 
 ### Task rimanenti
 

@@ -167,11 +167,12 @@ func _on_fuel_changed(current: float, max_value: float) -> void:
 func _on_cargo_changed() -> void:
 	var count := GameState.cargo_count()
 	var capacity := GameState.cargo_capacity()
+	var hint := "  [color=#7f97ad](I)[/color]"
 	if count == 0:
-		_cargo_info.text = "Stiva %d/%d: vuota" % [count, capacity]
+		_cargo_info.text = "Stiva %d/%d: vuota%s" % [count, capacity, hint]
 	else:
-		_cargo_info.text = "Stiva %d/%d: %s — vale [color=#8ee3a8]%d $[/color]" % [
-			count, capacity, GameState.cargo_detail_bbcode(), GameState.cargo_value(),
+		_cargo_info.text = "Stiva %d/%d: %s — vale [color=#8ee3a8]%d $[/color]%s" % [
+			count, capacity, GameState.cargo_detail_bbcode(), GameState.cargo_value(), hint,
 		]
 
 
