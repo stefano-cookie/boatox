@@ -1,5 +1,5 @@
 class_name Boat
-extends CharacterBody3D
+extends Vessel
 
 ## Guida arcade (GDD § Navigazione): accelerazione, virata dipendente
 ## dalla velocità, deriva leggera. Il corpo resta a y = 0 e si muove sul
@@ -7,8 +7,7 @@ extends CharacterBody3D
 ## leggendo l'altezza dell'acqua dalla Sea. I parametri di guida non
 ## sono più @export: arrivano dalla BoatDefinition corrente (ogni barca
 ## ha la sua guida), qui restano solo i valori da tarare a mano.
-
-@export var sea: Sea
+## Fazione, mare e lettura del caos vivono nella base Vessel (B0).
 
 @export_group("Carburante")
 ## Velocità massima a serbatoio vuoto (motorino elettrico di riserva):
@@ -21,17 +20,12 @@ extends CharacterBody3D
 @export var damage_per_speed: float = 4.0
 @export var impact_cooldown: float = 0.6
 
-@export_group("Mare agitato")
-## Agitazione (zona × meteo) oltre cui il mare inizia a destabilizzare.
-@export var chaos_threshold: float = 1.6
-## Quanta agitazione oltre la soglia serve per il caos pieno.
-@export var chaos_full_range: float = 2.5
+@export_group("Mare agitato (guida)")
+## Soglie e freno del mare grosso: nella base Vessel (condivise con le IA).
 ## Sbandata del timone a caos pieno e stabilità zero.
 @export var chaos_turn_deg: float = 55.0
 ## Spinta laterale delle onde a caos pieno (m/s²).
 @export var chaos_push: float = 7.0
-## Quota di velocità massima persa a caos pieno: il mare grosso frena.
-@export_range(0.0, 1.0) var rough_slow_max: float = 0.55
 
 @export_group("Tempesta (danni)")
 ## Agitazione oltre cui il mare picchia lo scafo (solo largo + tempesta).
@@ -69,8 +63,8 @@ var sink_amount: float = 0.0
 ## si inclina verso il pesce che tira. Solo visuale.
 var fight_pitch: float = 0.0
 
-# Guida corrente, copiata dalla BoatDefinition in _apply_definition.
-var max_speed: float = 14.0
+# Guida corrente, copiata dalla BoatDefinition in _apply_definition
+# (max_speed e stability vivono nella base Vessel).
 var _max_reverse_speed: float = 4.0
 var _acceleration: float = 5.0
 var _reverse_acceleration: float = 3.0
@@ -79,10 +73,8 @@ var _water_drag: float = 2.0
 var _turn_speed_deg: float = 60.0
 var _turn_full_speed_ratio: float = 0.35
 var _grip: float = 2.5
-var _stability: float = 0.2
 var _fuel_per_second: float = 0.1
 
-var _speed: float = 0.0
 var _impact_timer: float = 0.0
 var _chaos_time: float = 0.0
 ## Caos corrente 0..1 (agitazione oltre soglia × instabilità): guida
@@ -146,14 +138,16 @@ func _update_audio(throttle: float) -> void:
 		Audio.update_sea(sea.agitation(global_position))
 
 
-func current_speed() -> float:
-	return _speed
-
-
 ## Vero quando il mare sta danneggiando lo scafo: il World lo usa per
 ## l'allarme a schermo.
 func storm_alarm() -> bool:
 	return _storm_intensity > 0.0
+
+
+## Lo scafo del giocatore vive in GameState (per-barca, con upgrade):
+## ogni danno — urti, tempesta, e in B1 i colpi delle armi — passa da qui.
+func take_damage(amount: float) -> void:
+	GameState.apply_damage(amount)
 
 
 func reset_motion() -> void:
@@ -167,7 +161,7 @@ func _apply_definition() -> void:
 	var def := GameState.current_def()
 	max_speed = GameState.effective_max_speed()
 	_acceleration = GameState.effective_acceleration()
-	_stability = GameState.effective_stability()
+	stability = GameState.effective_stability()
 	_max_reverse_speed = def.max_reverse_speed
 	_reverse_acceleration = def.reverse_acceleration
 	_brake_force = def.brake_force
@@ -205,8 +199,7 @@ func _update_sea_stress(delta: float) -> void:
 	if sea == null:
 		return
 	var agitation := sea.agitation(global_position)
-	_chaos = clampf((agitation - chaos_threshold) / chaos_full_range, 0.0, 1.0) \
-		* (1.0 - _stability)
+	_chaos = chaos01()
 	_storm_intensity = clampf((agitation - storm_damage_threshold) / storm_damage_range, 0.0, 1.0)
 	if _storm_intensity <= 0.0 or GameState.hull <= 0.0:
 		_storm_accum = 0.0
@@ -214,8 +207,8 @@ func _update_sea_stress(delta: float) -> void:
 	_storm_accum += delta
 	if _storm_accum >= storm_tick:
 		_storm_accum -= storm_tick
-		GameState.apply_damage(storm_damage_per_second * _storm_intensity \
-			* (1.0 - 0.75 * _stability) * storm_tick)
+		take_damage(storm_damage_per_second * _storm_intensity \
+			* (1.0 - 0.75 * stability) * storm_tick)
 
 
 func _update_speed(throttle: float, delta: float) -> void:
@@ -276,7 +269,7 @@ func _handle_impacts(pre_impact_velocity: Vector3) -> void:
 		return
 	_impact_timer = impact_cooldown
 	_speed *= 0.3
-	GameState.apply_damage((impact - min_impact_speed) * damage_per_speed)
+	take_damage((impact - min_impact_speed) * damage_per_speed)
 	# Feedback percepibile: HUD (flash scafo) e camera (shake) via segnale,
 	# spruzzo qui al punto di contatto, scalato sulla forza dell'urto.
 	GameState.report_boat_hit(impact)
@@ -325,7 +318,7 @@ func _update_attitude(throttle: float, steer: float, delta: float) -> void:
 
 	var water_level := (h_bow + h_stern + h_left + h_right) / 4.0
 	# La stabilità smorza la risposta alle onde: si vede oltre a sentirsi.
-	var damp := 1.0 - stability_damping * _stability
+	var damp := 1.0 - stability_damping * stability
 	var wave_pitch := atan2(h_bow - h_stern, _sample_stern.z - _sample_bow.z) * damp
 	var wave_roll := atan2(h_right - h_left, _sample_right.x - _sample_left.x) * damp
 

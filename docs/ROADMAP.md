@@ -75,12 +75,12 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 *Si fanno opportunisticamente già durante l'alpha, quando si tocca quel codice: nessuna feature nuova, solo forme che evitano di riscrivere dopo.*
 
-- [ ] **GDD**: nuova sezione "Beta — il gestionale d'azione" con questa visione (il GDD resta la fonte di verità; questa roadmap indica il *quando*, il GDD il *cosa*)
-- [ ] **`Vessel`**: base comune (hp, velocità, stabilità, fazione) da cui discendono la barca del giocatore e le navi IA — oggi `Boat` e le IA di regata non condividono nulla
-- [ ] **`owner_faction`** su porti e navi (per ora sempre player/neutrale) + autoload `Diplomacy` embrionale (mappa fazione → relazione, la reputazione di A1 ne è il primo caso)
-- [ ] **`Damageable` + `Weapon`** (raggio, danno, cadenza): astrazione condivisa che useranno cannoni di bordo, torri e batterie costiere
-- [ ] **`world_state`** in GameState: prosperità di Bova, difese costruite, relazioni — salvato accanto a denaro/upgrade
-- [ ] **Port parametrico**: `faction`, `services`, `defense_level`, `prosperity` come `@export` (l'approdo secondario di A1 è il primo banco di prova)
+- [x] **GDD**: nuova sezione "Beta — il gestionale d'azione" con questa visione (il GDD resta la fonte di verità; questa roadmap indica il *quando*, il GDD il *cosa*) — *fatta, con riconciliazione dei nomi: il vecchio "contenuto della beta" del GDD ora si chiama alpha, come qui*
+- [x] **`Vessel`**: base comune (velocità, stabilità, fazione, caos del mare, `take_damage`) da cui discendono `Boat` e `AIRacer` (`scripts/vessel.gd`) — le soglie del mare grosso ora vivono in un posto solo; i danni del giocatore passano tutti da `take_damage` → GameState
+- [x] **`owner_faction`** su porti e navi (`faction` su Port e Vessel, per ora sempre player/bova) + autoload `Diplomacy` embrionale (`autoload/diplomacy.gd`: relazione = reputazione di A1, soglie alleata/neutrale/ostile/guerra)
+- [x] **`Damageable` + `Weapon`** (raggio, danno, cadenza in `WeaponDefinition.tres`): astrazione condivisa che useranno cannoni di bordo, torri e batterie costiere (`scripts/damageable.gd`, `weapon.gd`, `weapon_definition.gd` — il proiettile ad arco arriva in B1)
+- [x] **`world_state`** in GameState: prosperità di Bova e difese costruite (le relazioni vivono già in `reputation`) — salvato accanto a denaro/upgrade, retrocompatibile coi salvataggi pre-B0
+- [x] **Port parametrico**: `faction`, `services`, `defense_level`, `prosperity` come `@export` (fatto in A1 con l'approdo secondario)
 
 ## B1 — Il cannone (combattimento navale)
 

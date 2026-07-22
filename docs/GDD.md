@@ -65,7 +65,7 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 - **Funzionali** (per barca): motore (velocità), scafo (resistenza), stabilità (tenuta col mare mosso), stiva (capacità pesca). Ognuno percepibile nella guida.
 - **Attrezzatura da pesca** (personale, non per barca): canna (ferrata più facile), mulinello (recupero più rapido), lenza (regge di più, doma gli strappi). Comprata da Nino al porto. Rende il minigioco della pesca una progressione, non solo abilità.
 - **Estetici**: vernici, vele, bandiere, luci, accessori. Nessun effetto sul gameplay, costi alti.
-- **Barche**: 2-3 nella beta (barchetta → pescareccio → primo cabinato), ognuna con guida distinta.
+- **Barche**: 2-3 nell'alpha (barchetta → pescareccio → primo cabinato), ognuna con guida distinta.
 
 ### Corse
 - Regate a checkpoint (boe da toccare) contro 2-3 avversari IA su percorso fisso.
@@ -76,14 +76,14 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 ### Missioni ed esplorazione
 - La minimappa **non** mostra boe e zone di pesca di default: il mare va esplorato. La rilevazione è una progressione, non un dato gratuito.
 - **Radar** a impulsi (tasto R): un impulso rivela boe, taniche e zone entro un raggio (frazione della mappa) per una finestra di secondi, poi cooldown. Si sblocca completando una missione, si potenzia (raggio e durata) come famiglia di upgrade a sé.
-- **Missione del nipote** (Zu' Vito, l'NPC dietro gli scogli a est): recupera il nipote che galleggia al largo (marker in minimappa) e riportalo; completata, sblocca il radar e apre la sua bottega di potenziamenti. Prototipo del formato missione recupero (marker + raccolta + consegna) della beta.
+- **Missione del nipote** (Zu' Vito, l'NPC dietro gli scogli a est): recupera il nipote che galleggia al largo (marker in minimappa) e riportalo; completata, sblocca il radar e apre la sua bottega di potenziamenti. Prototipo del formato missione recupero (marker + raccolta + consegna) della bacheca del porto.
 
 ### Eventi e reputazione
 - Eventi casuali in mare con scelta (es. barca in avaria: aiuti o ignori) e conseguenze su denaro e reputazione.
 - La reputazione modifica prezzi e missioni offerte nei porti.
-- Sistema volutamente leggero nella beta: 4-6 eventi scritti bene battono 20 generici.
+- Sistema volutamente leggero nell'alpha: 4-6 eventi scritti bene battono 20 generici.
 
-## Contenuto della beta ("loop completo in piccolo")
+## Contenuto dell'alpha ("loop completo in piccolo")
 
 - 1 zona di mare con 1 porto principale (+ 1 approdo secondario), isole, campi di scogli, 2-3 zone di pesca
 - 3 barche di progressione, 4 tipi di upgrade funzionali, un set base di estetica
@@ -91,11 +91,53 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 - 4-6 eventi con scelta, una manciata di missioni di consegna/recupero
 - Meteo a 2 stati (calmo/mosso), ciclo giorno sera facoltativo
 - Salvataggio, menu, audio di base
-- Un "traguardo": l'acquisto del primo cabinato chiude la beta con un finale provvisorio
+- Un "traguardo": l'acquisto del primo cabinato chiude l'alpha con un finale provvisorio
 
-## Fuori scope beta
+## Beta — il gestionale d'azione ("Bova è casa")
 
-Vedi `BACKLOG.md`. In particolare: finanza/commercio tra porti, tema narrativo migranti (da trattare con cura dedicata, non come evento qualunque), tempesta come terzo stato meteo, più zone, port web/mobile.
+> Bova Marina è casa tua: la fai crescere, la difendi, e il mare la nutre. Salpi per predare navi in mare aperto, commerci o fai guerra con città lontane, e ogni ricchezza che porti a casa **si vede**: il paese cresce, si illumina, si fortifica. Torni sempre a casa — ma il gioco si vive in mare.
+
+Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar di tutto. Le attività dell'alpha (pesca, boe) si **automatizzano** con la crescita di Bova — flottiglie che lavorano per te — e il giocatore sale di ruolo: da pescatore a comandante. I tre pillars restano validi e decidono anche qui. Riferimenti: Dave the Diver (loop azione + meta gestionale), Sid Meier's Pirates! (preda e diplomazia), il feedback visivo dei city builder.
+
+**Tono**: fantasia leggera stilizzata — fazioni immaginarie (predoni, mercanti, città rivali), nessun aggancio storico o contemporaneo sensibile. Arcade spensierato.
+
+### Il mondo
+
+- **Mappa unica allargata**: un solo mare continuo, molto più vasto; la baia di Bova resta il cuore dettagliato. Le città sono fisicamente lontane e ci si naviga in tempo reale: il viaggio è gioco (carburante, celle di vento, incontri), non uno schermo di caricamento.
+- **Due città lontane**, ognuna con costa, porto, flotta e personalità: una **commerciale** (accordi, prezzi migliori, missioni), una **ostile** (predoni al suo soldo, razzie, blocchi navali).
+
+### Combattimento navale
+
+- Arma di bordo con **mira libera col mouse**: mirino sulla camera orbitale esistente, proiettile ad arco — spari dove guardi. Cadenza/danno/gittata sono una famiglia di upgrade come motore e scafo.
+- Navi IA in mare aperto: **mercantili** (rotta + fuga se attaccati) e **predoni** (ti puntano, speronano o sparano).
+- Affondare una nave lascia **bottino galleggiante** da raccogliere; prede migliori dove il mare è più duro (pillar 2).
+
+### Bova cresce
+
+- **Slot di costruzione predefiniti** disegnati a mano su costa e isole: scegli *cosa* costruire lì, non *dove* — la baia resta bella e leggibile. Molo grande, conserva, cantiere di guerra, magazzino, faro, difese…
+- **Prosperità** a livelli: bottino e produzione la alzano, e ogni livello trasforma visivamente il paese — più case, luci di notte, barche ormeggiate, gente sul molo. L'economia si vede, non si legge.
+- **Automazione**: flottiglie passive (pesca, raccolta) sbloccate dalla crescita; le barche si vedono lavorare in mare. Produzione/consumo a tick semplici, 3-4 risorse leggibili.
+
+### Difendere casa
+
+- **Attacchi dei predoni in tempo reale con preavviso**: allarme → l'attacco arriva dopo X minuti → puoi rientrare a difendere; le difese costruite (torri, batterie, pattuglie) combattono comunque.
+- Se la razzia riesce: prosperità e magazzino calano, nessun game over — la progressione non si cancella.
+- Frequenza e forza scalate sulla ricchezza di Bova: più sei ricco, più fai gola.
+
+### Diplomazia, commercio, guerra
+
+- **Relazione solo col giocatore**, -100..+100 per città (estende la reputazione dell'alpha); soglie leggibili: alleata / neutrale / ostile / in guerra. Le rivalità tra città sono raccontate, non simulate.
+- **Via del mercante**: accordi che aprono rotte automatizzate — le tue navi viaggiano visibili e rendono passivamente, ma sono attaccabili: da difendere o scortare.
+- **Via del corsaro**: predare peggiora la relazione, fino alla guerra aperta — attaccare il porto nemico, subire rappresaglie, imporre la sottomissione (tributo o cessate il fuoco).
+- Le due vie devono cambiare davvero la partita: è il criterio di uscita della beta.
+
+### Traguardo di fine beta
+
+Doppio: Bova al massimo splendore (prosperità e difese) **e** ogni città risolta (alleata o sottomessa) → schermata finale con statistiche.
+
+## Fuori scope
+
+Vedi `BACKLOG.md`. In particolare: tema narrativo migranti (da trattare con cura dedicata, non come evento qualunque), simulazione città-vs-città, tempesta come terzo stato meteo, port web/mobile.
 
 ## Direzione estetica
 

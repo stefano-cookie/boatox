@@ -1,35 +1,30 @@
 class_name AIRacer
-extends Node3D
+extends Vessel
 
 ## Avversario IA della regata (GDD § Corse): niente fisica, guida
 ## cinematica — vira verso il prossimo checkpoint, molla il gas in curva
 ## e viene frenato dal mare grosso in base alla sua stabilità, con le
-## stesse soglie del giocatore: gli upgrade si confrontano ad armi pari.
-## I parametri delle IA vivono in GameState.RACE_AI; qui la guida.
+## stesse soglie del giocatore (nella base Vessel): gli upgrade si
+## confrontano ad armi pari. I parametri delle IA vivono in
+## GameState.RACE_AI; qui la guida. Niente collisioni per ora (nessuna
+## shape): le navi solide arrivano in B1.
 
 signal finished_course(racer: AIRacer)
 
-## Impostati da chi lo spawna, prima di add_child.
+## Impostati da chi lo spawna, prima di add_child (max_speed, stability
+## e sea sono nella base Vessel).
 var racer_name: String = ""
-var max_speed: float = 12.0
-var stability: float = 0.3
 var turn_speed_deg: float = 55.0
-var sea: Sea
 var visual_scene: PackedScene
 
 ## Le IA vanno sempre a tutto gas: conta solo il tetto di velocità.
 const ACCELERATION: float = 4.0
 const PASS_RADIUS: float = 15.0
-## Le stesse soglie di Boat per il rallentamento da mare grosso.
-const CHAOS_THRESHOLD: float = 1.6
-const CHAOS_FULL_RANGE: float = 2.5
-const ROUGH_SLOW_MAX: float = 0.55
 ## Tetto di velocità in curva stretta: traiettorie credibili.
 const TURN_SLOW: float = 0.65
 
 var _waypoints: Array[Vector3] = []
 var _next: int = 0
-var _speed: float = 0.0
 var _racing: bool = false
 var _finished: bool = false
 ## Scarto personale sui cancelli intermedi: le IA non si impilano.
@@ -62,7 +57,7 @@ func _physics_process(delta: float) -> void:
 	var diff := angle_difference(rotation.y, target_angle)
 	var max_step := deg_to_rad(turn_speed_deg) * delta
 	rotation.y += clampf(diff, -max_step, max_step)
-	var cap := max_speed * (1.0 - ROUGH_SLOW_MAX * _chaos())
+	var cap := max_speed * (1.0 - rough_slow_max * chaos01())
 	if absf(diff) > 0.6:
 		cap *= TURN_SLOW
 	_speed = move_toward(_speed, cap, ACCELERATION * delta)
@@ -111,10 +106,3 @@ func _current_target() -> Vector3:
 	if _next < _waypoints.size() - 1:
 		target += _offset
 	return target
-
-
-func _chaos() -> float:
-	if sea == null:
-		return 0.0
-	return clampf((sea.agitation(global_position) - CHAOS_THRESHOLD) / CHAOS_FULL_RANGE, 0.0, 1.0) \
-		* (1.0 - stability)

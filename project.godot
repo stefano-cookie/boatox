@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://autoload/game_state.gd"
+Diplomacy="*res://autoload/diplomacy.gd"
 Radar="*res://autoload/radar.gd"
 Audio="*res://autoload/audio.gd"
 

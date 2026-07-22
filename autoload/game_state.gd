@@ -436,8 +436,14 @@ var upgrades: Dictionary[StringName, Dictionary] = {}
 ## comprata da Nino al porto.
 var fishing_gear: Dictionary[int, int] = {}
 
-## Reputazione per fazione (vedi FACTION_*). Salvata.
+## Reputazione per fazione (vedi FACTION_*). Salvata. Letta a soglie
+## dall'autoload Diplomacy (predisposizione B0).
 var reputation: Dictionary[StringName, int] = {}
+## Stato del mondo gestionale (predisposizione B0, roadmap beta):
+## prosperità di Bova e difese costruite; le relazioni vivono già in
+## `reputation`. Salvato accanto a denaro e upgrade. Le chiavi si
+## consolidano in B2/B3 quando i sistemi nascono.
+var world_state: Dictionary = _default_world_state()
 ## Missione attiva dalla bacheca (vuoto = nessuna): tipo, target,
 ## ricompensa… (vedi generate_mission_offers). Una alla volta, salvata.
 var active_mission: Dictionary = {}
@@ -1344,6 +1350,14 @@ func salvage_after_sinking() -> void:
 
 # --- Salvataggio -------------------------------------------------------------
 
+## Forma di partenza del world_state: Bova povera, nessuna difesa.
+func _default_world_state() -> Dictionary:
+	return {
+		"bova_prosperity": 0,
+		"defenses": [],
+	}
+
+
 func save_game() -> void:
 	var cargo_out: Dictionary = {}
 	for type in cargo:
@@ -1407,6 +1421,7 @@ func save_game() -> void:
 		"radar_unlocked": radar_unlocked,
 		"radar_upgrades": radar_out,
 		"reputation": rep_out,
+		"world_state": world_state,
 		"mission": mission_out,
 		"mission_time_left": mission_time_left,
 		"mission_crates": mission_crates,
@@ -1482,6 +1497,13 @@ func load_game() -> void:
 	var rep_in: Dictionary = data.get("reputation", {})
 	for faction: String in rep_in:
 		reputation[StringName(faction)] = clampi(int(rep_in[faction]), REP_MIN, REP_MAX)
+	# Salvataggi pre-B0: mondo allo stato iniziale. Le chiavi salvate si
+	# sovrappongono ai default, così aggiungerne di nuove non li invalida.
+	world_state = _default_world_state()
+	var ws_in: Dictionary = data.get("world_state", {})
+	for key: String in ws_in:
+		world_state[key] = ws_in[key]
+	world_state["bova_prosperity"] = int(world_state.get("bova_prosperity", 0))
 	active_mission.clear()
 	var mission_in: Dictionary = data.get("mission", {})
 	for key: String in mission_in:
@@ -1562,6 +1584,7 @@ func reset() -> void:
 	radar_unlocked = false
 	radar_upgrades.clear()
 	reputation.clear()
+	world_state = _default_world_state()
 	active_mission.clear()
 	mission_time_left = 0.0
 	mission_crates = 0
