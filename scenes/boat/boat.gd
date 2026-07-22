@@ -10,6 +10,11 @@ extends CharacterBody3D
 
 @export var sea: Sea
 
+@export_group("Carburante")
+## Velocità massima a serbatoio vuoto (motorino elettrico di riserva):
+## si torna a casa piano, senza consumare.
+@export var reserve_speed: float = 3.0
+
 @export_group("Danni")
 ## Sotto questa velocità d'impatto l'urto non danneggia (sfregare non punisce).
 @export var min_impact_speed: float = 3.0
@@ -68,6 +73,7 @@ var _turn_speed_deg: float = 60.0
 var _turn_full_speed_ratio: float = 0.35
 var _grip: float = 2.5
 var _stability: float = 0.2
+var _fuel_per_second: float = 0.1
 
 var _speed: float = 0.0
 var _impact_timer: float = 0.0
@@ -100,6 +106,8 @@ func _physics_process(delta: float) -> void:
 	if input_enabled:
 		throttle = Input.get_axis("move_back", "move_forward")
 		steer = Input.get_axis("turn_right", "turn_left")
+	if throttle != 0.0 and GameState.fuel > 0.0:
+		GameState.consume_fuel(_fuel_per_second * absf(throttle) * delta)
 	_update_sea_stress(delta)
 	_update_speed(throttle, delta)
 	_update_heading(steer, delta)
@@ -141,6 +149,7 @@ func _apply_definition() -> void:
 	_turn_speed_deg = def.turn_speed_deg
 	_turn_full_speed_ratio = def.turn_full_speed_ratio
 	_grip = def.grip
+	_fuel_per_second = def.fuel_per_second
 
 	var shape := BoxShape3D.new()
 	shape.size = def.collision_size
@@ -183,8 +192,11 @@ func _update_sea_stress(delta: float) -> void:
 
 func _update_speed(throttle: float, delta: float) -> void:
 	# Il mare grosso frena: la velocità massima raggiungibile cala col
-	# caos, e se eri lanciato il mare ti rallenta lui.
+	# caos, e se eri lanciato il mare ti rallenta lui. A serbatoio vuoto
+	# comanda la riserva d'emergenza.
 	var cap := max_speed * (1.0 - rough_slow_max * _chaos)
+	if GameState.fuel <= 0.0:
+		cap = minf(cap, reserve_speed)
 	if _speed > cap:
 		_speed = move_toward(_speed, cap, (_water_drag + _brake_force * 0.5) * delta)
 	if throttle > 0.0:

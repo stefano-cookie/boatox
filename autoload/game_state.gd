@@ -8,6 +8,7 @@ extends Node
 
 signal money_changed(amount: int)
 signal hull_changed(current: float, max_value: float)
+signal fuel_changed(current: float, max_value: float)
 signal cargo_changed
 signal hull_depleted
 signal boat_changed(def: BoatDefinition)
@@ -44,6 +45,17 @@ const BUOY_NAME: Dictionary[int, String] = {
 	BuoyType.RED: "rossa",
 	BuoyType.BLUE: "blu",
 }
+const BUOY_NAME_PLURAL: Dictionary[int, String] = {
+	BuoyType.YELLOW: "gialle",
+	BuoyType.RED: "rosse",
+	BuoyType.BLUE: "blu",
+}
+## Colori BBCode per il dettaglio stiva (HUD e porto).
+const BUOY_HEX: Dictionary[int, String] = {
+	BuoyType.YELLOW: "ffd43b",
+	BuoyType.RED: "ff7b6b",
+	BuoyType.BLUE: "7da2ff",
+}
 
 const UPGRADE_NAME: Dictionary[int, String] = {
 	UpgradeType.MOTOR: "Motore",
@@ -61,6 +73,12 @@ const BOAT_DEFS: Array[BoatDefinition] = [
 
 ## Riparare tutto lo scafo da zero costa hull_max * questo valore.
 const REPAIR_COST_PER_POINT: float = 0.5
+const FUEL_PRICE_PER_LITER: float = 1.0
+## Litri restituiti da una tanica trovata in mare.
+const FUEL_CAN_LITERS: float = 15.0
+## Probabilità che un punto tanica sia occupato a ogni ciclo (roadmap: 5%).
+const FUEL_CAN_SPAWN_CHANCE: float = 0.05
+const FUEL_CAN_RESPAWN: float = 60.0
 const TOW_FEE: int = 30
 ## Scafo restituito dal traino: quanto basta per ripartire, non di più.
 const TOW_HULL_RESTORE: float = 20.0
@@ -72,6 +90,7 @@ var save_path: String = "user://save.json"
 
 var money: int = 0
 var hull: float = 100.0
+var fuel: float = 40.0
 ## Conteggio boe in stiva per tipologia (chiave: BuoyType).
 var cargo: Dictionary[int, int] = {}
 
@@ -151,6 +170,10 @@ func cargo_capacity() -> int:
 	return def.cargo_capacity + upgrade_level(UpgradeType.CARGO) * def.cargo_step
 
 
+func fuel_capacity() -> float:
+	return current_def().fuel_capacity
+
+
 func buy_boat(id: StringName) -> bool:
 	var def := boat_def(id)
 	if owns_boat(id) or money < def.price:
@@ -163,16 +186,19 @@ func buy_boat(id: StringName) -> bool:
 	return true
 
 
-## Cambio barca: lo scafo mantiene la percentuale (niente riparazioni
-## gratis facendo avanti e indietro tra le barche).
+## Cambio barca: scafo e benzina mantengono la percentuale (niente
+## riparazioni o pieni gratis facendo avanti e indietro tra le barche).
 func select_boat(id: StringName) -> void:
 	if not owns_boat(id) or id == current_boat_id:
 		return
-	var ratio := hull / hull_max()
+	var hull_ratio := hull / hull_max()
+	var fuel_ratio := fuel / fuel_capacity()
 	current_boat_id = id
-	hull = ratio * hull_max()
+	hull = hull_ratio * hull_max()
+	fuel = fuel_ratio * fuel_capacity()
 	boat_changed.emit(current_def())
 	hull_changed.emit(hull, hull_max())
+	fuel_changed.emit(fuel, fuel_capacity())
 	cargo_changed.emit()
 	save_game()
 
@@ -238,6 +264,19 @@ func cargo_value() -> int:
 	return total
 
 
+## Dettaglio stiva in BBCode ("2× gialle · 1× rossa"), condiviso da HUD
+## e pannello del porto: cosa hai raccolto si capisce a colpo d'occhio.
+func cargo_detail_bbcode() -> String:
+	var parts: Array[String] = []
+	for type: int in BuoyType.values():
+		var count: int = cargo.get(type, 0)
+		if count <= 0:
+			continue
+		var buoy_name: String = BUOY_NAME[type] if count == 1 else BUOY_NAME_PLURAL[type]
+		parts.append("[color=#%s]%d× %s[/color]" % [BUOY_HEX[type], count, buoy_name])
+	return " · ".join(parts)
+
+
 func sell_cargo() -> int:
 	var earned := cargo_value()
 	if earned <= 0:
@@ -267,6 +306,45 @@ func repair_hull() -> void:
 		money = 0
 	money_changed.emit(money)
 	hull_changed.emit(hull, hull_max())
+
+
+# --- Carburante --------------------------------------------------------------
+
+func consume_fuel(amount: float) -> void:
+	if fuel <= 0.0 or amount <= 0.0:
+		return
+	fuel = maxf(fuel - amount, 0.0)
+	fuel_changed.emit(fuel, fuel_capacity())
+	if fuel <= 0.0:
+		post_notice("Serbatoio vuoto! Vai in riserva d'emergenza: torna al porto")
+
+
+## Tanica trovata in mare (o rifornimento parziale): non oltre il pieno.
+func add_fuel(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	fuel = minf(fuel + amount, fuel_capacity())
+	fuel_changed.emit(fuel, fuel_capacity())
+
+
+func refuel_cost() -> int:
+	return ceili((fuel_capacity() - fuel) * FUEL_PRICE_PER_LITER)
+
+
+## Pieno al porto; se i soldi non bastano si riempie quel che si può.
+func refuel() -> void:
+	var missing := fuel_capacity() - fuel
+	if missing <= 0.0 or money <= 0:
+		return
+	var full_cost := refuel_cost()
+	if money >= full_cost:
+		money -= full_cost
+		fuel = fuel_capacity()
+	else:
+		fuel += float(money) / FUEL_PRICE_PER_LITER
+		money = 0
+	money_changed.emit(money)
+	fuel_changed.emit(fuel, fuel_capacity())
 
 
 func apply_damage(amount: float) -> void:
@@ -305,6 +383,7 @@ func save_game() -> void:
 		"version": SAVE_VERSION,
 		"money": money,
 		"hull": hull,
+		"fuel": fuel,
 		"cargo": cargo_out,
 		"owned_boats": owned_out,
 		"current_boat": String(current_boat_id),
@@ -322,12 +401,14 @@ func save_game() -> void:
 func load_game() -> void:
 	if not FileAccess.file_exists(save_path):
 		hull = hull_max()
+		fuel = fuel_capacity()
 		return
 	var file := FileAccess.open(save_path, FileAccess.READ)
 	var data: Variant = JSON.parse_string(file.get_as_text())
 	if data == null or not data is Dictionary:
 		push_error("Salvataggio corrotto, si riparte da zero")
 		hull = hull_max()
+		fuel = fuel_capacity()
 		return
 	money = int(data.get("money", 0))
 	current_boat_id = StringName(data.get("current_boat", "dinghy"))
@@ -350,6 +431,8 @@ func load_game() -> void:
 	for type: String in cargo_in:
 		cargo[int(type)] = int(cargo_in[type])
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
+	# Salvataggi pre-benzina: si riparte col pieno.
+	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
 
 
 func delete_save() -> void:
@@ -368,9 +451,11 @@ func reset() -> void:
 	current_boat_id = &"dinghy"
 	upgrades.clear()
 	hull = hull_max()
+	fuel = fuel_capacity()
 	delete_save()
 	money_changed.emit(money)
 	hull_changed.emit(hull, hull_max())
+	fuel_changed.emit(fuel, fuel_capacity())
 	cargo_changed.emit()
 	boat_changed.emit(current_def())
 	clear_danger()

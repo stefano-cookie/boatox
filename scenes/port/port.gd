@@ -24,9 +24,10 @@ var _upgrade_buttons: Dictionary[int, Button] = {}
 @onready var _tow_spawn: Marker3D = $TowSpawn
 @onready var _hint: Label = $PortUI/Hint
 @onready var _panel: PanelContainer = $PortUI/Panel
-@onready var _info: Label = $PortUI/Panel/Margin/VBox/Info
+@onready var _info: RichTextLabel = $PortUI/Panel/Margin/VBox/Info
 @onready var _sell_button: Button = $PortUI/Panel/Margin/VBox/SellButton
 @onready var _repair_button: Button = $PortUI/Panel/Margin/VBox/RepairButton
+@onready var _refuel_button: Button = $PortUI/Panel/Margin/VBox/RefuelButton
 @onready var _shipyard_button: Button = $PortUI/Panel/Margin/VBox/ShipyardButton
 @onready var _leave_button: Button = $PortUI/Panel/Margin/VBox/LeaveButton
 @onready var _shipyard: PanelContainer = $PortUI/Shipyard
@@ -42,6 +43,7 @@ func _ready() -> void:
 	_zone.body_exited.connect(_on_zone_body_exited)
 	_sell_button.pressed.connect(_on_sell_pressed)
 	_repair_button.pressed.connect(_on_repair_pressed)
+	_refuel_button.pressed.connect(_on_refuel_pressed)
 	_shipyard_button.pressed.connect(_open_shipyard)
 	_leave_button.pressed.connect(_close_menu)
 	_back_button.pressed.connect(_close_shipyard)
@@ -158,25 +160,33 @@ func _on_repair_pressed() -> void:
 	_refresh()
 
 
+func _on_refuel_pressed() -> void:
+	GameState.refuel()
+	_refresh()
+
+
 func _refresh() -> void:
 	var cargo_text := "vuota"
 	if GameState.cargo_count() > 0:
-		var parts: Array[String] = []
-		for type: int in GameState.cargo:
-			if GameState.cargo[type] > 0:
-				parts.append("%d× %s" % [GameState.cargo[type], GameState.BUOY_NAME[type]])
-		cargo_text = "%s (%d $)" % [", ".join(parts), GameState.cargo_value()]
-	_info.text = "Denaro: %d $\nBarca: %s\nStiva: %s\nScafo: %d%%" % [
+		cargo_text = "%s — vale [color=#8ee3a8]%d $[/color]" % [
+			GameState.cargo_detail_bbcode(), GameState.cargo_value(),
+		]
+	_info.text = "Denaro: [color=#8ee3a8]%d $[/color]\nBarca: %s\nScafo: %d%%  ·  Benzina: %d/%d L\nStiva %d/%d: %s" % [
 		GameState.money,
 		GameState.current_def().display_name,
-		cargo_text,
 		roundi(GameState.hull / GameState.hull_max() * 100.0),
+		ceili(GameState.fuel), ceili(GameState.fuel_capacity()),
+		GameState.cargo_count(), GameState.cargo_capacity(),
+		cargo_text,
 	]
 	_sell_button.text = "Vendi il carico (+%d $)" % GameState.cargo_value()
 	_sell_button.disabled = GameState.cargo_value() <= 0
 	var cost := GameState.repair_cost()
 	_repair_button.text = "Ripara lo scafo (-%d $)" % cost
 	_repair_button.disabled = cost <= 0 or GameState.money <= 0
+	var fuel_cost := GameState.refuel_cost()
+	_refuel_button.text = "Fai il pieno (-%d $)" % fuel_cost
+	_refuel_button.disabled = fuel_cost <= 0 or GameState.money <= 0
 
 
 # --- Cantiere ----------------------------------------------------------------
@@ -189,9 +199,9 @@ func _build_shipyard_rows() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var label := Label.new()
-		label.text = "%s\nvel %d · scafo %d · stiva %d · stab %d%%" % [
+		label.text = "%s\nvel %d · scafo %d · stiva %d · stab %d%% · serb %d L" % [
 			def.display_name, roundi(def.max_speed), roundi(def.hull_max),
-			def.cargo_capacity, roundi(def.stability * 100.0),
+			def.cargo_capacity, roundi(def.stability * 100.0), roundi(def.fuel_capacity),
 		]
 		label.add_theme_font_size_override("font_size", 20)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -1,10 +1,10 @@
 extends CanvasLayer
 
-## HUD: denaro, barra scafo, stiva con capacità, barca corrente,
-## tachimetro in nodi, zona di mare, stato del meteo, messaggi
-## transitori e alert persistente (countdown fuori zona). Legge tutto da
-## GameState via segnali e dalla barca per la velocità: nessuna logica
-## di gioco qui.
+## HUD: denaro, barre scafo e benzina, stiva dettagliata per tipo di boa,
+## barca corrente, tachimetro in nodi, zona di mare, stato del meteo,
+## messaggi transitori e alert persistente (countdown fuori zona). Legge
+## tutto da GameState via segnali e dalla barca per la velocità: nessuna
+## logica di gioco qui.
 
 const MS_TO_KNOTS: float = 1.94384
 const ZONE_NAMES: Array[String] = ["Acque calme", "Acque medie", "Acque mosse"]
@@ -15,27 +15,35 @@ const ZONE_COLORS: Array[Color] = [
 ]
 const WEATHER_CALM_COLOR := Color(0.75, 0.95, 0.85)
 const WEATHER_ROUGH_COLOR := Color(1.0, 0.45, 0.35)
+const FUEL_OK_COLOR := Color(0.85, 0.9, 0.95)
+const FUEL_LOW_COLOR := Color(1.0, 0.35, 0.3)
+## Sotto questa frazione di serbatoio la scritta benzina diventa rossa.
+const FUEL_LOW_RATIO: float = 0.2
 
 @export var boat: Boat
 @export var sea: Sea
 @export var weather: Weather
 
-@onready var _money_label: Label = $TopLeft/VBox/MoneyLabel
-@onready var _boat_label: Label = $TopLeft/VBox/BoatLabel
-@onready var _hull_bar: ProgressBar = $TopLeft/VBox/HullRow/HullBar
-@onready var _cargo_label: Label = $TopLeft/VBox/CargoLabel
+@onready var _money_label: Label = $TopLeft/Margin/VBox/MoneyLabel
+@onready var _boat_label: Label = $TopLeft/Margin/VBox/BoatLabel
+@onready var _hull_bar: ProgressBar = $TopLeft/Margin/VBox/HullRow/HullBar
+@onready var _fuel_bar: ProgressBar = $TopLeft/Margin/VBox/FuelRow/FuelBar
+@onready var _fuel_title: Label = $TopLeft/Margin/VBox/FuelRow/FuelTitle
+@onready var _fuel_label: Label = $TopLeft/Margin/VBox/FuelRow/FuelLabel
+@onready var _cargo_info: RichTextLabel = $TopLeft/Margin/VBox/CargoInfo
 @onready var _notice_label: Label = $NoticeLabel
 @onready var _notice_timer: Timer = $NoticeTimer
 @onready var _danger_label: Label = $DangerLabel
-@onready var _speed_label: Label = $SpeedBox/SpeedLabel
-@onready var _speed_bar: ProgressBar = $SpeedBox/SpeedBar
-@onready var _zone_label: Label = $SpeedBox/ZoneLabel
-@onready var _weather_label: Label = $SpeedBox/WeatherLabel
+@onready var _speed_label: Label = $SpeedBox/Margin/VBox/SpeedLabel
+@onready var _speed_bar: ProgressBar = $SpeedBox/Margin/VBox/SpeedBar
+@onready var _zone_label: Label = $SpeedBox/Margin/VBox/ZoneLabel
+@onready var _weather_label: Label = $SpeedBox/Margin/VBox/WeatherLabel
 
 
 func _ready() -> void:
 	GameState.money_changed.connect(_on_money_changed)
 	GameState.hull_changed.connect(_on_hull_changed)
+	GameState.fuel_changed.connect(_on_fuel_changed)
 	GameState.cargo_changed.connect(_on_cargo_changed)
 	GameState.boat_changed.connect(_on_boat_changed)
 	GameState.notice_posted.connect(_on_notice_posted)
@@ -49,6 +57,7 @@ func _ready() -> void:
 	_danger_label.hide()
 	_on_money_changed(GameState.money)
 	_on_hull_changed(GameState.hull, GameState.hull_max())
+	_on_fuel_changed(GameState.fuel, GameState.fuel_capacity())
 	_on_cargo_changed()
 	_on_boat_changed(GameState.current_def())
 
@@ -74,19 +83,31 @@ func _on_hull_changed(current: float, max_value: float) -> void:
 	_hull_bar.value = current
 
 
+func _on_fuel_changed(current: float, max_value: float) -> void:
+	_fuel_bar.max_value = max_value
+	_fuel_bar.value = current
+	_fuel_label.text = "%d L" % ceili(current)
+	var low := current <= max_value * FUEL_LOW_RATIO
+	_fuel_title.modulate = FUEL_LOW_COLOR if low else Color.WHITE
+	_fuel_label.modulate = FUEL_LOW_COLOR if low else FUEL_OK_COLOR
+
+
 func _on_cargo_changed() -> void:
 	var count := GameState.cargo_count()
 	var capacity := GameState.cargo_capacity()
 	if count == 0:
-		_cargo_label.text = "Stiva: 0/%d" % capacity
+		_cargo_info.text = "Stiva %d/%d: vuota" % [count, capacity]
 	else:
-		_cargo_label.text = "Stiva: %d/%d · %d $" % [count, capacity, GameState.cargo_value()]
+		_cargo_info.text = "Stiva %d/%d: %s — vale [color=#8ee3a8]%d $[/color]" % [
+			count, capacity, GameState.cargo_detail_bbcode(), GameState.cargo_value(),
+		]
 
 
 func _on_boat_changed(def: BoatDefinition) -> void:
 	_boat_label.text = def.display_name
 	if boat != null:
 		_speed_bar.max_value = GameState.effective_max_speed()
+	_on_fuel_changed(GameState.fuel, GameState.fuel_capacity())
 
 
 func _on_weather_changed(rough: bool) -> void:

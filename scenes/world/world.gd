@@ -11,6 +11,7 @@ extends Node3D
 
 const BUOY_SCENE: PackedScene = preload("res://scenes/buoy/buoy.tscn")
 const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
+const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 
 @export var boat: Boat
 @export var sea: Sea
@@ -28,6 +29,8 @@ const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 @export var yellow_buoy_count: int = 26
 @export var red_point_count: int = 14
 @export var blue_point_count: int = 10
+## Punti tanica di benzina, sparsi su tutta la baia (spawn al 5%).
+@export var fuel_point_count: int = 12
 ## Le boe vengono campionate con |x| entro questo limite, per non
 ## finire dentro i promontori.
 @export var scatter_half_width: float = 255.0
@@ -134,6 +137,11 @@ func _spawn_zone_buoys() -> void:
 		var pos := _sample_band(sea.medium_width + 15.0, bounds_depth - 60.0, _buoy_positions, 12.0)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.BLUE)
+	# Le taniche vagano su tutta la baia: la fortuna può capitare ovunque.
+	for i in fuel_point_count:
+		var pos := _sample_band(20.0, bounds_depth - 60.0, _buoy_positions, 10.0)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_fuel_can(pos)
 
 
 func _spawn_buoy(pos: Vector3, type: int) -> void:
@@ -142,6 +150,14 @@ func _spawn_buoy(pos: Vector3, type: int) -> void:
 	buoy.sea = sea
 	add_child(buoy)
 	buoy.global_position = Vector3(pos.x, 0.0, pos.z)
+	_buoy_positions.append(pos)
+
+
+func _spawn_fuel_can(pos: Vector3) -> void:
+	var can := FUEL_CAN_SCENE.instantiate() as FuelCan
+	can.sea = sea
+	add_child(can)
+	can.global_position = Vector3(pos.x, 0.0, pos.z)
 	_buoy_positions.append(pos)
 
 

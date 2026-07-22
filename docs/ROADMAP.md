@@ -35,6 +35,8 @@ La mappa diventa un luogo: la baia di Bova Marina.
 - [ ] **Criterio di uscita**: la baia si legge a colpo d'occhio (costa = sicurezza, largo = rischio) e sembra Bova Marina
 
 ## M3 — Missioni, gare, pesca
+- [x] Migliora la UI/UX dei pannelli. Dev'essere facile capire cosa si ha raccolto, lo shop ecc
+- [x] Benzina barca, possibilità di fare rifornimento pagando e trovare la benzina in mare con 5% di probabilità
 - [ ] Minigioco pesca + zone di pesca + stiva
 - [ ] Gara a checkpoint con 2-3 IA, premi, sblocco contenuti
 - [ ] Missioni di consegna/recupero dai porti

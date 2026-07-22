@@ -27,6 +27,9 @@ extends Resource
 @export_group("Statistiche")
 @export var hull_max: float = 100.0
 @export var cargo_capacity: int = 8
+## Litri di serbatoio e consumo a tutto gas (litri al secondo).
+@export var fuel_capacity: float = 40.0
+@export var fuel_per_second: float = 0.1
 ## 0 = sughero in balia delle onde, 1 = piattaforma. Vedi Boat._apply_chaos.
 @export_range(0.0, 1.0) var stability: float = 0.2
 
