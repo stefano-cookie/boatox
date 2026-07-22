@@ -155,8 +155,16 @@ func _make_cell(kind: int, color: Color, item_name: String, unit_value: int) -> 
 
 
 func _refresh() -> void:
-	_subtitle.text = "[center]Stiva %d/%d · vale [color=#8ee3a8]%d $[/color][/center]" % [
+	# Le casse missione occupano stiva ma non hanno cella in griglia:
+	# si dichiarano nel sottotitolo, così il conteggio torna.
+	var crates_text := ""
+	if GameState.mission_crates > 0:
+		crates_text = " · [color=#%s]%d casse missione[/color]" % [
+			GameState.CRATE_HEX, GameState.mission_crates,
+		]
+	_subtitle.text = "[center]Stiva %d/%d · vale [color=#8ee3a8]%d $[/color]%s[/center]" % [
 		GameState.cargo_count(), GameState.cargo_capacity(), GameState.cargo_value(),
+		crates_text,
 	]
 	for type: int in _buoy_cells:
 		_update_cell(_buoy_cells[type], GameState.cargo.get(type, 0))

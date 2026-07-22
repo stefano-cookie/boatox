@@ -14,6 +14,7 @@ const BUOY_SCENE: PackedScene = preload("res://scenes/buoy/buoy.tscn")
 const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zone.tscn")
+const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission_pickup.tscn")
 
 @export var boat: Boat
 @export var sea: Sea
@@ -51,6 +52,9 @@ const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zo
 @export var rock_field_radius: float = 13.0
 
 var _rng := RandomNumberGenerator.new()
+## RNG separato per i punti delle missioni: offerte diverse a ogni
+## partita, senza consumare la sequenza del seed fisso dello scatter.
+var _mission_rng := RandomNumberGenerator.new()
 var _rock_positions: Array[Vector3] = []
 var _buoy_positions: Array[Vector3] = []
 var _fishing_positions: Array[Vector3] = []
@@ -65,7 +69,9 @@ var _sinking: bool = false
 
 
 func _ready() -> void:
+	add_to_group(&"world")
 	_rng.seed = scatter_seed
+	_mission_rng.randomize()
 	# Ogni spot di gara (sotto costa + al largo) ha bisogno della Sea per
 	# IA e classifica: i figli sono già in gruppo (add_to_group in _ready).
 	for node in get_tree().get_nodes_in_group(&"race_course"):
@@ -74,12 +80,15 @@ func _ready() -> void:
 	for node in get_tree().get_nodes_in_group(&"rescue_npc"):
 		(node as RescueNpc).sea = sea
 	GameState.hull_depleted.connect(_on_hull_depleted)
+	GameState.mission_changed.connect(_sync_mission_pickup)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)
 	# Le zone di pesca prima delle boe: prendono posto pulito e le boe
 	# non finiscono dentro gli anelli.
 	_spawn_fishing_zones()
 	_spawn_zone_buoys()
+	# Missione di recupero già in corso nel salvataggio: il pacco torna in acqua.
+	_sync_mission_pickup()
 
 
 func _physics_process(delta: float) -> void:
@@ -125,6 +134,45 @@ func map_islands() -> Array[Node]:
 
 func map_rocks() -> Array[Vector3]:
 	return _rock_positions
+
+
+# --- Missioni della bacheca (roadmap A1) -------------------------------------
+
+## L'approdo che riceve le casse delle consegne (flag sul Port parametrico).
+func delivery_landing() -> Port:
+	for node in get_tree().get_nodes_in_group(&"ports"):
+		var port := node as Port
+		if port != null and port.is_delivery_target:
+			return port
+	return null
+
+
+## Punto libero nella fascia tra d_min e d_max metri dalla costa, per i
+## recuperi della bacheca. Vector3.INF se non trova posto. Vicino a costa
+## campiona stretto (promontori), al largo si allarga, come le boe.
+func sample_mission_point(d_min: float, d_max: float) -> Vector3:
+	var half_width := scatter_half_width if d_max <= sea.medium_width else scatter_half_width_open
+	for attempt in 40:
+		var pos := Vector3(_mission_rng.randf_range(-half_width, half_width), 0.0,
+			sea.shore_z + _mission_rng.randf_range(d_min, d_max))
+		if _is_clear(pos):
+			return pos
+	return Vector3.INF
+
+
+## Tiene il pacco galleggiante allineato allo stato della missione: in
+## acqua sul punto finché c'è un recupero da fare, via in ogni altro caso
+## (raccolto, consegnato, fallito, abbandonato).
+func _sync_mission_pickup() -> void:
+	var pickup := get_tree().get_first_node_in_group(&"mission_pickups") as MissionPickup
+	if GameState.mission_pickup_pending():
+		if pickup == null:
+			var node := MISSION_PICKUP_SCENE.instantiate() as MissionPickup
+			node.sea = sea
+			add_child(node)
+			node.global_position = GameState.mission_marker_position()
+	elif pickup != null:
+		pickup.queue_free()
 
 
 ## Scafo a zero: sotto costa arriva il traino, oltre le acque medie la
@@ -296,13 +344,15 @@ func _far_from(pos: Vector3, points: Array[Vector3], min_dist: float) -> bool:
 	return true
 
 
-## Vero se il punto non finisce dentro isole, porto, scogli o zone di pesca.
+## Vero se il punto non finisce dentro isole, porti, scogli o zone di pesca.
 func _is_clear(pos: Vector3) -> bool:
 	for island: Node3D in _islands.get_children():
 		if pos.distance_to(island.global_position) < 14.0 * island.scale.x:
 			return false
-	if pos.distance_to(_port.global_position) < 26.0:
-		return false
+	# Tutti i porti (principale + approdo secondario), non solo _port.
+	for node in get_tree().get_nodes_in_group(&"ports"):
+		if pos.distance_to((node as Port).global_position) < 26.0:
+			return false
 	# Niente boe addosso all'NPC del nipote né sul punto di recupero al largo.
 	for node in get_tree().get_nodes_in_group(&"rescue_npc"):
 		var npc := node as RescueNpc

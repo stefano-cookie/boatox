@@ -12,17 +12,18 @@ Obiettivo: il "loop completo in piccolo" del GDD, giocabile da un estraneo dall'
 
 ## A1 — Contenuti mancanti
 
-- [ ] **Missioni di consegna/recupero dai porti**
-	- Nuovo **approdo secondario** sulla costa, lontano dal porto principale (scena Port ridotta: attracco e consegna, niente cantiere).
-	- Bacheca nel menu porto (nuovo bottone): 2-3 missioni generate da template. **Consegna**: porta N casse all'approdo entro T minuti (le casse occupano stiva: si sceglie se rinunciare al pescato). **Recupero**: raggiungi il punto segnato in minimappa, raccogli il pacco/relitto galleggiante, riportalo al porto.
+- [x] **Missioni di consegna/recupero dai porti**
+	- Nuovo **approdo secondario** sulla costa ("Scalo di Ponente", a ovest): scena Port parametrica coi servizi spenti — attracco e consegna, niente cantiere. *(Primo banco di prova del Port parametrico di B0.)*
+	- Bacheca nel menu porto (nuovo bottone): 3 missioni generate da template. **Consegna**: porta N casse all'approdo entro T minuti (le casse occupano stiva: si sceglie se rinunciare al pescato). **Recupero**: raggiungi il punto segnato in minimappa, raccogli il pacco/relitto galleggiante, riportalo al porto.
 	- Ricompensa scalata su distanza e fascia di mare del punto (più a largo = più soldi, GDD pillar 2). Una missione attiva alla volta; stato e progresso in GameState, salvati.
 	- Marker missione in minimappa (stessa logica del cancello regata).
-- [ ] **Eventi casuali con scelta + reputazione**
-	- 4-6 eventi scritti bene (GDD: battono 20 generici): barca in avaria, pescatore senza benzina, boa misteriosa, carico alla deriva, tempesta in arrivo…
+- [x] **Eventi casuali con scelta + reputazione**
+	- 6 eventi scritti bene (GDD: battono 20 generici): barca in avaria, pescatore senza benzina, boa misteriosa, carico alla deriva, muro di pioggia, rete smarrita.
 	- Trigger: un tiro ogni 2-3 minuti di navigazione oltre le acque calme; l'evento apre un pannello con 2 scelte e conseguenze immediate (denaro, carburante, scafo, reputazione).
-	- **Reputazione** -100..+100 in GameState (salvata): sconta o rincara riparazioni e rifornimento (±15% circa) e in futuro filtra le missioni migliori. Visibile nel pannello porto. *Predisposizione beta: strutturarla come relazione per-fazione (per ora una sola, il porto di Bova) — diventerà la diplomazia con le città (vedi B4).*
-	- Ogni evento è un `Resource` (.tres): testo, scelte, effetti — si scrivono e bilanciano dall'Inspector senza toccare codice.
+	- **Reputazione** -100..+100 in GameState (salvata): sconta o rincara riparazioni e rifornimento (±15% a fondo scala) e in futuro filtra le missioni migliori. Visibile nel pannello porto. Già strutturata per-fazione (per ora solo il porto di Bova) — diventerà la diplomazia con le città (vedi B4).
+	- Ogni evento è un `Resource` (.tres in `resources/events/`): testo, scelte, effetti — si scrivono e bilanciano dall'Inspector senza toccare codice.
 - [ ] **Criterio di uscita**: una sessione da 20 minuti offre almeno 3 attività diverse sensate
+	- *Da verificare in gioco: leggibilità del pacco di recupero e del marker ambra; tempi limite di consegna (costante `MISSION_DELIVERY_SPEED`); frequenza e tono degli eventi; entità di sconti/rincari da reputazione.*
 
 ## A2 — Rifinitura e chiusura
 

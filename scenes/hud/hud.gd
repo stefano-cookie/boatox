@@ -120,6 +120,7 @@ func _process(_delta: float) -> void:
 		_zone_label.text = "%s · %s" % [ZONE_NAMES[zone], SEA_STATE_NAMES[state]]
 		_zone_label.modulate = SEA_STATE_COLORS[state]
 	_update_radar()
+	_update_mission_goal()
 	_position_bottom_left()
 
 
@@ -226,6 +227,19 @@ func _on_tutorial_changed(step: int, text: String) -> void:
 		return
 	_goal_label.text = text
 	_goal_box.show()
+
+
+## A tutorial finito il pannello obiettivo passa alla missione della
+## bacheca (roadmap A1): aggiornato ogni frame per il countdown della
+## consegna. Finché il tutorial è in corso comanda lui.
+func _update_mission_goal() -> void:
+	if GameState.tutorial_step < GameState.TUTORIAL_DONE:
+		return
+	if GameState.mission_active():
+		_goal_label.text = GameState.mission_status_text()
+		_goal_box.show()
+	else:
+		_goal_box.hide()
 
 
 ## Flash rosso della barra scafo a ogni urto (feedback playtest round 2:

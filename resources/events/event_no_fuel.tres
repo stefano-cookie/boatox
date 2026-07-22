@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EventDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/event_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"no_fuel"
+title = "Pescatore a secco"
+body = "Un pescatore di Bova è rimasto senza benzina proprio sopra la sua secca buona. Ti fa segno col cappello: \"Giovanotto! Un travaso e non lo dimentico.\""
+choice_a = "Travasagli un po' di benzina (-10 L)"
+money_a = 20
+fuel_a = -10.0
+hull_a = 0.0
+rep_a = 8
+result_a = "Ti mette in mano qualche banconota (+20 $) e racconterà a tutto il molo chi l'ha salvato"
+choice_b = "\"Mi spiace, sono in riserva anch'io\""
+money_b = 0
+fuel_b = 0.0
+hull_b = 0.0
+rep_b = -4
+result_b = "Il pescatore sospira e ti saluta piano. Il molo ha orecchie lunghe"

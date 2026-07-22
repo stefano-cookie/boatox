@@ -32,6 +32,9 @@ const TEXT_COLOR := Color(0.85, 0.9, 0.95)
 ## bersaglio della missione.
 const QUEST_COLOR := Color(1.0, 0.45, 0.85)
 const RADAR_RING_COLOR := Color(0.55, 0.9, 1.0)
+## Marker della missione della bacheca (roadmap A1): ambra, stessa logica
+## del cancello regata (anello + punto sul bersaglio corrente).
+const MISSION_COLOR := Color(1.0, 0.8, 0.3)
 
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
 @export var small_height: float = 190.0
@@ -132,6 +135,7 @@ func _draw() -> void:
 	_draw_race_start(rect)
 	_draw_race_gate(rect)
 	_draw_quest(rect)
+	_draw_mission(rect)
 	_draw_radar(rect)
 	_draw_pickups(rect)
 	_draw_boat(rect)
@@ -193,13 +197,19 @@ func _draw_islands(rect: Rect2) -> void:
 		draw_circle(_to_map(rect, island.global_position), radius, ISLAND_COLOR)
 
 
+## Tutti i porti del gruppo (principale + approdo secondario di A1), con
+## l'etichetta breve del Port parametrico.
 func _draw_port(rect: Rect2) -> void:
-	var p := _to_map(rect, _world.port_position())
 	var s := 8.0 if _expanded else 5.0
-	_draw_diamond(p, s, PORT_COLOR)
-	if _expanded:
-		draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), "Porto",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+	for node in get_tree().get_nodes_in_group(&"ports"):
+		var port := node as Port
+		if port == null:
+			continue
+		var p := _to_map(rect, port.global_position)
+		_draw_diamond(p, s, PORT_COLOR)
+		if _expanded:
+			draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), port.map_label,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 
 
 ## Zone di pesca attive, come anelli — ma solo quelle rivelate da un
@@ -250,6 +260,18 @@ func _draw_quest(rect: Rect2) -> void:
 	var radius := 8.0 if _expanded else 5.5
 	draw_arc(target, radius, 0.0, TAU, 20, QUEST_COLOR, 2.5)
 	draw_circle(target, 2.5, QUEST_COLOR)
+
+
+## Marker della missione della bacheca (roadmap A1): il punto del pacco o
+## l'approdo di consegna finché c'è da andare, il porto del rientro a
+## pacco raccolto. Stessa logica del cancello regata.
+func _draw_mission(rect: Rect2) -> void:
+	if not GameState.mission_active():
+		return
+	var p := _to_map(rect, GameState.mission_marker_position())
+	var radius := 8.0 if _expanded else 5.5
+	draw_arc(p, radius, 0.0, TAU, 20, MISSION_COLOR, 2.5)
+	draw_circle(p, 2.5, MISSION_COLOR)
 
 
 ## Marker permanente della partenza regata (feedback playtest round 2: il
@@ -371,7 +393,10 @@ func _draw_legend(rect: Rect2) -> void:
 	x = _legend_label(font, x, y, "regata")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, QUEST_COLOR)
 	x += 11.0
-	_legend_label(font, x, y, "nipote")
+	x = _legend_label(font, x, y, "nipote")
+	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, MISSION_COLOR, 2.0)
+	x += 10.0
+	_legend_label(font, x, y, "missione")
 
 
 ## Disegna un'etichetta di legenda e restituisce la x della voce dopo.

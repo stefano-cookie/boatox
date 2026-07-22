@@ -73,6 +73,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 0, 500)
 [node name="Port" parent="." instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -138)
 
+[node name="Landing" parent="." instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -220, 0, -136)
+port_display_name = "SCALO DI PONENTE"
+map_label = "Approdo"
+service_sell = false
+service_repair = false
+service_refuel = false
+service_shipyard = false
+service_tackle = false
+service_missions = false
+is_delivery_target = true
+
 [node name="RaceCourse" parent="." instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0, -120)
 

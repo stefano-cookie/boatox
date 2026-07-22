@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EventDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/event_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"drifting_cargo"
+title = "Carico alla deriva"
+body = "Casse sigillate galleggiano in fila sull'onda: qualche mercantile le ha perse nella notte. Nessun nome, nessun testimone. Solo tu e il mare."
+choice_a = "Recuperale e non farne parola (+80 $)"
+money_a = 80
+fuel_a = 0.0
+hull_a = 0.0
+rep_a = -6
+result_a = "Ottimo bottino. Ma in un paese piccolo le voci corrono più veloci delle barche"
+choice_b = "Segnalale alla capitaneria (+25 $)"
+money_b = 25
+fuel_b = 0.0
+hull_b = 0.0
+rep_b = 6
+result_b = "La compagnia ti riconosce un premio di ritrovamento e il tuo nome gira per il molo — nel modo giusto"

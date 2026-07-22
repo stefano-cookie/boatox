@@ -2,11 +2,37 @@ class_name Port
 extends Node3D
 
 ## Attracco (GDD § core loop sessione): quando la barca è nella zona e
-## quasi ferma, E apre il menu porto — vendita del carico, riparazione e
-## cantiere (acquisto barche e upgrade funzionali, prezzi nei .tres).
-## Mentre un menu è aperto l'input di guida è disattivato, così le
-## frecce navigano i pulsanti. Chiudere il menu salva la partita.
+## quasi ferma, E apre il menu porto — vendita del carico, riparazione,
+## cantiere (acquisto barche e upgrade funzionali, prezzi nei .tres) e
+## bacheca missioni (roadmap A1). Mentre un menu è aperto l'input di
+## guida è disattivato, così le frecce navigano i pulsanti. Chiudere il
+## menu salva la partita.
+##
+## La scena è parametrica (predisposizione beta B0): i flag service_*
+## accendono i singoli servizi, così l'approdo secondario di A1 è la
+## stessa scena con quasi tutto spento — solo attracco e consegna.
 
+@export_group("Identità (predisposizione B0)")
+## Insegna 3D e titolo del pannello.
+@export var port_display_name: String = "PORTO"
+## Etichetta breve in minimappa e nei testi delle missioni.
+@export var map_label: String = "Porto"
+@export var faction: StringName = &"bova"
+## Non ancora usati nell'alpha: arrivano con costruzione e difese (beta).
+@export var defense_level: int = 0
+@export var prosperity: int = 0
+
+@export_group("Servizi")
+@export var service_sell: bool = true
+@export var service_repair: bool = true
+@export var service_refuel: bool = true
+@export var service_shipyard: bool = true
+@export var service_tackle: bool = true
+@export var service_missions: bool = true
+## Vero per l'approdo che riceve le casse delle missioni di consegna.
+@export var is_delivery_target: bool = false
+
+@export_group("Attracco")
 ## Sopra questa velocità non si può attraccare: prima si rallenta.
 @export var docking_max_speed: float = 1.5
 ## Rallentamento assistito in avvicinamento (feedback playtest round 2:
@@ -28,11 +54,15 @@ var _approach_boat: Boat = null
 var _open: bool = false
 var _shipyard_open: bool = false
 var _tackle_open: bool = false
+var _board_open: bool = false
 
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
 var _upgrade_labels: Dictionary[int, Label] = {}
 var _gear_buttons: Dictionary[int, Button] = {}
+## Offerte correnti della bacheca: generate all'apertura, svuotate
+## all'accettazione (si rigenerano alla prossima apertura).
+var _offers: Array[Dictionary] = []
 
 @onready var _zone: Area3D = $DockZone
 @onready var _approach_zone: Area3D = $ApproachZone
@@ -56,9 +86,16 @@ var _gear_buttons: Dictionary[int, Button] = {}
 @onready var _tackle_money: Label = $PortUI/Tackle/Margin/VBox/Money
 @onready var _gear_box: VBoxContainer = $PortUI/Tackle/Margin/VBox/GearBox
 @onready var _tackle_back: Button = $PortUI/Tackle/Margin/VBox/BackButton
+@onready var _board_button: Button = $PortUI/Panel/Margin/VBox/BoardButton
+@onready var _board: PanelContainer = $PortUI/Board
+@onready var _board_info: RichTextLabel = $PortUI/Board/Margin/VBox/Info
+@onready var _offers_box: VBoxContainer = $PortUI/Board/Margin/VBox/OffersBox
+@onready var _abandon_button: Button = $PortUI/Board/Margin/VBox/AbandonButton
+@onready var _board_back: Button = $PortUI/Board/Margin/VBox/BackButton
 
 
 func _ready() -> void:
+	add_to_group(&"ports")
 	_zone.body_entered.connect(_on_zone_body_entered)
 	_zone.body_exited.connect(_on_zone_body_exited)
 	_approach_zone.body_entered.connect(_on_approach_entered)
@@ -68,15 +105,35 @@ func _ready() -> void:
 	_refuel_button.pressed.connect(_on_refuel_pressed)
 	_shipyard_button.pressed.connect(_open_shipyard)
 	_tackle_button.pressed.connect(_open_tackle)
+	_board_button.pressed.connect(_open_board)
 	_leave_button.pressed.connect(_close_menu)
 	_back_button.pressed.connect(_close_shipyard)
 	_tackle_back.pressed.connect(_close_tackle)
+	_board_back.pressed.connect(_close_board)
+	_abandon_button.pressed.connect(_on_abandon_pressed)
+	_apply_services()
 	_build_shipyard_rows()
 	_build_tackle_rows()
 	_panel.hide()
 	_shipyard.hide()
 	_tackle.hide()
+	_board.hide()
 	_hint.hide()
+
+
+## Insegna, titolo e bottoni seguono i flag service_* (Port parametrico,
+## B0): l'approdo secondario è la stessa scena con i servizi spenti.
+## Nino è il bottegaio della pesca: sta solo dove c'è la sua bottega.
+func _apply_services() -> void:
+	($Sign as Label3D).text = port_display_name
+	($PortUI/Panel/Margin/VBox/Title as Label).text = port_display_name
+	_sell_button.visible = service_sell
+	_repair_button.visible = service_repair
+	_refuel_button.visible = service_refuel
+	_shipyard_button.visible = service_shipyard
+	_tackle_button.visible = service_tackle
+	_board_button.visible = service_missions
+	($Nino as Node3D).visible = service_tackle
 
 
 func _process(_delta: float) -> void:
@@ -129,6 +186,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _tackle_open:
 			get_viewport().set_input_as_handled()
 			_close_tackle()
+		elif _board_open:
+			get_viewport().set_input_as_handled()
+			_close_board()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -143,6 +203,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _tackle_open:
 			get_viewport().set_input_as_handled()
 			_close_tackle()
+		elif _board_open:
+			get_viewport().set_input_as_handled()
+			_close_board()
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
@@ -190,18 +253,26 @@ func _open_menu() -> void:
 	_docked_boat.input_enabled = false
 	_docked_boat.reset_motion()
 	GameState.push_ui_focus()
+	# Consegna automatica all'attracco (roadmap A1): casse all'approdo
+	# giusto, pacco recuperato al porto principale.
+	GameState.try_complete_mission_at_port(is_delivery_target)
 	_refresh()
 	_panel.show()
-	_sell_button.grab_focus()
+	if service_sell:
+		_sell_button.grab_focus()
+	else:
+		_leave_button.grab_focus()
 
 
 func _close_menu() -> void:
 	_open = false
 	_shipyard_open = false
 	_tackle_open = false
+	_board_open = false
 	_panel.hide()
 	_shipyard.hide()
 	_tackle.hide()
+	_board.hide()
 	GameState.pop_ui_focus()
 	GameState.save_game()
 	if _docked_boat != null:
@@ -262,13 +333,14 @@ func _refresh() -> void:
 		cargo_text = "%s — vale [color=#8ee3a8]%d $[/color]" % [
 			GameState.cargo_detail_bbcode(), GameState.cargo_value(),
 		]
-	_info.text = "Denaro: [color=#8ee3a8]%d $[/color]\nBarca: %s\nScafo: %d%%  ·  Benzina: %d/%d L\nStiva %d/%d: %s" % [
+	_info.text = "Denaro: [color=#8ee3a8]%d $[/color]\nBarca: %s\nScafo: %d%%  ·  Benzina: %d/%d L\nStiva %d/%d: %s\n%s" % [
 		GameState.money,
 		GameState.current_def().display_name,
 		roundi(GameState.hull / GameState.hull_max() * 100.0),
 		ceili(GameState.fuel), ceili(GameState.fuel_capacity()),
 		GameState.cargo_count(), GameState.cargo_capacity(),
 		cargo_text,
+		_reputation_bbcode(),
 	]
 	_sell_button.text = "Vendi il carico (+%d $)" % GameState.cargo_value()
 	_sell_button.disabled = GameState.cargo_value() <= 0
@@ -278,6 +350,92 @@ func _refresh() -> void:
 	var fuel_cost := GameState.refuel_cost()
 	_refuel_button.text = "Fai il pieno (-%d $)" % fuel_cost
 	_refuel_button.disabled = fuel_cost <= 0 or GameState.money <= 0
+
+
+## Riga reputazione del pannello (roadmap A1): valore ed effetto sui
+## prezzi, così lo sconto/rincaro non è mai un mistero.
+func _reputation_bbcode() -> String:
+	var rep := GameState.reputation_value(faction)
+	var effect := roundi((1.0 - GameState.price_multiplier(faction)) * 100.0)
+	var effect_text := "prezzi pieni"
+	if effect > 0:
+		effect_text = "sconto %d%%" % effect
+	elif effect < 0:
+		effect_text = "rincaro %d%%" % -effect
+	var hex := "8ee3a8" if rep > 0 else ("ff8f7a" if rep < 0 else "aab7c4")
+	return "Reputazione: [color=#%s]%+d[/color] · %s" % [hex, rep, effect_text]
+
+
+# --- Bacheca missioni (roadmap A1) -------------------------------------------
+
+func _open_board() -> void:
+	_board_open = true
+	_panel.hide()
+	_refresh_board()
+	_board.show()
+	_board_back.grab_focus()
+
+
+func _close_board() -> void:
+	_board_open = false
+	_board.hide()
+	_refresh()
+	_panel.show()
+	_board_button.grab_focus()
+
+
+## Le righe delle offerte si ricostruiscono a ogni apertura: a differenza
+## del cantiere le offerte cambiano (si rigenerano quando la bacheca è
+## vuota e nessuna missione è in corso).
+func _refresh_board() -> void:
+	for child in _offers_box.get_children():
+		child.queue_free()
+	if GameState.mission_active():
+		_board_info.text = "Missione in corso: [b]%s[/b]\n%s\nRicompensa: [color=#8ee3a8]%d $[/color]" % [
+			str(GameState.active_mission.get("title", "")),
+			GameState.mission_status_text(),
+			int(GameState.active_mission.get("reward", 0)),
+		]
+		_abandon_button.show()
+		return
+	_abandon_button.hide()
+	if _offers.is_empty():
+		var world := get_tree().get_first_node_in_group(&"world") as World
+		if world != null:
+			_offers = GameState.generate_mission_offers(world)
+	if _offers.is_empty():
+		_board_info.text = "Nessun incarico oggi: riprova più tardi."
+		return
+	_board_info.text = "Incarichi dai moli: uno alla volta, il mare non aspetta."
+	for offer in _offers:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var label := Label.new()
+		label.text = "%s\n%s" % [str(offer.get("title", "")), str(offer.get("desc", ""))]
+		label.add_theme_font_size_override("font_size", 18)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 22)
+		button.custom_minimum_size = Vector2(190, 0)
+		button.text = "Accetta (+%d $)" % int(offer.get("reward", 0))
+		button.pressed.connect(_on_offer_accepted.bind(offer))
+		row.add_child(button)
+		_offers_box.add_child(row)
+
+
+func _on_offer_accepted(offer: Dictionary) -> void:
+	if GameState.accept_mission(offer):
+		_offers.clear()
+	_refresh_board()
+	_board_back.grab_focus()
+
+
+func _on_abandon_pressed() -> void:
+	GameState.abandon_mission()
+	_refresh_board()
+	_board_back.grab_focus()
 
 
 # --- Cantiere ----------------------------------------------------------------

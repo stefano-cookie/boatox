@@ -33,6 +33,13 @@ signal tutorial_changed(step: int, text: String)
 ## pausa) è aperto: la ChaseCamera rilascia/ricattura il mouse su questo
 ## segnale, senza duplicare la logica in ogni pannello.
 signal ui_focus_changed(open: bool)
+## Reputazione cambiata (roadmap A1): il pannello porto la mostra e i
+## prezzi dei servizi la leggono. Per-fazione già dall'alpha
+## (predisposizione B0: diventerà la diplomazia con le città).
+signal reputation_changed(faction: StringName, value: int)
+## Missione della bacheca accettata/avanzata/chiusa: minimappa, HUD e
+## World (spawn del pacco di recupero) si aggiornano su questo.
+signal mission_changed
 
 ## Tipologie di boa legate al rischio della zona (GDD pillar 2):
 ## gialla in acque tranquille, rossa ai margini degli scogli, blu
@@ -63,6 +70,12 @@ enum GrandsonQuest { NONE, ACCEPTED, CARRYING, DONE }
 ## allunga la finestra visibile in minimappa. È una famiglia a sé, come
 ## l'attrezzatura da pesca (personale, non della barca).
 enum RadarUpgrade { RANGE, DURATION }
+
+## Missioni della bacheca del porto (roadmap A1). Consegna: porta N casse
+## all'approdo secondario entro il tempo limite (le casse occupano stiva).
+## Recupero: raggiungi il punto segnato in minimappa, raccogli il pacco
+## galleggiante e riportalo al porto principale.
+enum MissionType { DELIVERY, RECOVERY }
 
 const BUOY_VALUE: Dictionary[int, int] = {
 	BuoyType.YELLOW: 10,
@@ -233,6 +246,38 @@ const RADAR_UPGRADE_COSTS: Dictionary[int, Array] = {
 	RadarUpgrade.DURATION: [350, 800, 1600],
 }
 
+## Reputazione (roadmap A1): -100..+100, per-fazione (per ora solo il
+## porto di Bova — predisposizione B0 alla diplomazia per-città della
+## beta). Sconta o rincara i servizi di porto di ±REP_PRICE_EFFECT a
+## fondo scala.
+const FACTION_BOVA: StringName = &"bova"
+const REP_MIN: int = -100
+const REP_MAX: int = 100
+const REP_PRICE_EFFECT: float = 0.15
+
+## Missioni della bacheca (roadmap A1): ricompensa scalata su distanza e
+## fascia di mare del punto (più a largo = più soldi, GDD pillar 2).
+## Consegna: paga per cassa + per metro di rotta; il tempo limite assume
+## una velocità media prudente più un margine per attracco e manovre.
+const MISSION_REWARD_PER_CRATE: int = 45
+const MISSION_DELIVERY_REWARD_PER_METER: float = 0.15
+const MISSION_DELIVERY_SPEED: float = 6.0
+const MISSION_DELIVERY_TIME_BUFFER: float = 40.0
+const MISSION_RECOVERY_BASE: int = 40
+const MISSION_RECOVERY_REWARD_PER_METER: float = 0.35
+## Moltiplicatore per fascia di mare del punto di recupero (indice di
+## Sea.zone_index).
+const MISSION_ZONE_MULT: Array[float] = [1.0, 1.2, 1.5]
+const MISSION_REP_REWARD: int = 5
+const MISSION_REP_FAIL: int = -5
+const MISSION_REP_ABANDON: int = -3
+## Colore BBCode delle casse missione nel dettaglio stiva.
+const CRATE_HEX: String = "c9a26b"
+
+## Gli eventi casuali non affondano mai la barca da soli: lo scafo non
+## scende sotto questa soglia per effetto di una scelta.
+const EVENT_MIN_HULL: float = 5.0
+
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
 ## giocatore al via (feedback playtest M3): la gara resta combattuta con
@@ -354,6 +399,16 @@ var upgrades: Dictionary[StringName, Dictionary] = {}
 ## comprata da Nino al porto.
 var fishing_gear: Dictionary[int, int] = {}
 
+## Reputazione per fazione (vedi FACTION_*). Salvata.
+var reputation: Dictionary[StringName, int] = {}
+## Missione attiva dalla bacheca (vuoto = nessuna): tipo, target,
+## ricompensa… (vedi generate_mission_offers). Una alla volta, salvata.
+var active_mission: Dictionary = {}
+## Secondi rimasti alla consegna (solo missioni DELIVERY). Salvato.
+var mission_time_left: float = 0.0
+## Casse missione in stiva: occupano capacità ma non si vendono. Salvate.
+var mission_crates: int = 0
+
 ## Missione del nipote in mare (vedi GrandsonQuest). Salvata.
 var grandson_quest: int = GrandsonQuest.NONE
 ## Radar sbloccato (dalla missione del nipote): senza, la minimappa non
@@ -365,6 +420,16 @@ var radar_upgrades: Dictionary[int, int] = {}
 
 func _ready() -> void:
 	load_game()
+
+
+## Timer della consegna: scorre anche attraccati (la tensione è il senso
+## della missione) ma si ferma in pausa insieme al resto del gioco.
+func _process(delta: float) -> void:
+	if mission_type() != MissionType.DELIVERY:
+		return
+	mission_time_left -= delta
+	if mission_time_left <= 0.0:
+		fail_mission("Tempo scaduto! Le casse tornano al mittente")
 
 
 func _notification(what: int) -> void:
@@ -640,6 +705,247 @@ func set_grandson_quest(state: int) -> void:
 	save_game()
 
 
+# --- Reputazione (roadmap A1) ------------------------------------------------
+
+func reputation_value(faction: StringName = FACTION_BOVA) -> int:
+	return reputation.get(faction, 0)
+
+
+func add_reputation(delta: int, faction: StringName = FACTION_BOVA) -> void:
+	if delta == 0:
+		return
+	var value := clampi(reputation_value(faction) + delta, REP_MIN, REP_MAX)
+	reputation[faction] = value
+	reputation_changed.emit(faction, value)
+
+
+## Moltiplicatore dei prezzi dei servizi di porto (riparazione e
+## rifornimento): reputazione alta sconta, bassa rincara, ±15% a fondo scala.
+func price_multiplier(faction: StringName = FACTION_BOVA) -> float:
+	return 1.0 - REP_PRICE_EFFECT * float(reputation_value(faction)) / float(REP_MAX)
+
+
+# --- Missioni della bacheca (roadmap A1) -------------------------------------
+
+func mission_active() -> bool:
+	return not active_mission.is_empty()
+
+
+## Tipo della missione attiva, -1 se nessuna.
+func mission_type() -> int:
+	return int(active_mission.get("type", -1))
+
+
+## Vero se il pacco della missione di recupero è ancora in acqua.
+func mission_pickup_pending() -> bool:
+	return mission_type() == MissionType.RECOVERY \
+		and not bool(active_mission.get("recovered", false))
+
+
+## Dove punta il marker in minimappa: il punto del pacco (o l'approdo di
+## consegna) finché c'è da andare, il porto del rientro a pacco raccolto.
+func mission_marker_position() -> Vector3:
+	if mission_type() == MissionType.RECOVERY and bool(active_mission.get("recovered", false)):
+		return active_mission.get("return", Vector3.ZERO)
+	return active_mission.get("target", Vector3.ZERO)
+
+
+## Riga di stato per l'HUD (pannello obiettivo, dopo il tutorial).
+func mission_status_text() -> String:
+	match mission_type():
+		MissionType.DELIVERY:
+			var left := maxf(mission_time_left, 0.0)
+			return "Consegna: %d casse a %s · %d:%02d" % [
+				mission_crates, active_mission.get("target_name", "?"),
+				int(left) / 60, int(left) % 60,
+			]
+		MissionType.RECOVERY:
+			if bool(active_mission.get("recovered", false)):
+				return "Recupero: riporta il pacco al porto"
+			return "Recupero: raggiungi il punto segnato in minimappa"
+	return ""
+
+
+## Genera le offerte della bacheca: una consegna verso l'approdo e due
+## recuperi (acque medie e mare aperto). Ricompense scalate su distanza e
+## fascia (GDD pillar 2). Le offerte non si salvano: si rigenerano a ogni
+## apertura della bacheca.
+func generate_mission_offers(world: World) -> Array[Dictionary]:
+	var offers: Array[Dictionary] = []
+	var delivery := _delivery_offer(world, randi_range(1, 3))
+	if not delivery.is_empty():
+		offers.append(delivery)
+	var sea := world.sea
+	var near := _recovery_offer(world, sea.calm_width + 10.0, sea.medium_width - 10.0)
+	if not near.is_empty():
+		offers.append(near)
+	var far := _recovery_offer(world, sea.medium_width + 40.0, world.bounds_depth - 80.0)
+	if not far.is_empty():
+		offers.append(far)
+	return offers
+
+
+func _delivery_offer(world: World, crates: int) -> Dictionary:
+	var landing := world.delivery_landing()
+	if landing == null:
+		return {}
+	var target := landing.global_position
+	var dist := world.port_position().distance_to(target)
+	var time_limit := dist / MISSION_DELIVERY_SPEED + MISSION_DELIVERY_TIME_BUFFER
+	return {
+		"type": MissionType.DELIVERY,
+		"title": "Consegna: %d casse" % crates,
+		"desc": "Porta %d casse a %s entro %d:%02d. Occupano %d posti di stiva." % [
+			crates, landing.map_label, int(time_limit) / 60, int(time_limit) % 60, crates,
+		],
+		"crates": crates,
+		"time_limit": time_limit,
+		"target": target,
+		"target_name": landing.map_label,
+		"reward": roundi(crates * MISSION_REWARD_PER_CRATE + dist * MISSION_DELIVERY_REWARD_PER_METER),
+		"rep": MISSION_REP_REWARD,
+	}
+
+
+func _recovery_offer(world: World, d_min: float, d_max: float) -> Dictionary:
+	var point := world.sample_mission_point(d_min, d_max)
+	if not point.is_finite():
+		return {}
+	var dist := world.port_position().distance_to(point)
+	var zone := world.sea.zone_index(point)
+	var zone_name: String = ["nelle acque medie", "nelle acque medie", "in mare aperto"][zone]
+	return {
+		"type": MissionType.RECOVERY,
+		"title": "Recupero %s" % zone_name,
+		"desc": "Un carico è andato perso %s: raggiungi il punto segnato in minimappa, raccogli il pacco e riportalo al porto." % zone_name,
+		"target": point,
+		"return": world.port_position(),
+		"reward": roundi((MISSION_RECOVERY_BASE + dist * MISSION_RECOVERY_REWARD_PER_METER)
+			* MISSION_ZONE_MULT[zone]),
+		"rep": MISSION_REP_REWARD,
+	}
+
+
+## Falso se c'è già una missione o se la stiva non ha posto per le casse
+## (roadmap A1: si sceglie se rinunciare al pescato).
+func accept_mission(offer: Dictionary) -> bool:
+	if mission_active():
+		return false
+	if int(offer.get("type", -1)) == MissionType.DELIVERY:
+		var crates := int(offer.get("crates", 0))
+		if cargo_count() + crates > cargo_capacity():
+			post_notice("Stiva insufficiente: servono %d posti liberi per le casse" % crates)
+			return false
+		mission_crates = crates
+		mission_time_left = float(offer.get("time_limit", 0.0))
+	active_mission = offer.duplicate()
+	active_mission["recovered"] = false
+	cargo_changed.emit()
+	mission_changed.emit()
+	post_notice("Missione accettata: %s" % str(offer.get("title", "")))
+	save_game()
+	return true
+
+
+## Pacco di recupero raccolto in acqua (chiamato dal MissionPickup): il
+## marker torna sul porto del rientro.
+func mission_pickup_collected() -> void:
+	if not mission_pickup_pending():
+		return
+	active_mission["recovered"] = true
+	mission_changed.emit()
+	post_notice("Pacco a bordo! Riportalo al porto (marker in minimappa)")
+	save_game()
+
+
+## Chiusura automatica all'attracco: le casse all'approdo di consegna, il
+## pacco recuperato al porto principale. Vero se una missione si è chiusa.
+func try_complete_mission_at_port(is_delivery_target: bool) -> bool:
+	if not mission_active():
+		return false
+	match mission_type():
+		MissionType.DELIVERY:
+			if not is_delivery_target:
+				return false
+			_finish_mission("Casse consegnate")
+			return true
+		MissionType.RECOVERY:
+			if is_delivery_target or not bool(active_mission.get("recovered", false)):
+				return false
+			_finish_mission("Pacco riconsegnato")
+			return true
+	return false
+
+
+func _finish_mission(what: String) -> void:
+	var reward := int(active_mission.get("reward", 0))
+	var rep := int(active_mission.get("rep", 0))
+	money += reward
+	add_reputation(rep)
+	mission_crates = 0
+	active_mission.clear()
+	mission_time_left = 0.0
+	money_changed.emit(money)
+	cargo_changed.emit()
+	cargo_sold.emit(reward)
+	mission_changed.emit()
+	post_notice("%s: +%d $ · reputazione +%d" % [what, reward, rep])
+	save_game()
+
+
+## Fallimento (tempo scaduto, affondamento): casse perse e reputazione giù.
+func fail_mission(reason: String) -> void:
+	if not mission_active():
+		return
+	mission_crates = 0
+	active_mission.clear()
+	mission_time_left = 0.0
+	add_reputation(MISSION_REP_FAIL)
+	cargo_changed.emit()
+	mission_changed.emit()
+	post_notice("%s · reputazione %d" % [reason, MISSION_REP_FAIL])
+	save_game()
+
+
+## Abbandono volontario dalla bacheca: penalità più leggera del fallimento.
+func abandon_mission() -> void:
+	if not mission_active():
+		return
+	mission_crates = 0
+	active_mission.clear()
+	mission_time_left = 0.0
+	add_reputation(MISSION_REP_ABANDON)
+	cargo_changed.emit()
+	mission_changed.emit()
+	post_notice("Missione abbandonata · reputazione %d" % MISSION_REP_ABANDON)
+	save_game()
+
+
+# --- Eventi casuali (roadmap A1) ---------------------------------------------
+
+## Applica le conseguenze di una scelta d'evento: denaro, carburante,
+## scafo, reputazione. Un dialogo non affonda mai la barca (EVENT_MIN_HULL)
+## e non manda mai il denaro sotto zero: l'accessibilità della scelta la
+## verifica il pannello prima di proporla.
+func apply_event_choice(money_delta: int, fuel_delta: float, hull_delta: float, rep_delta: int) -> void:
+	if money_delta != 0:
+		money = maxi(money + money_delta, 0)
+		money_changed.emit(money)
+	if fuel_delta > 0.0:
+		add_fuel(fuel_delta)
+	elif fuel_delta < 0.0:
+		fuel = maxf(fuel + fuel_delta, 0.0)
+		fuel_changed.emit(fuel, fuel_capacity())
+	if hull_delta > 0.0:
+		hull = minf(hull + hull_delta, hull_max())
+		hull_changed.emit(hull, hull_max())
+	elif hull_delta < 0.0:
+		hull = maxf(hull + hull_delta, minf(hull, EVENT_MIN_HULL))
+		hull_changed.emit(hull, hull_max())
+	add_reputation(rep_delta)
+	save_game()
+
+
 # --- Stiva e denaro ----------------------------------------------------------
 
 ## Falso se la stiva è piena: la boa resta in acqua (il limite di stiva
@@ -670,8 +976,9 @@ func collect_fish(type: int) -> bool:
 	return true
 
 
+## Include le casse missione: occupano stiva ma non si vendono.
 func cargo_count() -> int:
-	var total := 0
+	var total := mission_crates
 	for type in cargo:
 		total += cargo[type]
 	for type in fish_cargo:
@@ -704,6 +1011,9 @@ func cargo_detail_bbcode() -> String:
 			continue
 		var fish_name: String = FISH_NAME[type] if count == 1 else FISH_NAME_PLURAL[type]
 		parts.append("[color=#%s]%d× %s[/color]" % [FISH_HEX[type], count, fish_name])
+	if mission_crates > 0:
+		var crate_name := "cassa" if mission_crates == 1 else "casse"
+		parts.append("[color=#%s]%d× %s (missione)[/color]" % [CRATE_HEX, mission_crates, crate_name])
 	return " · ".join(parts)
 
 
@@ -722,8 +1032,9 @@ func sell_cargo() -> int:
 	return earned
 
 
+## La reputazione sconta o rincara riparazione e rifornimento (roadmap A1).
 func repair_cost() -> int:
-	return ceili((hull_max() - hull) * REPAIR_COST_PER_POINT)
+	return ceili((hull_max() - hull) * REPAIR_COST_PER_POINT * price_multiplier())
 
 
 func repair_hull() -> void:
@@ -735,7 +1046,7 @@ func repair_hull() -> void:
 		money -= full_cost
 		hull = hull_max()
 	else:
-		hull += float(money) / REPAIR_COST_PER_POINT
+		hull += float(money) / (REPAIR_COST_PER_POINT * price_multiplier())
 		money = 0
 	money_changed.emit(money)
 	hull_changed.emit(hull, hull_max())
@@ -799,8 +1110,9 @@ func add_fuel(amount: float) -> void:
 	fuel_changed.emit(fuel, fuel_capacity())
 
 
+## Anche il pieno segue la reputazione (vedi repair_cost).
 func refuel_cost() -> int:
-	return ceili((fuel_capacity() - fuel) * FUEL_PRICE_PER_LITER)
+	return ceili((fuel_capacity() - fuel) * FUEL_PRICE_PER_LITER * price_multiplier())
 
 
 ## Pieno al porto; se i soldi non bastano si riempie quel che si può.
@@ -813,7 +1125,7 @@ func refuel() -> void:
 		money -= full_cost
 		fuel = fuel_capacity()
 	else:
-		fuel += float(money) / FUEL_PRICE_PER_LITER
+		fuel += float(money) / (FUEL_PRICE_PER_LITER * price_multiplier())
 		money = 0
 	money_changed.emit(money)
 	fuel_changed.emit(fuel, fuel_capacity())
@@ -851,6 +1163,9 @@ func salvage_after_sinking() -> void:
 		post_notice("Affondato! Carico perso (%d $) · recupero -%d $" % [lost, SALVAGE_FEE])
 	else:
 		post_notice("Affondato! Recupero al porto -%d $" % SALVAGE_FEE)
+	# Il mare si prende anche casse e pacco della missione attiva.
+	if mission_active():
+		fail_mission("Missione persa in mare")
 	save_game()
 
 
@@ -878,6 +1193,15 @@ func save_game() -> void:
 	var radar_out: Dictionary = {}
 	for upgrade in radar_upgrades:
 		radar_out[str(upgrade)] = radar_upgrades[upgrade]
+	var rep_out: Dictionary = {}
+	for faction in reputation:
+		rep_out[String(faction)] = reputation[faction]
+	# I Vector3 della missione (target/return) diventano array [x, y, z]:
+	# JSON non li rappresenta.
+	var mission_out: Dictionary = {}
+	for key: String in active_mission:
+		var value: Variant = active_mission[key]
+		mission_out[key] = _vec3_to_array(value) if value is Vector3 else value
 	var data := {
 		"version": SAVE_VERSION,
 		"money": money,
@@ -894,6 +1218,10 @@ func save_game() -> void:
 		"grandson_quest": grandson_quest,
 		"radar_unlocked": radar_unlocked,
 		"radar_upgrades": radar_out,
+		"reputation": rep_out,
+		"mission": mission_out,
+		"mission_time_left": mission_time_left,
+		"mission_crates": mission_crates,
 	}
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -954,9 +1282,43 @@ func load_game() -> void:
 	var radar_in: Dictionary = data.get("radar_upgrades", {})
 	for upgrade: String in radar_in:
 		radar_upgrades[int(upgrade)] = int(radar_in[upgrade])
+	# Salvataggi pre-A1: reputazione neutra, nessuna missione in corso.
+	reputation.clear()
+	var rep_in: Dictionary = data.get("reputation", {})
+	for faction: String in rep_in:
+		reputation[StringName(faction)] = clampi(int(rep_in[faction]), REP_MIN, REP_MAX)
+	active_mission.clear()
+	var mission_in: Dictionary = data.get("mission", {})
+	for key: String in mission_in:
+		var value: Variant = mission_in[key]
+		active_mission[key] = _array_to_vec3(value) if _is_vec3_array(value) else value
+	mission_time_left = float(data.get("mission_time_left", 0.0))
+	mission_crates = int(data.get("mission_crates", 0))
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
+
+
+func _vec3_to_array(v: Vector3) -> Array:
+	return [v.x, v.y, v.z]
+
+
+## Riconosce un Vector3 serializzato ([x, y, z] numerico) nel round-trip
+## JSON della missione: solo target/return lo sono, ma la forma basta.
+func _is_vec3_array(value: Variant) -> bool:
+	if not value is Array:
+		return false
+	var arr: Array = value
+	if arr.size() != 3:
+		return false
+	for item: Variant in arr:
+		if not (item is float or item is int):
+			return false
+	return true
+
+
+func _array_to_vec3(arr: Array) -> Vector3:
+	return Vector3(float(arr[0]), float(arr[1]), float(arr[2]))
 
 
 func delete_save() -> void:
@@ -981,6 +1343,10 @@ func reset() -> void:
 	grandson_quest = GrandsonQuest.NONE
 	radar_unlocked = false
 	radar_upgrades.clear()
+	reputation.clear()
+	active_mission.clear()
+	mission_time_left = 0.0
+	mission_crates = 0
 	hull = hull_max()
 	fuel = fuel_capacity()
 	_ui_focus_count = 0
@@ -991,6 +1357,8 @@ func reset() -> void:
 	cargo_changed.emit()
 	boat_changed.emit(current_def())
 	tutorial_changed.emit(tutorial_step, tutorial_hint())
+	reputation_changed.emit(FACTION_BOVA, 0)
+	mission_changed.emit()
 	clear_danger()
 
 
