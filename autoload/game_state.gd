@@ -40,6 +40,12 @@ signal reputation_changed(faction: StringName, value: int)
 ## Missione della bacheca accettata/avanzata/chiusa: minimappa, HUD e
 ## World (spawn del pacco di recupero) si aggiornano su questo.
 signal mission_changed
+## Vernice o accessori della barca corrente cambiati (acquisto, cambio o
+## anteprima dal cantiere): la Boat riveste il suo modello su questo.
+signal customization_changed
+## Acquisto del primo Cabinato: il traguardo dell'alpha (roadmap A2).
+## La schermata di fine alpha si mostra su questo, una volta sola.
+signal alpha_completed
 
 ## Tipologie di boa legate al rischio della zona (GDD pillar 2):
 ## gialla in acque tranquille, rossa ai margini degli scogli, blu
@@ -356,6 +362,37 @@ const BOAT_DEFS: Array[BoatDefinition] = [
 	preload("res://resources/boats/cruiser.tres"),
 ]
 
+## Customizzazione estetica (roadmap A2): solo visiva, prezzi alti — è il
+## pozzo dell'economia (GDD pillar 3). Le vernici tingono i materiali del
+## modello (scafo + rifinitura), gli accessori sono nodi opzionali montati
+## sul visual (vedi scripts/boat_customization.gd). Tutto per barca,
+## salvato. &"original" è la livrea di fabbrica: gratis, sempre posseduta.
+const PAINT_ORIGINAL: StringName = &"original"
+const PAINTS: Array[Dictionary] = [
+	{"id": PAINT_ORIGINAL, "name": "Livrea di fabbrica", "price": 0,
+		"hull": Color.WHITE, "accent": Color.WHITE},
+	{"id": &"perla", "name": "Bianco perla", "price": 400,
+		"hull": Color(0.93, 0.93, 0.9), "accent": Color(0.2, 0.32, 0.45)},
+	{"id": &"corallo", "name": "Rosso corallo", "price": 450,
+		"hull": Color(0.83, 0.33, 0.26), "accent": Color(0.5, 0.16, 0.12)},
+	{"id": &"notte", "name": "Blu notte", "price": 450,
+		"hull": Color(0.13, 0.2, 0.36), "accent": Color(0.75, 0.78, 0.82)},
+	{"id": &"menta", "name": "Verde menta", "price": 500,
+		"hull": Color(0.55, 0.8, 0.68), "accent": Color(0.16, 0.38, 0.3)},
+	{"id": &"sole", "name": "Giallo sole", "price": 500,
+		"hull": Color(0.92, 0.78, 0.28), "accent": Color(0.45, 0.35, 0.1)},
+	{"id": &"carbone", "name": "Nero carbone", "price": 600,
+		"hull": Color(0.16, 0.17, 0.19), "accent": Color(0.85, 0.6, 0.2)},
+]
+const ACCESSORIES: Array[Dictionary] = [
+	{"id": &"flag", "name": "Bandiera di poppa", "price": 300,
+		"desc": "sventola sulla poppa nel colore della rifinitura"},
+	{"id": &"fenders", "name": "Parabordi", "price": 350,
+		"desc": "una fila di parabordi bianchi lungo le murate"},
+	{"id": &"lights", "name": "Luci di cortesia", "price": 550,
+		"desc": "un filo di lucine calde da prua a poppa"},
+]
+
 ## Riparare tutto lo scafo da zero costa hull_max * questo valore.
 const REPAIR_COST_PER_POINT: float = 0.5
 const FUEL_PRICE_PER_LITER: float = 1.0
@@ -417,14 +454,37 @@ var radar_unlocked: bool = false
 ## Livelli dei potenziamenti del radar (RadarUpgrade -> livello). Salvati.
 var radar_upgrades: Dictionary[int, int] = {}
 
+## Vernici possedute per barca (id barca -> Array di id vernice); la
+## livrea di fabbrica è implicita. Salvate.
+var paints_owned: Dictionary[StringName, Array] = {}
+## Vernice applicata per barca (chiave assente = livrea di fabbrica). Salvata.
+var paint_applied: Dictionary[StringName, StringName] = {}
+## Accessori per barca (comprato = montato). Salvati.
+var accessories_owned: Dictionary[StringName, Array] = {}
+## Anteprima vernice del cantiere (non salvata): &"" = nessuna anteprima.
+var paint_preview: StringName = &""
+
+## Statistiche di partita per la schermata di fine alpha (roadmap A2):
+## secondi giocati (la pausa non conta: _process è PAUSABLE), denaro
+## totale guadagnato e pesci catturati. Salvate.
+var play_seconds: float = 0.0
+var total_earned: int = 0
+var fish_caught_total: int = 0
+## Vero se la schermata di fine alpha è già stata mostrata (si mostra una
+## volta sola, poi si continua a giocare liberamente). Salvato.
+var alpha_end_shown: bool = false
+
 
 func _ready() -> void:
 	load_game()
 
 
 ## Timer della consegna: scorre anche attraccati (la tensione è il senso
-## della missione) ma si ferma in pausa insieme al resto del gioco.
+## della missione) ma si ferma in pausa insieme al resto del gioco — come
+## il tempo di gioco, che conta solo la partita vera (title e pausa fermano
+## l'albero, quindi non contano).
 func _process(delta: float) -> void:
+	play_seconds += delta
 	if mission_type() != MissionType.DELIVERY:
 		return
 	mission_time_left -= delta
@@ -540,6 +600,12 @@ func buy_boat(id: StringName) -> bool:
 	money_changed.emit(money)
 	post_notice("%s acquistato!" % def.display_name)
 	select_boat(id)
+	# Il Cabinato è il traguardo dell'alpha (roadmap A2): la prima volta
+	# parte la schermata di fine alpha, poi si continua liberamente.
+	if id == &"cruiser" and not alpha_end_shown:
+		alpha_end_shown = true
+		save_game()
+		alpha_completed.emit()
 	return true
 
 
@@ -691,6 +757,107 @@ func radar_range_fraction() -> float:
 func radar_duration() -> float:
 	return RADAR_DURATION[clampi(radar_upgrade_level(RadarUpgrade.DURATION), 0,
 		RADAR_DURATION.size() - 1)]
+
+
+# --- Customizzazione estetica (roadmap A2) -----------------------------------
+
+func paint_def(id: StringName) -> Dictionary:
+	for paint in PAINTS:
+		if paint["id"] == id:
+			return paint
+	return PAINTS[0]
+
+
+func accessory_def(id: StringName) -> Dictionary:
+	for accessory in ACCESSORIES:
+		if accessory["id"] == id:
+			return accessory
+	return ACCESSORIES[0]
+
+
+func owns_paint(id: StringName, boat_id: StringName = current_boat_id) -> bool:
+	if id == PAINT_ORIGINAL:
+		return true
+	return paints_owned.get(boat_id, []).has(id)
+
+
+func applied_paint(boat_id: StringName = current_boat_id) -> StringName:
+	return paint_applied.get(boat_id, PAINT_ORIGINAL)
+
+
+## La vernice da mostrare adesso sulla barca corrente: l'anteprima del
+## cantiere vince su quella applicata.
+func effective_paint() -> Dictionary:
+	if paint_preview != &"":
+		return paint_def(paint_preview)
+	return paint_def(applied_paint())
+
+
+func boat_accessories(boat_id: StringName = current_boat_id) -> Array:
+	return accessories_owned.get(boat_id, [])
+
+
+func owns_accessory(id: StringName, boat_id: StringName = current_boat_id) -> bool:
+	return boat_accessories(boat_id).has(id)
+
+
+## Acquisto e applicazione in un gesto: la vernice resta posseduta per
+## questa barca, ricambiarla in seguito è gratis.
+func buy_paint(id: StringName) -> bool:
+	var paint := paint_def(id)
+	if owns_paint(id) or money < int(paint["price"]):
+		return false
+	money -= int(paint["price"])
+	var owned: Array = paints_owned.get(current_boat_id, [])
+	owned.append(id)
+	paints_owned[current_boat_id] = owned
+	money_changed.emit(money)
+	post_notice("%s: nuova mano di vernice" % String(paint["name"]))
+	apply_paint(id)
+	return true
+
+
+func apply_paint(id: StringName) -> void:
+	if not owns_paint(id):
+		return
+	if id == PAINT_ORIGINAL:
+		paint_applied.erase(current_boat_id)
+	else:
+		paint_applied[current_boat_id] = id
+	paint_preview = &""
+	customization_changed.emit()
+	save_game()
+
+
+func buy_accessory(id: StringName) -> bool:
+	var accessory := accessory_def(id)
+	if owns_accessory(id) or money < int(accessory["price"]):
+		return false
+	money -= int(accessory["price"])
+	var owned: Array = accessories_owned.get(current_boat_id, [])
+	owned.append(id)
+	accessories_owned[current_boat_id] = owned
+	money_changed.emit(money)
+	post_notice("%s: a bordo!" % String(accessory["name"]))
+	customization_changed.emit()
+	save_game()
+	return true
+
+
+## Anteprima live dal cantiere (roadmap A2): la barca attraccata si
+## ridipinge subito, senza pagare; si azzera chiudendo il pannello.
+func set_paint_preview(id: StringName) -> void:
+	if paint_preview == id:
+		return
+	paint_preview = id
+	customization_changed.emit()
+
+
+func clear_paint_preview() -> void:
+	if paint_preview == &"":
+		return
+	paint_preview = &""
+	customization_changed.emit()
 
 
 # --- Missione del nipote in mare ---------------------------------------------
@@ -881,6 +1048,7 @@ func _finish_mission(what: String) -> void:
 	var reward := int(active_mission.get("reward", 0))
 	var rep := int(active_mission.get("rep", 0))
 	money += reward
+	total_earned += reward
 	add_reputation(rep)
 	mission_crates = 0
 	active_mission.clear()
@@ -930,6 +1098,8 @@ func abandon_mission() -> void:
 func apply_event_choice(money_delta: int, fuel_delta: float, hull_delta: float, rep_delta: int) -> void:
 	if money_delta != 0:
 		money = maxi(money + money_delta, 0)
+		if money_delta > 0:
+			total_earned += money_delta
 		money_changed.emit(money)
 	if fuel_delta > 0.0:
 		add_fuel(fuel_delta)
@@ -970,6 +1140,7 @@ func collect_fish(type: int) -> bool:
 		post_notice("Stiva piena! Vendi al porto")
 		return false
 	fish_cargo[type] = fish_cargo.get(type, 0) + 1
+	fish_caught_total += 1
 	cargo_changed.emit()
 	fish_caught.emit(type)
 	_advance_tutorial(TUTORIAL_EXPLORE)
@@ -1022,6 +1193,7 @@ func sell_cargo() -> int:
 	if earned <= 0:
 		return 0
 	money += earned
+	total_earned += earned
 	cargo.clear()
 	fish_cargo.clear()
 	money_changed.emit(money)
@@ -1078,6 +1250,7 @@ func record_race_result(rank: int, total: int, prize_mult: float = 1.0) -> void:
 	var prize := race_prize(rank, prize_mult)
 	if prize > 0:
 		money += prize
+		total_earned += prize
 		money_changed.emit(money)
 	if rank == 1:
 		race_wins += 1
@@ -1196,6 +1369,21 @@ func save_game() -> void:
 	var rep_out: Dictionary = {}
 	for faction in reputation:
 		rep_out[String(faction)] = reputation[faction]
+	var paints_out: Dictionary = {}
+	for boat_id in paints_owned:
+		var ids: Array[String] = []
+		for paint_id: StringName in paints_owned[boat_id]:
+			ids.append(String(paint_id))
+		paints_out[String(boat_id)] = ids
+	var applied_out: Dictionary = {}
+	for boat_id in paint_applied:
+		applied_out[String(boat_id)] = String(paint_applied[boat_id])
+	var accessories_out: Dictionary = {}
+	for boat_id in accessories_owned:
+		var ids: Array[String] = []
+		for accessory_id: StringName in accessories_owned[boat_id]:
+			ids.append(String(accessory_id))
+		accessories_out[String(boat_id)] = ids
 	# I Vector3 della missione (target/return) diventano array [x, y, z]:
 	# JSON non li rappresenta.
 	var mission_out: Dictionary = {}
@@ -1222,6 +1410,13 @@ func save_game() -> void:
 		"mission": mission_out,
 		"mission_time_left": mission_time_left,
 		"mission_crates": mission_crates,
+		"paints_owned": paints_out,
+		"paint_applied": applied_out,
+		"accessories": accessories_out,
+		"play_seconds": play_seconds,
+		"total_earned": total_earned,
+		"fish_caught_total": fish_caught_total,
+		"alpha_end_shown": alpha_end_shown,
 	}
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -1294,6 +1489,29 @@ func load_game() -> void:
 		active_mission[key] = _array_to_vec3(value) if _is_vec3_array(value) else value
 	mission_time_left = float(data.get("mission_time_left", 0.0))
 	mission_crates = int(data.get("mission_crates", 0))
+	# Salvataggi pre-A2: nessuna vernice, statistiche da zero.
+	paints_owned.clear()
+	var paints_in: Dictionary = data.get("paints_owned", {})
+	for boat_id: String in paints_in:
+		var ids: Array[StringName] = []
+		for paint_id: String in paints_in[boat_id]:
+			ids.append(StringName(paint_id))
+		paints_owned[StringName(boat_id)] = ids
+	paint_applied.clear()
+	var applied_in: Dictionary = data.get("paint_applied", {})
+	for boat_id: String in applied_in:
+		paint_applied[StringName(boat_id)] = StringName(applied_in[boat_id])
+	accessories_owned.clear()
+	var accessories_in: Dictionary = data.get("accessories", {})
+	for boat_id: String in accessories_in:
+		var ids: Array[StringName] = []
+		for accessory_id: String in accessories_in[boat_id]:
+			ids.append(StringName(accessory_id))
+		accessories_owned[StringName(boat_id)] = ids
+	play_seconds = float(data.get("play_seconds", 0.0))
+	total_earned = int(data.get("total_earned", 0))
+	fish_caught_total = int(data.get("fish_caught_total", 0))
+	alpha_end_shown = bool(data.get("alpha_end_shown", false))
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
@@ -1347,6 +1565,14 @@ func reset() -> void:
 	active_mission.clear()
 	mission_time_left = 0.0
 	mission_crates = 0
+	paints_owned.clear()
+	paint_applied.clear()
+	accessories_owned.clear()
+	paint_preview = &""
+	play_seconds = 0.0
+	total_earned = 0
+	fish_caught_total = 0
+	alpha_end_shown = false
 	hull = hull_max()
 	fuel = fuel_capacity()
 	_ui_focus_count = 0
@@ -1356,6 +1582,7 @@ func reset() -> void:
 	fuel_changed.emit(fuel, fuel_capacity())
 	cargo_changed.emit()
 	boat_changed.emit(current_def())
+	customization_changed.emit()
 	tutorial_changed.emit(tutorial_step, tutorial_hint())
 	reputation_changed.emit(FACTION_BOVA, 0)
 	mission_changed.emit()

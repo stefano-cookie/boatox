@@ -120,8 +120,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if motion == null or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	_idle_time = 0.0
-	_target_orbit_yaw -= motion.relative.x * deg_to_rad(mouse_sensitivity)
-	_target_pitch = clampf(_target_pitch + motion.relative.y * deg_to_rad(mouse_sensitivity),
+	# Sensibilità di design (@export, da tarare) × preferenza del giocatore
+	# (slider impostazioni, salvata dall'Audio autoload).
+	var sens := deg_to_rad(mouse_sensitivity) * Audio.mouse_sensitivity_scale
+	_target_orbit_yaw -= motion.relative.x * sens
+	_target_pitch = clampf(_target_pitch + motion.relative.y * sens,
 		deg_to_rad(pitch_min_deg), deg_to_rad(pitch_max_deg))
 
 

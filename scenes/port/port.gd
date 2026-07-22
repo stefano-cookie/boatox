@@ -55,11 +55,14 @@ var _open: bool = false
 var _shipyard_open: bool = false
 var _tackle_open: bool = false
 var _board_open: bool = false
+var _style_open: bool = false
 
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
 var _upgrade_labels: Dictionary[int, Label] = {}
 var _gear_buttons: Dictionary[int, Button] = {}
+var _paint_buttons: Dictionary[StringName, Button] = {}
+var _accessory_buttons: Dictionary[StringName, Button] = {}
 ## Offerte correnti della bacheca: generate all'apertura, svuotate
 ## all'accettazione (si rigenerano alla prossima apertura).
 var _offers: Array[Dictionary] = []
@@ -82,6 +85,12 @@ var _offers: Array[Dictionary] = []
 @onready var _upgrades_title: Label = $PortUI/Shipyard/Margin/VBox/UpgradesTitle
 @onready var _upgrades_box: VBoxContainer = $PortUI/Shipyard/Margin/VBox/UpgradesBox
 @onready var _back_button: Button = $PortUI/Shipyard/Margin/VBox/BackButton
+@onready var _style_button: Button = $PortUI/Shipyard/Margin/VBox/StyleButton
+@onready var _style: PanelContainer = $PortUI/Style
+@onready var _style_money: Label = $PortUI/Style/Margin/VBox/Money
+@onready var _paints_box: VBoxContainer = $PortUI/Style/Margin/VBox/PaintsBox
+@onready var _accessories_box: VBoxContainer = $PortUI/Style/Margin/VBox/AccessoriesBox
+@onready var _style_back: Button = $PortUI/Style/Margin/VBox/BackButton
 @onready var _tackle: PanelContainer = $PortUI/Tackle
 @onready var _tackle_money: Label = $PortUI/Tackle/Margin/VBox/Money
 @onready var _gear_box: VBoxContainer = $PortUI/Tackle/Margin/VBox/GearBox
@@ -108,14 +117,18 @@ func _ready() -> void:
 	_board_button.pressed.connect(_open_board)
 	_leave_button.pressed.connect(_close_menu)
 	_back_button.pressed.connect(_close_shipyard)
+	_style_button.pressed.connect(_open_style)
+	_style_back.pressed.connect(_close_style)
 	_tackle_back.pressed.connect(_close_tackle)
 	_board_back.pressed.connect(_close_board)
 	_abandon_button.pressed.connect(_on_abandon_pressed)
 	_apply_services()
 	_build_shipyard_rows()
+	_build_style_rows()
 	_build_tackle_rows()
 	_panel.hide()
 	_shipyard.hide()
+	_style.hide()
 	_tackle.hide()
 	_board.hide()
 	_hint.hide()
@@ -180,7 +193,10 @@ func _on_approach_exited(body: Node3D) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
-		if _shipyard_open:
+		if _style_open:
+			get_viewport().set_input_as_handled()
+			_close_style()
+		elif _shipyard_open:
 			get_viewport().set_input_as_handled()
 			_close_shipyard()
 		elif _tackle_open:
@@ -197,7 +213,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_menu()
 	elif event.is_action_pressed("ui_cancel"):
 		# Consumato: altrimenti lo stesso Esc aprirebbe anche la pausa.
-		if _shipyard_open:
+		if _style_open:
+			get_viewport().set_input_as_handled()
+			_close_style()
+		elif _shipyard_open:
 			get_viewport().set_input_as_handled()
 			_close_shipyard()
 		elif _tackle_open:
@@ -269,8 +288,11 @@ func _close_menu() -> void:
 	_shipyard_open = false
 	_tackle_open = false
 	_board_open = false
+	_style_open = false
+	GameState.clear_paint_preview()
 	_panel.hide()
 	_shipyard.hide()
+	_style.hide()
 	_tackle.hide()
 	_board.hide()
 	GameState.pop_ui_focus()
@@ -528,6 +550,111 @@ func _refresh_shipyard() -> void:
 			label.text = "%s — %s\n[%s]" % [up_name, desc, delta]
 			button.text = "liv. %d → %d (-%d $)" % [level, level + 1, cost]
 			button.disabled = GameState.money < cost
+
+
+# --- Estetica: vernici e accessori (roadmap A2) ------------------------------
+
+func _open_style() -> void:
+	_style_open = true
+	_shipyard_open = false
+	_shipyard.hide()
+	_refresh_style()
+	_style.show()
+	_style_back.grab_focus()
+
+
+## Chiudere azzera l'anteprima: sulla barca resta solo ciò che è pagato.
+func _close_style() -> void:
+	_style_open = false
+	GameState.clear_paint_preview()
+	_style.hide()
+	_open_shipyard()
+
+
+## Una riga per vernice (tacca di colore, nome, bottone) e una per
+## accessorio. Costruite una volta, come le righe del cantiere; passare
+## col mouse o col focus su una vernice la prova subito sulla barca
+## attraccata (anteprima live, roadmap A2).
+func _build_style_rows() -> void:
+	for paint in GameState.PAINTS:
+		var paint_id: StringName = paint["id"]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var swatch := ColorRect.new()
+		swatch.color = paint["hull"]
+		swatch.custom_minimum_size = Vector2(26, 26)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(swatch)
+		var label := Label.new()
+		label.text = String(paint["name"])
+		label.add_theme_font_size_override("font_size", 20)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 20)
+		button.custom_minimum_size = Vector2(190, 0)
+		button.pressed.connect(_on_paint_pressed.bind(paint_id))
+		button.mouse_entered.connect(GameState.set_paint_preview.bind(paint_id))
+		button.focus_entered.connect(GameState.set_paint_preview.bind(paint_id))
+		row.add_child(button)
+		_paints_box.add_child(row)
+		_paint_buttons[paint_id] = button
+	for accessory in GameState.ACCESSORIES:
+		var accessory_id: StringName = accessory["id"]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var label := Label.new()
+		label.text = "%s\n%s" % [String(accessory["name"]), String(accessory["desc"])]
+		label.add_theme_font_size_override("font_size", 18)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var button := Button.new()
+		button.add_theme_font_size_override("font_size", 20)
+		button.custom_minimum_size = Vector2(190, 0)
+		button.pressed.connect(_on_accessory_pressed.bind(accessory_id))
+		row.add_child(button)
+		_accessories_box.add_child(row)
+		_accessory_buttons[accessory_id] = button
+
+
+func _on_paint_pressed(id: StringName) -> void:
+	if GameState.owns_paint(id):
+		GameState.apply_paint(id)
+	else:
+		GameState.buy_paint(id)
+	_refresh_style()
+
+
+func _on_accessory_pressed(id: StringName) -> void:
+	GameState.buy_accessory(id)
+	_refresh_style()
+
+
+func _refresh_style() -> void:
+	_style_money.text = "Denaro: %d $ — %s" % [
+		GameState.money, GameState.current_def().display_name,
+	]
+	for paint in GameState.PAINTS:
+		var paint_id: StringName = paint["id"]
+		var button := _paint_buttons[paint_id]
+		if GameState.applied_paint() == paint_id:
+			button.text = "Applicata"
+			button.disabled = true
+		elif GameState.owns_paint(paint_id):
+			button.text = "Applica"
+			button.disabled = false
+		else:
+			button.text = "Compra (%d $)" % int(paint["price"])
+			button.disabled = GameState.money < int(paint["price"])
+	for accessory in GameState.ACCESSORIES:
+		var accessory_id: StringName = accessory["id"]
+		var button := _accessory_buttons[accessory_id]
+		if GameState.owns_accessory(accessory_id):
+			button.text = "A bordo"
+			button.disabled = true
+		else:
+			button.text = "Compra (%d $)" % int(accessory["price"])
+			button.disabled = GameState.money < int(accessory["price"])
 
 
 # --- Bottega di Nino (attrezzatura da pesca) ---------------------------------

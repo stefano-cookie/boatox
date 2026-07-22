@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
@@ -10,6 +10,8 @@
 [ext_resource type="Script" path="res://scenes/weather/wind_field.gd" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/inventory/inventory_panel.tscn" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/events/event_director.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/end/alpha_end_screen.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/title/title_screen.tscn" id="12"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -88,3 +90,7 @@ target = NodePath("../Boat")
 [node name="EventDirector" parent="." node_paths=PackedStringArray("boat", "sea") instance=ExtResource("10")]
 boat = NodePath("../Boat")
 sea = NodePath("../Sea")
+
+[node name="AlphaEndScreen" parent="." instance=ExtResource("11")]
+
+[node name="TitleScreen" parent="." instance=ExtResource("12")]

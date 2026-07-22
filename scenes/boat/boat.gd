@@ -107,6 +107,9 @@ var _splash: CPUParticles3D
 
 func _ready() -> void:
 	GameState.boat_changed.connect(func(_def: BoatDefinition) -> void: _apply_definition())
+	# Vernice o accessori cambiati (cantiere, anteprima inclusa): si
+	# rimonta il modello da zero, così togliere una vernice è gratis.
+	GameState.customization_changed.connect(_apply_definition)
 	_build_splash()
 	_apply_definition()
 
@@ -187,7 +190,9 @@ func _apply_definition() -> void:
 	for child in _visual.get_children():
 		child.queue_free()
 	if def.visual_scene != null:
-		_visual.add_child(def.visual_scene.instantiate())
+		var model := def.visual_scene.instantiate() as Node3D
+		_visual.add_child(model)
+		BoatCustomization.apply(model, def)
 
 
 ## Agitazione del mare nel punto della barca, tradotta in caos (guida)

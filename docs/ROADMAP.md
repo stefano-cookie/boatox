@@ -27,20 +27,22 @@ Obiettivo: il "loop completo in piccolo" del GDD, giocabile da un estraneo dall'
 
 ## A2 — Rifinitura e chiusura
 
-- [ ] **Customizzazione estetica** (vernici, accessori)
-	- Vernici = palette di tinte sui materiali del modello (per barca, salvate); accessori come nodi opzionali del visual (bandiera, luci, parabordi). Prezzi alti: è il pozzo dell'economia (GDD pillar 3). Shop nel cantiere, anteprima live sulla barca attraccata.
-- [ ] **Menu principale e impostazioni complete** (pausa base fatta in M1)
-	- Scena title con la baia sullo sfondo; impostazioni: volumi (master/musica/sfx — musica e sfx già fatti), fullscreen, sensibilità mouse camera, azzeramento salvataggio con conferma.
-- [ ] **Audio: rifiniture**
-	- Il grosso è fatto (procedurale: mare, motore, SFX, playlist). Restano: slider master e sensibilità mouse accanto ai volumi esistenti; eventuali tracce registrate CC0 al posto delle procedurali se il gusto lo chiede.
+- [x] **Customizzazione estetica** (vernici, accessori)
+	- 6 vernici (tinta scafo + rifinitura, per barca, salvate) e 3 accessori (bandiera, parabordi, luci di cortesia) come nodi montati dal codice (`scripts/boat_customization.gd`). Prezzi alti (400–600 $ le vernici): è il pozzo dell'economia (GDD pillar 3). Shop "Vernici e accessori" nel cantiere, anteprima live passando col mouse sulla vernice.
+- [x] **Menu principale e impostazioni complete** (pausa base fatta in M1)
+	- Title sopra la baia viva (stessa scena di gioco in pausa, niente scena separata); pannello impostazioni condiviso title/pausa: master/musica/sfx, sensibilità mouse (moltiplicatore 0.3–2×), schermo intero persistito, azzeramento salvataggio con doppia conferma. Tutto in `user://settings.cfg` via l'Audio autoload.
+- [x] **Audio: rifiniture**
+	- Slider master e sensibilità mouse accanto ai volumi esistenti: fatti (vedi sopra). Eventuali tracce registrate CC0 al posto delle procedurali solo se il gusto lo chiede (decisione da playtest).
 - [ ] **Verifiche playtest arretrate** (accumulate nei "da verificare in gioco")
 	- Criteri di uscita mai validati: la seconda barca è desiderabile e guadagnarsela soddisfa (M2); la baia si legge a colpo d'occhio e sembra Bova Marina (M2.5).
 	- Performance e sfumatura del piano mare esteso al confine sud; posizioni dei 6 checkpoint della gara al largo; posizione NPC/rescue_point e leggibilità del cerchio radar; leggibilità icone inventario; mix volumi, timbro motore/mare, gusto dei brani, tick sugli avvisi.
-- [ ] **Traguardo di fine alpha** (acquisto del primo cabinato) e schermata finale provvisoria
-	- All'acquisto del Cabinato: schermata "fine alpha" con statistiche di partita (tempo, denaro totale, pesci, vittorie) e ringraziamento; poi si continua a giocare liberamente.
+	- *Nuovi da A2: prezzi/gusto di vernici e accessori (le proporzioni degli accessori sui tre modelli); leggibilità del title sopra la baia; escursione dello slider sensibilità.*
+- [x] **Traguardo di fine alpha** (acquisto del primo cabinato) e schermata finale provvisoria
+	- Al primo acquisto del Cabinato: schermata "fine alpha" con statistiche (tempo di gioco, denaro totale guadagnato, pesci, vittorie — ora contati e salvati in GameState) e ringraziamento; poi si continua liberamente. Una volta sola (flag salvato).
 - [ ] **Bilanciamento complessivo + bug pass**
-	- Passata su prezzi/premi/valori con un foglio dei tempi-per-upgrade; sessione di playtest completa dall'inizio annotando attriti.
+	- Foglio dei tempi-per-upgrade pronto in `docs/BALANCE.md` (prezzi reali + stime $/min da validare). Resta la sessione di playtest completa dall'inizio annotando attriti, poi la passata sui valori.
 - [ ] **Export macOS/Windows, pagina itch.io (privata)** per distribuire la build ai tester
+	- `export_presets.cfg` pronto (macOS universal zip, Windows x86_64, cartella `export/` già ignorata). Restano: installare gli export template 4.7 nell'editor, lanciare i due export, creare la pagina itch.io privata e caricare le build (serve l'account di Stefano).
 - [ ] **Criterio di uscita**: un estraneo la gioca dall'inizio al traguardo senza aiuto
 
 ---

@@ -1,32 +1,22 @@
 extends CanvasLayer
 
-## Menu di pausa (Esc): riprendi, ricomincia, schermo intero, esci.
-## Le impostazioni complete arrivano con M4; qui c'è l'essenziale per il
-## playtest. Il nodo ha process_mode ALWAYS così riceve input anche a
-## albero fermo; il porto consuma Esc quando il suo menu è aperto, quindi
-## qui arriva solo quando serve davvero.
+## Menu di pausa (Esc): impostazioni complete (pannello condiviso col
+## title, roadmap A2), riprendi, esci. Il nodo ha process_mode ALWAYS
+## così riceve input anche a albero fermo; il porto e il title consumano
+## Esc quando i loro pannelli sono aperti, quindi qui arriva solo quando
+## serve davvero.
 
 @onready var _root: Control = $Root
+@onready var _settings: SettingsPanel = $Root/Panel/Margin/VBox/SettingsPanel
 @onready var _resume_button: Button = $Root/Panel/Margin/VBox/ResumeButton
-@onready var _restart_button: Button = $Root/Panel/Margin/VBox/RestartButton
-@onready var _fullscreen_button: Button = $Root/Panel/Margin/VBox/FullscreenButton
 @onready var _quit_button: Button = $Root/Panel/Margin/VBox/QuitButton
-@onready var _music_slider: HSlider = $Root/Panel/Margin/VBox/AudioBox/MusicRow/MusicSlider
-@onready var _sfx_slider: HSlider = $Root/Panel/Margin/VBox/AudioBox/SfxRow/SfxSlider
 
 
 func _ready() -> void:
 	_root.hide()
 	_resume_button.pressed.connect(_resume)
-	_restart_button.pressed.connect(_on_restart_pressed)
-	_fullscreen_button.pressed.connect(_on_fullscreen_pressed)
 	_quit_button.pressed.connect(_on_quit_pressed)
-	# Slider volume: valore iniziale dalle impostazioni salvate, poi ogni
-	# variazione la applica e salva l'Audio autoload.
-	_music_slider.value = Audio.music_volume
-	_sfx_slider.value = Audio.sfx_volume
-	_music_slider.value_changed.connect(func(v: float) -> void: Audio.set_music_volume(v))
-	_sfx_slider.value_changed.connect(func(v: float) -> void: Audio.set_sfx_volume(v))
+	_settings.save_reset_requested.connect(_on_save_reset_requested)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -42,7 +32,6 @@ func _unhandled_input(event: InputEvent) -> void:
 func _open() -> void:
 	get_tree().paused = true
 	GameState.push_ui_focus()
-	_refresh_fullscreen_label()
 	_root.show()
 	_resume_button.grab_focus()
 
@@ -53,8 +42,9 @@ func _resume() -> void:
 	_root.hide()
 
 
-## Ricomincia da zero: GameState.reset cancella anche il salvataggio.
-func _on_restart_pressed() -> void:
+## Azzeramento confermato dal pannello impostazioni: si riparte da zero
+## (GameState.reset cancella anche il salvataggio) ricaricando la scena.
+func _on_save_reset_requested() -> void:
 	_resume()
 	GameState.reset()
 	Radar.reset()
@@ -64,18 +54,3 @@ func _on_restart_pressed() -> void:
 func _on_quit_pressed() -> void:
 	GameState.save_game()
 	get_tree().quit()
-
-
-func _on_fullscreen_pressed() -> void:
-	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	_refresh_fullscreen_label()
-
-
-func _refresh_fullscreen_label() -> void:
-	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		_fullscreen_button.text = "Finestra"
-	else:
-		_fullscreen_button.text = "Schermo intero"

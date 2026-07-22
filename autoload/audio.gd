@@ -49,14 +49,20 @@ const MUSIC_GAP_MAX := 34.0
 
 const SFX_PLAYERS := 6
 
-## Impostazioni volume gestibili dal menu pausa (roadmap M4 anticipata): due
-## livelli 0..1 salvati su file, applicati ai bus. "Musica" = bus Music,
-## "Effetti" = bus Ambient + Sfx (mare, motore e SFX insieme). I bus esistono
-## già da _setup_buses: qui li si scala, e le impostazioni complete di M4
-## (master, fullscreen, sensibilità) si aggiungeranno accanto senza rifare nulla.
+## Impostazioni complete (roadmap A2): volumi 0..1 applicati ai bus
+## ("Master" = bus Master, "Musica" = bus Music, "Effetti" = Ambient + Sfx),
+## più schermo intero e sensibilità mouse (moltiplicatore letto dalla
+## ChaseCamera). Tutto su un solo ConfigFile: questo autoload è l'unico a
+## scrivere user://settings.cfg, così nessuna sezione sovrascrive le altre.
 const SETTINGS_PATH := "user://settings.cfg"
+## Escursione del moltiplicatore di sensibilità mouse (slider impostazioni).
+const SENSITIVITY_MIN := 0.3
+const SENSITIVITY_MAX := 2.0
+var master_volume: float = 1.0
 var music_volume: float = 0.7
 var sfx_volume: float = 0.9
+var mouse_sensitivity_scale: float = 1.0
+var fullscreen: bool = false
 
 var _engine: AudioStreamPlayer
 var _sea_calm: AudioStreamPlayer
@@ -132,7 +138,14 @@ func update_sea(agitation: float) -> void:
 	_sea_target = clampf(inverse_lerp(SEA_AGITATION_MIN, SEA_AGITATION_MAX, agitation), 0.0, 1.0)
 
 
-# --- Volumi (menu pausa) -----------------------------------------------------
+# --- Impostazioni (pannello impostazioni) ------------------------------------
+
+## Volume generale 0..1: scala il bus Master (tutto il gioco) e salva.
+func set_master_volume(value: float) -> void:
+	master_volume = clampf(value, 0.0, 1.0)
+	_apply_master_volume()
+	_save_settings()
+
 
 ## Volume musica 0..1 (0 = muto): scala il bus Music e salva.
 func set_music_volume(value: float) -> void:
@@ -146,6 +159,31 @@ func set_sfx_volume(value: float) -> void:
 	sfx_volume = clampf(value, 0.0, 1.0)
 	_apply_sfx_volume()
 	_save_settings()
+
+
+## Sensibilità del mouse in camera: moltiplicatore 0.3..2 sul valore di
+## design della ChaseCamera (che resta @export, da tarare giocando).
+func set_mouse_sensitivity_scale(value: float) -> void:
+	mouse_sensitivity_scale = clampf(value, SENSITIVITY_MIN, SENSITIVITY_MAX)
+	_save_settings()
+
+
+## Schermo intero: applicato subito e ricordato al prossimo avvio.
+func set_fullscreen(on: bool) -> void:
+	fullscreen = on
+	_apply_fullscreen()
+	_save_settings()
+
+
+func _apply_master_volume() -> void:
+	AudioServer.set_bus_volume_db(0, _volume_db(master_volume))
+
+
+func _apply_fullscreen() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen
+		else DisplayServer.WINDOW_MODE_WINDOWED)
 
 
 func _apply_music_volume() -> void:
@@ -165,16 +203,25 @@ func _volume_db(value: float) -> float:
 func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
+		master_volume = clampf(cfg.get_value("audio", "master", master_volume), 0.0, 1.0)
 		music_volume = clampf(cfg.get_value("audio", "music", music_volume), 0.0, 1.0)
 		sfx_volume = clampf(cfg.get_value("audio", "sfx", sfx_volume), 0.0, 1.0)
+		mouse_sensitivity_scale = clampf(cfg.get_value("controls", "mouse_sensitivity",
+			mouse_sensitivity_scale), SENSITIVITY_MIN, SENSITIVITY_MAX)
+		fullscreen = bool(cfg.get_value("display", "fullscreen", fullscreen))
+	_apply_master_volume()
 	_apply_music_volume()
 	_apply_sfx_volume()
+	_apply_fullscreen()
 
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
+	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
+	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity_scale)
+	cfg.set_value("display", "fullscreen", fullscreen)
 	cfg.save(SETTINGS_PATH)
 
 
