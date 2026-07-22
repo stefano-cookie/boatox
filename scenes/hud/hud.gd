@@ -42,6 +42,11 @@ const FUEL_LOW_RATIO: float = 0.2
 const HULL_FLASH_COLOR := Color(1.0, 0.3, 0.25)
 const HULL_FLASH_TIME: float = 0.4
 
+## Stato del radar (visibile solo dopo lo sblocco dalla missione del nipote).
+const RADAR_READY_COLOR := Color(0.55, 0.9, 1.0)
+const RADAR_ACTIVE_COLOR := Color(0.5, 1.0, 0.6)
+const RADAR_COOLDOWN_COLOR := Color(0.7, 0.75, 0.82)
+
 @onready var _money_label: Label = $TopLeft/Margin/VBox/MoneyLabel
 @onready var _boat_label: Label = $TopLeft/Margin/VBox/BoatLabel
 @onready var _hull_bar: ProgressBar = $TopLeft/Margin/VBox/HullRow/HullBar
@@ -56,6 +61,7 @@ const HULL_FLASH_TIME: float = 0.4
 @onready var _speed_bar: ProgressBar = $SpeedBox/Margin/VBox/SpeedBar
 @onready var _zone_label: Label = $SpeedBox/Margin/VBox/ZoneLabel
 @onready var _weather_label: Label = $SpeedBox/Margin/VBox/WeatherLabel
+@onready var _radar_label: Label = $SpeedBox/Margin/VBox/RadarLabel
 @onready var _goal_box: PanelContainer = $GoalBox
 @onready var _goal_label: Label = $GoalBox/GoalMargin/GoalLabel
 @onready var _minimap: Minimap = $Minimap
@@ -88,6 +94,16 @@ func _ready() -> void:
 	_on_boat_changed(GameState.current_def())
 	_apply_ui_scale()
 	_on_tutorial_changed(GameState.tutorial_step, GameState.tutorial_hint())
+	_update_radar()
+
+
+## Impulso radar (tasto R): rivela boe e zone in minimappa. Attivo solo
+## dopo lo sblocco e a cooldown scaduto (guardie in Radar.can_ping);
+## nessun altro pannello lo usa, quindi non c'è conflitto con Esc/E.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("radar_ping") and boat != null and Radar.can_ping():
+		get_viewport().set_input_as_handled()
+		Radar.ping(boat.global_position)
 
 
 func _process(_delta: float) -> void:
@@ -101,6 +117,25 @@ func _process(_delta: float) -> void:
 		var state := _sea_state_index(sea.agitation(boat.global_position))
 		_zone_label.text = "%s · %s" % [ZONE_NAMES[zone], SEA_STATE_NAMES[state]]
 		_zone_label.modulate = SEA_STATE_COLORS[state]
+	_update_radar()
+
+
+## Riga di stato del radar in basso a destra: nascosta finché è bloccato,
+## poi pronto / attivo (finestra) / in cooldown.
+func _update_radar() -> void:
+	if not GameState.radar_unlocked:
+		_radar_label.hide()
+		return
+	_radar_label.show()
+	if Radar.is_active():
+		_radar_label.text = "Radar attivo · %d s" % ceili(Radar.window_left())
+		_radar_label.modulate = RADAR_ACTIVE_COLOR
+	elif Radar.cooldown_left() > 0.0:
+		_radar_label.text = "Radar: %d s" % ceili(Radar.cooldown_left())
+		_radar_label.modulate = RADAR_COOLDOWN_COLOR
+	else:
+		_radar_label.text = "Radar: pronto (R)"
+		_radar_label.modulate = RADAR_READY_COLOR
 
 
 ## Indice dello stato locale del mare a partire dall'agitazione.

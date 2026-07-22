@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/world/island.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/port/port.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/coast.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/race/race_course.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/npc/rescue_npc.tscn" id="6"]
 
 [node name="World" type="Node3D"]
 script = ExtResource("1")
@@ -97,3 +98,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -180, 0, 50)
 
 [node name="Cp6" parent="RaceCourseOffshore/Checkpoints" index="5"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 0, -40)
+
+[node name="RescueNpc" parent="." instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 225, 0, -70)
+rescue_point = Vector3(150, 0, 360)

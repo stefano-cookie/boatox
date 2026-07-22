@@ -73,6 +73,11 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 - Motore e stabilità contano davvero: sono il banco di prova degli upgrade.
 - Premi in denaro; vincere una gara può sbloccare zone/contenuti (cancello di progressione).
 
+### Missioni ed esplorazione
+- La minimappa **non** mostra boe e zone di pesca di default: il mare va esplorato. La rilevazione è una progressione, non un dato gratuito.
+- **Radar** a impulsi (tasto R): un impulso rivela boe, taniche e zone entro un raggio (frazione della mappa) per una finestra di secondi, poi cooldown. Si sblocca completando una missione, si potenzia (raggio e durata) come famiglia di upgrade a sé.
+- **Missione del nipote** (Zu' Vito, l'NPC dietro gli scogli a est): recupera il nipote che galleggia al largo (marker in minimappa) e riportalo; completata, sblocca il radar e apre la sua bottega di potenziamenti. Prototipo del formato missione recupero (marker + raccolta + consegna) della beta.
+
 ### Eventi e reputazione
 - Eventi casuali in mare con scelta (es. barca in avaria: aiuti o ignori) e conseguenze su denaro e reputazione.
 - La reputazione modifica prezzi e missioni offerte nei porti.

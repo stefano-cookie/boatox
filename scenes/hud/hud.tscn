@@ -185,6 +185,12 @@ max_value = 14.0
 value = 0.0
 show_percentage = false
 
+[node name="RadarLabel" type="Label" parent="SpeedBox/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Radar: pronto (R)"
+horizontal_alignment = 2
+
 [node name="NoticeLabel" type="Label" parent="."]
 anchor_left = 0.5
 anchor_right = 0.5

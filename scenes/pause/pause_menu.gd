@@ -49,6 +49,7 @@ func _resume() -> void:
 func _on_restart_pressed() -> void:
 	_resume()
 	GameState.reset()
+	Radar.reset()
 	get_tree().reload_current_scene()
 
 

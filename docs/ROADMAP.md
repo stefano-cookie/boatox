@@ -123,18 +123,14 @@ Prima sessione giocata davvero dall'inizio. Emerso: il gioco non si spiega, l'HU
 
 Sostituisce la visibilità gratuita di boe e zone in minimappa con una progressione: prima non vedi nulla, poi guadagni il radar e lo potenzi. (Rientra nel GDD § Missioni ed Eventi — aggiornare il GDD quando il sistema è definito.)
 
-- [ ] **Minimappa: boe e zone di pesca NON più visibili di default**
-  - In [minimap.gd](scenes/hud/minimap.gd) `_draw_pickups` (:222) e `_draw_fishing_zones` (:199) devono disegnare boe/taniche/zone **solo quando il radar è attivo** (finestra di 10s dopo l'uso). Fuori dalla finestra la minimappa mostra solo mare, coste, scogli, isole, porto, celle di vento e la barca. Il marker regata resta come QoL (o diventa anch'esso NPC-driven — da decidere con Stefano).
-- [ ] **NPC del nipote — dietro il blocco di scogli a destra della mappa**
-  - Nuovo NPC ancorato al campo di scogli a est. Riusare il pattern Port/FishingZone: `Area3D` trigger + `Label3D` fluttuante + hint + pannello dialogo (CanvasLayer) con `GameState.push_ui_focus/pop_ui_focus` e `boat.input_enabled=false` durante il dialogo (nessun sistema di dialoghi esiste ancora: basta un pannello con testo e un bottone). Modello low-poly come `Nino`.
-  - **Missione "Recupera mio nipote in mare"**: all'accettazione compare un marker in minimappa (stessa logica del cancello regata) su un punto al largo; lì galleggia il nipote (Area3D raccoglibile). Raccolto, il marker torna sull'NPC; riportandolo, la missione si chiude e sblocca il **radar**. Stato/progresso in `GameState` (`grandson_quest: enum {NONE, ACCEPTED, CARRYING, DONE}`), salvato.
-- [ ] **Radar — sblocca la rilevazione a impulsi**
-  - Parametri (costanti/`@export` in un nuovo autoload o in `GameState`, così si bilanciano):
-    - **Utilizzi/cooldown**: 1 utilizzo ogni **60s** (livello base).
-    - **Ampiezza**: raggio di rilevazione = **1/3 della mappa** al livello base (frazione di `bounds_depth`).
-    - **Durata**: i rilevamenti restano visibili in minimappa per **10s** dopo l'impulso.
-  - Input dedicato (nuova action, es. `radar_ping` su tasto R) attivo solo dopo lo sblocco; HUD mostra cooldown e finestra attiva. Durante la finestra, boe/taniche/zone entro il raggio compaiono in minimappa (integra il punto "minimappa nascosta" sopra).
-  - **Potenziamenti** (nuova famiglia di upgrade, dal nipote o da Nino/porto): migliorano **ampiezza** (raggio) e **durata** della rilevazione (ed eventualmente il cooldown). Curva costi in `GameState` come gli altri upgrade (`UPGRADE_COSTS`/`FISHING_GEAR_COSTS`).
+- [x] **Minimappa: boe e zone di pesca NON più visibili di default**
+  - In [minimap.gd](scenes/hud/minimap.gd) `_draw_pickups`/`_draw_fishing_zones` disegnano boe/taniche/zone **solo dentro un impulso radar attivo** (guardia `_radar_reveals`, raggio letto da `Radar`). Fuori dalla finestra la minimappa mostra solo mare, coste, scogli, isole, porto, celle di vento, la barca, il marker regata (QoL) e l'NPC del nipote come landmark fisso. *Fatto: legenda e hint aggiornati ("boe e zone: sblocca il radar da Zu' Vito").*
+- [x] **NPC del nipote — dietro il blocco di scogli a destra della mappa**
+  - Nuovo NPC `RescueNpc` ("Zu' Vito", [scenes/npc/rescue_npc.tscn](scenes/npc/rescue_npc.tscn)) su una zattera vicino agli scogli a est ([world.tscn](scenes/world/world.tscn), pos ~(225,0,-70), `rescue_point` @export). Pattern Port/FishingZone: `Area3D` trigger + `Label3D` + hint + pannello dialogo (CanvasLayer) con `push_ui_focus/pop_ui_focus` e `input_enabled=false`. Modello a primitivi come `Nino`.
+  - **Missione "Recupera mio nipote"**: accettata → marker in minimappa sul punto al largo dove galleggia il nipote (Area3D raccoglibile); raccolto → `CARRYING`, marker torna sull'NPC; consegnato → `DONE`, sblocca il **radar**. Stato in `GameState.grandson_quest` (enum `GrandsonQuest`), salvato. *Fatto.*
+- [x] **Radar — sblocca la rilevazione a impulsi**
+  - Autoload [`Radar`](autoload/radar.gd) per lo stato runtime (cooldown/finestra/origine); bilanciamento e livelli in `GameState` (`RADAR_*`). Cooldown **60s**, raggio base **0.34·`bounds_depth`** (~1/3 mappa), finestra **10s**. Input `radar_ping` (tasto R) gestito dall'HUD, attivo solo dopo lo sblocco (`Radar.can_ping`); HUD mostra pronto/attivo/cooldown. Durante la finestra la minimappa rivela boe/taniche/zone entro il raggio.
+  - **Potenziamenti** (`RadarUpgrade.RANGE/DURATION`, comprati da Zu' Vito dopo lo sblocco): allargano il raggio e allungano la finestra, curve costi in `GameState.RADAR_UPGRADE_COSTS`. *Fatto. Test: [tests/p2_radar.tscn](tests/p2_radar.tscn) (flusso missione, ping, upgrade, salvataggio).* **Da verificare in gioco**: posizione dell'NPC e del `rescue_point`, raggio/durata di base e leggibilità del cerchio radar in minimappa.
 
 #### P2 — Inventario (stiva) su tasto I, con icone
 

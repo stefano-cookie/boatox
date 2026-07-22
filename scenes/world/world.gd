@@ -70,6 +70,9 @@ func _ready() -> void:
 	# IA e classifica: i figli sono già in gruppo (add_to_group in _ready).
 	for node in get_tree().get_nodes_in_group(&"race_course"):
 		(node as RaceCourse).sea = sea
+	# L'NPC del nipote galleggia sulle onde come le zone di pesca.
+	for node in get_tree().get_nodes_in_group(&"rescue_npc"):
+		(node as RescueNpc).sea = sea
 	GameState.hull_depleted.connect(_on_hull_depleted)
 	for field: Node3D in _rock_fields.get_children():
 		_spawn_rock_field(field.global_position)
@@ -300,6 +303,11 @@ func _is_clear(pos: Vector3) -> bool:
 			return false
 	if pos.distance_to(_port.global_position) < 26.0:
 		return false
+	# Niente boe addosso all'NPC del nipote né sul punto di recupero al largo.
+	for node in get_tree().get_nodes_in_group(&"rescue_npc"):
+		var npc := node as RescueNpc
+		if pos.distance_to(npc.global_position) < 14.0 or pos.distance_to(npc.rescue_point) < 12.0:
+			return false
 	# Le zone di pesca ora sono più larghe (raggio ~15): niente boe dentro.
 	if not _far_from(pos, _fishing_positions, 22.0):
 		return false

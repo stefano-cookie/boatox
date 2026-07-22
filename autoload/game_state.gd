@@ -45,6 +45,18 @@ enum FishingGear { ROD, REEL, LINE }
 ## comune e una pregiata che premia il tempismo perfetto.
 enum FishType { SARDINE, BREAM, AMBERJACK, TUNA }
 
+## Missione del nipote in mare (GDD § Missioni): l'NPC dietro gli scogli a
+## est la offre; completarla sblocca il radar. NONE non ancora accettata,
+## ACCEPTED nipote da raggiungere al largo, CARRYING nipote a bordo da
+## riportare, DONE conclusa. Salvata.
+enum GrandsonQuest { NONE, ACCEPTED, CARRYING, DONE }
+
+## Potenziamenti del radar (GDD § Missioni): comprati dall'NPC del nipote
+## dopo lo sblocco. Ampiezza allarga il raggio di rilevazione, durata
+## allunga la finestra visibile in minimappa. È una famiglia a sé, come
+## l'attrezzatura da pesca (personale, non della barca).
+enum RadarUpgrade { RANGE, DURATION }
+
 const BUOY_VALUE: Dictionary[int, int] = {
 	BuoyType.YELLOW: 10,
 	BuoyType.RED: 40,
@@ -189,6 +201,31 @@ const FISHING_REEL_RISE_MULT: Array[float] = [1.0, 0.9, 0.82, 0.74]
 const FISHING_LINE_GRACE_BONUS: Array[float] = [0.0, 0.2, 0.45, 0.75]
 const FISHING_LINE_SURGE_MULT: Array[float] = [1.0, 0.85, 0.72, 0.6]
 
+## Radar (GDD § Missioni): sostituisce la visibilità gratuita di boe e
+## zone in minimappa con una progressione. Sbloccato dalla missione del
+## nipote, si attiva a impulsi (tasto R): boe, taniche e zone dentro il
+## raggio compaiono in minimappa per una finestra, poi si spegne fino al
+## cooldown. I potenziamenti (comprati dall'NPC) allargano il raggio e
+## allungano la finestra. Curve per livello, si bilanciano qui.
+const RADAR_COOLDOWN: float = 60.0
+## Raggio di rilevazione come frazione di World.bounds_depth, per livello
+## di ampiezza (0 = base: circa un terzo della mappa).
+const RADAR_RANGE_FRACTION: Array[float] = [0.34, 0.5, 0.68, 0.9]
+## Secondi di permanenza dei rilevamenti in minimappa, per livello di durata.
+const RADAR_DURATION: Array[float] = [10.0, 14.0, 18.0, 24.0]
+const RADAR_UPGRADE_NAME: Dictionary[int, String] = {
+	RadarUpgrade.RANGE: "Antenna",
+	RadarUpgrade.DURATION: "Ricevitore",
+}
+const RADAR_UPGRADE_DESC: Dictionary[int, String] = {
+	RadarUpgrade.RANGE: "raggio di rilevazione più ampio",
+	RadarUpgrade.DURATION: "i rilevamenti restano visibili più a lungo",
+}
+const RADAR_UPGRADE_COSTS: Dictionary[int, Array] = {
+	RadarUpgrade.RANGE: [400, 900, 1800],
+	RadarUpgrade.DURATION: [350, 800, 1600],
+}
+
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
 ## giocatore al via (feedback playtest M3): la gara resta combattuta con
@@ -309,6 +346,14 @@ var upgrades: Dictionary[StringName, Dictionary] = {}
 ## Livelli dell'attrezzatura da pesca (FishingGear -> livello): globale,
 ## comprata da Nino al porto.
 var fishing_gear: Dictionary[int, int] = {}
+
+## Missione del nipote in mare (vedi GrandsonQuest). Salvata.
+var grandson_quest: int = GrandsonQuest.NONE
+## Radar sbloccato (dalla missione del nipote): senza, la minimappa non
+## rivela boe e zone. Salvato.
+var radar_unlocked: bool = false
+## Livelli dei potenziamenti del radar (RadarUpgrade -> livello). Salvati.
+var radar_upgrades: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -531,6 +576,61 @@ func fishing_surge_mult() -> float:
 
 func _gear_curve(curve: Array[float], gear: int) -> float:
 	return curve[clampi(fishing_gear_level(gear), 0, curve.size() - 1)]
+
+
+# --- Radar (missione del nipote) ---------------------------------------------
+
+func radar_upgrade_level(upgrade: int) -> int:
+	return radar_upgrades.get(upgrade, 0)
+
+
+func radar_upgrade_max_level(upgrade: int) -> int:
+	return RADAR_UPGRADE_COSTS[upgrade].size()
+
+
+## Costo del prossimo livello; -1 se già al massimo.
+func radar_upgrade_cost(upgrade: int) -> int:
+	var costs: Array = RADAR_UPGRADE_COSTS[upgrade]
+	var level := radar_upgrade_level(upgrade)
+	if level >= costs.size():
+		return -1
+	return costs[level]
+
+
+func buy_radar_upgrade(upgrade: int) -> bool:
+	var cost := radar_upgrade_cost(upgrade)
+	if cost < 0 or money < cost:
+		return false
+	money -= cost
+	radar_upgrades[upgrade] = radar_upgrade_level(upgrade) + 1
+	money_changed.emit(money)
+	post_notice("%s livello %d" % [RADAR_UPGRADE_NAME[upgrade], radar_upgrade_level(upgrade)])
+	save_game()
+	return true
+
+
+## Raggio di rilevazione (frazione di bounds_depth) e durata della finestra,
+## dal livello dei rispettivi potenziamenti (indice clampato alla curva).
+func radar_range_fraction() -> float:
+	return RADAR_RANGE_FRACTION[clampi(radar_upgrade_level(RadarUpgrade.RANGE), 0,
+		RADAR_RANGE_FRACTION.size() - 1)]
+
+
+func radar_duration() -> float:
+	return RADAR_DURATION[clampi(radar_upgrade_level(RadarUpgrade.DURATION), 0,
+		RADAR_DURATION.size() - 1)]
+
+
+# --- Missione del nipote in mare ---------------------------------------------
+
+## Avanza la missione e la salva (le transizioni le decide l'NPC/il nipote).
+func set_grandson_quest(state: int) -> void:
+	if grandson_quest == state:
+		return
+	grandson_quest = state
+	if state == GrandsonQuest.DONE:
+		radar_unlocked = true
+	save_game()
 
 
 # --- Stiva e denaro ----------------------------------------------------------
@@ -765,6 +865,9 @@ func save_game() -> void:
 	var gear_out: Dictionary = {}
 	for gear in fishing_gear:
 		gear_out[str(gear)] = fishing_gear[gear]
+	var radar_out: Dictionary = {}
+	for upgrade in radar_upgrades:
+		radar_out[str(upgrade)] = radar_upgrades[upgrade]
 	var data := {
 		"version": SAVE_VERSION,
 		"money": money,
@@ -778,6 +881,9 @@ func save_game() -> void:
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
 		"fishing_gear": gear_out,
+		"grandson_quest": grandson_quest,
+		"radar_unlocked": radar_unlocked,
+		"radar_upgrades": radar_out,
 	}
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -831,6 +937,13 @@ func load_game() -> void:
 	var gear_in: Dictionary = data.get("fishing_gear", {})
 	for gear: String in gear_in:
 		fishing_gear[int(gear)] = int(gear_in[gear])
+	# Salvataggi pre-radar: missione non ancora incontrata, radar bloccato.
+	grandson_quest = int(data.get("grandson_quest", GrandsonQuest.NONE))
+	radar_unlocked = bool(data.get("radar_unlocked", false))
+	radar_upgrades.clear()
+	var radar_in: Dictionary = data.get("radar_upgrades", {})
+	for upgrade: String in radar_in:
+		radar_upgrades[int(upgrade)] = int(radar_in[upgrade])
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
@@ -855,6 +968,9 @@ func reset() -> void:
 	current_boat_id = &"dinghy"
 	upgrades.clear()
 	fishing_gear.clear()
+	grandson_quest = GrandsonQuest.NONE
+	radar_unlocked = false
+	radar_upgrades.clear()
 	hull = hull_max()
 	fuel = fuel_capacity()
 	_ui_focus_count = 0

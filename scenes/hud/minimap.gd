@@ -27,6 +27,11 @@ const FISHING_COLOR := Color(0.55, 0.9, 1.0)
 const RACE_COLOR := Color(0.35, 1.0, 0.55)
 const BOAT_COLOR := Color(1, 1, 1)
 const TEXT_COLOR := Color(0.85, 0.9, 0.95)
+## Missione del nipote e impulso radar (GDD § Missioni): boe e zone non si
+## vedono più di default, solo dentro l'impulso; il rosa segna l'NPC e il
+## bersaglio della missione.
+const QUEST_COLOR := Color(1.0, 0.45, 0.85)
+const RADAR_RING_COLOR := Color(0.55, 0.9, 1.0)
 
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
 @export var small_height: float = 150.0
@@ -126,6 +131,8 @@ func _draw() -> void:
 	_draw_fishing_zones(rect)
 	_draw_race_start(rect)
 	_draw_race_gate(rect)
+	_draw_quest(rect)
+	_draw_radar(rect)
 	_draw_pickups(rect)
 	_draw_boat(rect)
 	if _expanded:
@@ -195,15 +202,54 @@ func _draw_port(rect: Rect2) -> void:
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 
 
-## Zone di pesca attive, come anelli (quelle a riposo non si disegnano:
-## gli uccelli se ne sono andati anche dalla mappa).
+## Zone di pesca attive, come anelli — ma solo quelle rivelate da un
+## impulso radar attivo (GDD § Missioni): senza radar la minimappa non le
+## mostra. Quelle a riposo non si disegnano comunque.
 func _draw_fishing_zones(rect: Rect2) -> void:
 	var radius := maxf(_px(rect, 15.0), 4.0)
 	for node in get_tree().get_nodes_in_group(&"fishing_zones"):
 		var zone := node as FishingZone
-		if zone == null or zone.is_resting():
+		if zone == null or zone.is_resting() or not _radar_reveals(zone.global_position):
 			continue
 		draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
+
+
+## Vero se un impulso radar è attivo e il punto cade nel suo raggio: solo
+## allora la minimappa lo rivela (boe, taniche, zone). Il raggio è una
+## frazione di bounds_depth, allargata dai potenziamenti del radar.
+func _radar_reveals(world_pos: Vector3) -> bool:
+	if not Radar.is_active():
+		return false
+	var radius := Radar.range_fraction() * _world.bounds_depth
+	return Radar.origin().distance_to(world_pos) <= radius
+
+
+## Cerchio dell'impulso radar in corso: mostra dove e fin dove ha rilevato.
+func _draw_radar(rect: Rect2) -> void:
+	if not Radar.is_active():
+		return
+	var center := _to_map(rect, Radar.origin())
+	var radius := _px(rect, Radar.range_fraction() * _world.bounds_depth)
+	draw_arc(center, radius, 0.0, TAU, 48, Color(RADAR_RING_COLOR, 0.4), 1.5)
+
+
+## NPC del nipote (landmark fisso, come il porto) e, a missione in corso,
+## il marker del bersaglio: il nipote al largo o l'NPC dove riportarlo.
+func _draw_quest(rect: Rect2) -> void:
+	var npc := get_tree().get_first_node_in_group(&"rescue_npc") as RescueNpc
+	if npc == null:
+		return
+	var np := _to_map(rect, npc.global_position)
+	_draw_diamond(np, 6.0 if _expanded else 4.0, QUEST_COLOR)
+	if _expanded:
+		draw_string(ThemeDB.fallback_font, np + Vector2(12.0, 5.0), "Zu' Vito",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+	if not npc.show_quest_marker():
+		return
+	var target := _to_map(rect, npc.quest_marker_position())
+	var radius := 8.0 if _expanded else 5.5
+	draw_arc(target, radius, 0.0, TAU, 20, QUEST_COLOR, 2.5)
+	draw_circle(target, 2.5, QUEST_COLOR)
 
 
 ## Marker permanente della partenza regata (feedback playtest round 2: il
@@ -238,20 +284,21 @@ func _draw_race_gate(rect: Rect2) -> void:
 		draw_circle(p, 2.0, RACE_COLOR)
 
 
-## Boe e taniche effettivamente presenti in acqua (i punti non spawnati
-## sono invisibili e non si disegnano): cerchi le boe, quadrati le taniche.
+## Boe e taniche presenti in acqua, ma solo quelle rivelate da un impulso
+## radar attivo (GDD § Missioni): senza radar la minimappa non le mostra.
+## Cerchi le boe, quadrati le taniche.
 func _draw_pickups(rect: Rect2) -> void:
 	var buoy_radius := 4.0 if _expanded else 2.5
 	for node in get_tree().get_nodes_in_group(&"buoys"):
 		var buoy := node as Buoy
-		if buoy == null or not buoy.visible:
+		if buoy == null or not buoy.visible or not _radar_reveals(buoy.global_position):
 			continue
 		var color := Color("#" + GameState.BUOY_HEX[buoy.type])
 		draw_circle(_to_map(rect, buoy.global_position), buoy_radius, color)
 	var can_size := 8.0 if _expanded else 5.0
 	for node in get_tree().get_nodes_in_group(&"fuel_cans"):
 		var can := node as FuelCan
-		if can == null or not can.visible:
+		if can == null or not can.visible or not _radar_reveals(can.global_position):
 			continue
 		var p := _to_map(rect, can.global_position)
 		draw_rect(Rect2(p - Vector2(can_size, can_size) * 0.5, Vector2(can_size, can_size)), FUEL_COLOR)
@@ -291,7 +338,9 @@ func _draw_badge(rect: Rect2) -> void:
 
 func _draw_hint(rect: Rect2) -> void:
 	var font := ThemeDB.fallback_font
-	var text := "M per chiudere"
+	var radar_note := "boe e zone: impulso radar (R)" if GameState.radar_unlocked \
+		else "boe e zone: sblocca il radar da Zu' Vito"
+	var text := "M per chiudere  ·  %s" % radar_note
 	var text_width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	draw_string(font, Vector2(rect.position.x + (rect.size.x - text_width) * 0.5, rect.position.y + 20.0),
 		text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.55))
@@ -319,7 +368,10 @@ func _draw_legend(rect: Rect2) -> void:
 	x = _legend_label(font, x, y, "porto")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, RACE_COLOR)
 	x += 11.0
-	_legend_label(font, x, y, "regata")
+	x = _legend_label(font, x, y, "regata")
+	_draw_diamond(Vector2(x, y - 5.0), 6.0, QUEST_COLOR)
+	x += 11.0
+	_legend_label(font, x, y, "nipote")
 
 
 ## Disegna un'etichetta di legenda e restituisce la x della voce dopo.
