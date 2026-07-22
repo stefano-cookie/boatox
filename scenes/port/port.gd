@@ -13,8 +13,11 @@ extends Node3D
 ## arrivare e fermarsi dev'essere naturale, non un gate secco). Dentro la
 ## ApproachZone il cap di velocità cala col ridursi della distanza dal
 ## molo: da nessun limite al bordo fino a approach_min_speed all'attracco.
-@export var approach_slow_radius: float = 22.0
-@export var approach_min_speed: float = 3.0
+@export var approach_slow_radius: float = 30.0
+## Cap di velocità sul molo. Sotto docking_max_speed e sotto la soglia di
+## danno dello scafo (min_impact_speed = 3), così arrivare in porto non fa
+## mai male, anche lanciati (feedback playtest: "al porto mi incidento").
+@export var approach_min_speed: float = 1.4
 
 var _boat: Boat = null
 ## La barca a cui il menu ha spento la guida: la riaccende sempre lui,

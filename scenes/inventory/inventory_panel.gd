@@ -16,12 +16,21 @@ const ICON_SIZE: float = 64.0
 ## Righe con quantità 0 restano visibili (catalogo) ma smorzate.
 const EMPTY_MODULATE := Color(1.0, 1.0, 1.0, 0.32)
 
+## Durata dell'animazione di apertura/chiusura (feedback playtest: far
+## capire che si sta aprendo la stiva). Breve: è feedback, non un'attesa.
+const ANIM_TIME: float = 0.16
+const CLOSED_SCALE := Vector2(0.9, 0.9)
+
 @onready var _root: Control = $Overlay
+@onready var _panel: PanelContainer = $Overlay/Center/Panel
 @onready var _subtitle: RichTextLabel = $Overlay/Center/Panel/Margin/VBox/Subtitle
 @onready var _buoy_grid: GridContainer = $Overlay/Center/Panel/Margin/VBox/BuoySection/BuoyGrid
 @onready var _fish_grid: GridContainer = $Overlay/Center/Panel/Margin/VBox/FishSection/FishGrid
 
 var _open: bool = false
+## Tween corrente di apertura/chiusura: si annulla prima di ripartire, così
+## premere I ripetutamente non lascia il pannello a metà.
+var _anim: Tween
 ## Celle costruite una volta e aggiornate a ogni apertura. type -> nodi.
 var _buoy_cells: Dictionary[int, Dictionary] = {}
 var _fish_cells: Dictionary[int, Dictionary] = {}
@@ -34,28 +43,60 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
-		if _open:
-			get_viewport().set_input_as_handled()
-			_close()
-		elif not GameState.ui_focus_open():
-			get_viewport().set_input_as_handled()
-			_open_panel()
+		get_viewport().set_input_as_handled()
+		_toggle()
 	elif event.is_action_pressed("ui_cancel") and _open:
 		# Consumato: altrimenti lo stesso Esc aprirebbe anche la pausa.
 		get_viewport().set_input_as_handled()
 		_close()
 
 
+## Apre se chiuso (e nessun altro pannello ha il focus), chiude se aperto.
+func _toggle() -> void:
+	if _open:
+		_close()
+	elif not GameState.ui_focus_open():
+		_open_panel()
+
+
+## Apertura animata: il gioco si ferma e il pannello entra crescendo e in
+## dissolvenza. Il CanvasLayer è in process_mode ALWAYS, quindi il tween
+## avanza anche a gioco fermo. Si aspetta un frame perché il layout assesti
+## la dimensione del pannello prima di centrarne il pivot per lo scale.
 func _open_panel() -> void:
 	_open = true
 	_refresh()
 	GameState.push_ui_focus()
 	get_tree().paused = true
+	_root.modulate.a = 0.0
 	_root.show()
+	await get_tree().process_frame
+	if not _open:
+		return
+	_panel.pivot_offset = _panel.size * 0.5
+	_panel.scale = CLOSED_SCALE
+	if _anim != null and _anim.is_valid():
+		_anim.kill()
+	_anim = create_tween().set_parallel().set_ease(Tween.EASE_OUT)
+	_anim.tween_property(_root, "modulate:a", 1.0, ANIM_TIME)
+	_anim.tween_property(_panel, "scale", Vector2.ONE, ANIM_TIME).set_trans(Tween.TRANS_BACK)
 
 
+## Chiusura animata: il pannello rimpicciolisce e sfuma, poi si nasconde e
+## il gioco riparte. Il gioco resta fermo per la breve durata dell'uscita.
 func _close() -> void:
 	_open = false
+	if _anim != null and _anim.is_valid():
+		_anim.kill()
+	_anim = create_tween().set_parallel().set_ease(Tween.EASE_IN)
+	_anim.tween_property(_root, "modulate:a", 0.0, ANIM_TIME)
+	_anim.tween_property(_panel, "scale", CLOSED_SCALE, ANIM_TIME).set_trans(Tween.TRANS_BACK)
+	_anim.chain().tween_callback(_finish_close)
+
+
+## Fine dell'uscita: nasconde davvero e restituisce controllo e mouse. Non
+## eseguito se un'apertura ha annullato il tween nel frattempo.
+func _finish_close() -> void:
 	_root.hide()
 	get_tree().paused = false
 	GameState.pop_ui_focus()

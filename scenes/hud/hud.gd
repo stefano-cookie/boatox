@@ -53,15 +53,17 @@ const RADAR_COOLDOWN_COLOR := Color(0.7, 0.75, 0.82)
 @onready var _fuel_bar: ProgressBar = $TopLeft/Margin/VBox/FuelRow/FuelBar
 @onready var _fuel_title: Label = $TopLeft/Margin/VBox/FuelRow/FuelTitle
 @onready var _fuel_label: Label = $TopLeft/Margin/VBox/FuelRow/FuelLabel
-@onready var _cargo_info: RichTextLabel = $TopLeft/Margin/VBox/CargoInfo
+@onready var _inv_chip: PanelContainer = $InvChip
+@onready var _inv_label: Label = $InvChip/InvLabel
 @onready var _notice_label: Label = $NoticeLabel
 @onready var _notice_timer: Timer = $NoticeTimer
 @onready var _danger_label: Label = $DangerLabel
-@onready var _speed_label: Label = $SpeedBox/Margin/VBox/SpeedLabel
-@onready var _speed_bar: ProgressBar = $SpeedBox/Margin/VBox/SpeedBar
-@onready var _zone_label: Label = $SpeedBox/Margin/VBox/ZoneLabel
-@onready var _weather_label: Label = $SpeedBox/Margin/VBox/WeatherLabel
-@onready var _radar_label: Label = $SpeedBox/Margin/VBox/RadarLabel
+@onready var _sea_box: PanelContainer = $SeaBox
+@onready var _speed_label: Label = $SeaBox/Margin/VBox/SpeedLabel
+@onready var _speed_bar: ProgressBar = $SeaBox/Margin/VBox/SpeedBar
+@onready var _zone_label: Label = $SeaBox/Margin/VBox/ZoneLabel
+@onready var _weather_label: Label = $SeaBox/Margin/VBox/WeatherLabel
+@onready var _radar_label: Label = $SeaBox/Margin/VBox/RadarLabel
 @onready var _goal_box: PanelContainer = $GoalBox
 @onready var _goal_label: Label = $GoalBox/GoalMargin/GoalLabel
 @onready var _minimap: Minimap = $Minimap
@@ -118,6 +120,21 @@ func _process(_delta: float) -> void:
 		_zone_label.text = "%s · %s" % [ZONE_NAMES[zone], SEA_STATE_NAMES[state]]
 		_zone_label.modulate = SEA_STATE_COLORS[state]
 	_update_radar()
+	_position_bottom_left()
+
+
+## Aggancia alla minimappa i due elementi in basso a sinistra: il pannello
+## mare/nodi al suo fianco destro, la chip stiva subito sopra di essa
+## (feedback playtest). Mentre la mappa è espansa (al centro) restano
+## all'ultima posizione compatta.
+func _position_bottom_left() -> void:
+	if _minimap.is_expanded():
+		return
+	var vp := get_viewport().get_visible_rect().size
+	_sea_box.position = Vector2(
+		_minimap.position.x + _minimap.size.x + 12.0, vp.y - _sea_box.size.y - 16.0)
+	_inv_chip.position = Vector2(
+		_minimap.position.x, _minimap.position.y - _inv_chip.size.y - 8.0)
 
 
 ## Riga di stato del radar in basso a destra: nascosta finché è bloccato,
@@ -164,16 +181,14 @@ func _on_fuel_changed(current: float, max_value: float) -> void:
 	_fuel_label.modulate = FUEL_LOW_COLOR if low else FUEL_OK_COLOR
 
 
+## Chip stiva in basso a sinistra: stiva usata/capacità. Il mouse è
+## catturato dalla camera, quindi non è cliccabile: la scritta (I) ricorda
+## il tasto che apre il pannello inventario completo.
 func _on_cargo_changed() -> void:
 	var count := GameState.cargo_count()
 	var capacity := GameState.cargo_capacity()
-	var hint := "  [color=#7f97ad](I)[/color]"
-	if count == 0:
-		_cargo_info.text = "Stiva %d/%d: vuota%s" % [count, capacity, hint]
-	else:
-		_cargo_info.text = "Stiva %d/%d: %s — vale [color=#8ee3a8]%d $[/color]%s" % [
-			count, capacity, GameState.cargo_detail_bbcode(), GameState.cargo_value(), hint,
-		]
+	_inv_label.text = "Stiva %d/%d  (I)" % [count, capacity]
+	_inv_label.modulate = Color(1, 0.85, 0.55) if count >= capacity else Color.WHITE
 
 
 func _on_boat_changed(def: BoatDefinition) -> void:
@@ -232,8 +247,9 @@ func _on_boat_hit(_force: float) -> void:
 func _apply_ui_scale() -> void:
 	if is_equal_approx(ui_scale, 1.0):
 		return
-	for root: Node in [$TopLeft, $SpeedBox, $GoalBox]:
+	for root: Node in [$TopLeft, $SeaBox, $GoalBox]:
 		_scale_control_tree(root)
+	_scale_font(_inv_label)
 	_scale_font(_notice_label)
 	_scale_font(_danger_label)
 

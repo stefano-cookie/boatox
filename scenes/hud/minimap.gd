@@ -34,7 +34,7 @@ const QUEST_COLOR := Color(1.0, 0.45, 0.85)
 const RADAR_RING_COLOR := Color(0.55, 0.9, 1.0)
 
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
-@export var small_height: float = 150.0
+@export var small_height: float = 190.0
 @export_range(0.1, 1.0) var expanded_height_ratio: float = 0.72
 
 var _boat: Boat

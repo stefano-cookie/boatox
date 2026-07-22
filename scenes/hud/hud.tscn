@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/hud/hud.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/hud/minimap.gd" id="2"]
@@ -49,6 +49,22 @@ corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="chip_normal"]
+bg_color = Color(0.08, 0.13, 0.2, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.65, 0.85, 0.45)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 16.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -126,70 +142,61 @@ theme_override_font_sizes/font_size = 24
 modulate = Color(0.85, 0.9, 0.95, 1)
 text = "40 L"
 
-[node name="CargoInfo" type="RichTextLabel" parent="TopLeft/Margin/VBox"]
-custom_minimum_size = Vector2(360, 0)
-layout_mode = 2
-theme_override_font_sizes/normal_font_size = 28
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-text = "Stiva: vuota"
-
-[node name="SpeedBox" type="PanelContainer" parent="."]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -288.0
-offset_top = -204.0
-offset_right = -16.0
-offset_bottom = -16.0
-grow_horizontal = 0
-grow_vertical = 0
+[node name="SeaBox" type="PanelContainer" parent="."]
 theme_override_styles/panel = SubResource("panel_style")
 
-[node name="Margin" type="MarginContainer" parent="SpeedBox"]
+[node name="Margin" type="MarginContainer" parent="SeaBox"]
 layout_mode = 2
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 14
 
-[node name="VBox" type="VBoxContainer" parent="SpeedBox/Margin"]
+[node name="VBox" type="VBoxContainer" parent="SeaBox/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="WeatherLabel" type="Label" parent="SpeedBox/Margin/VBox"]
+[node name="WeatherLabel" type="Label" parent="SeaBox/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
 text = "Mare calmo"
-horizontal_alignment = 2
+horizontal_alignment = 1
 
-[node name="ZoneLabel" type="Label" parent="SpeedBox/Margin/VBox"]
+[node name="ZoneLabel" type="Label" parent="SeaBox/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Acque calme"
-horizontal_alignment = 2
+horizontal_alignment = 1
 
-[node name="SpeedLabel" type="Label" parent="SpeedBox/Margin/VBox"]
+[node name="SpeedLabel" type="Label" parent="SeaBox/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 52
 text = "0 nodi"
-horizontal_alignment = 2
+horizontal_alignment = 1
 
-[node name="SpeedBar" type="ProgressBar" parent="SpeedBox/Margin/VBox"]
-custom_minimum_size = Vector2(280, 16)
+[node name="SpeedBar" type="ProgressBar" parent="SeaBox/Margin/VBox"]
+custom_minimum_size = Vector2(240, 16)
 layout_mode = 2
 theme_override_styles/fill = SubResource("speed_fill")
 max_value = 14.0
 value = 0.0
 show_percentage = false
 
-[node name="RadarLabel" type="Label" parent="SpeedBox/Margin/VBox"]
+[node name="RadarLabel" type="Label" parent="SeaBox/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Radar: pronto (R)"
-horizontal_alignment = 2
+horizontal_alignment = 1
+
+[node name="InvChip" type="PanelContainer" parent="."]
+mouse_filter = 2
+theme_override_styles/panel = SubResource("chip_normal")
+
+[node name="InvLabel" type="Label" parent="InvChip"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 26
+text = "Stiva 0/6  (I)"
 
 [node name="NoticeLabel" type="Label" parent="."]
 anchor_left = 0.5
