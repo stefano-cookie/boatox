@@ -124,6 +124,7 @@ func _draw() -> void:
 	_draw_islands(rect)
 	_draw_port(rect)
 	_draw_fishing_zones(rect)
+	_draw_race_start(rect)
 	_draw_race_gate(rect)
 	_draw_pickups(rect)
 	_draw_boat(rect)
@@ -203,6 +204,22 @@ func _draw_fishing_zones(rect: Rect2) -> void:
 		if zone == null or zone.is_resting():
 			continue
 		draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
+
+
+## Marker permanente della partenza regata (feedback playtest round 2: il
+## giocatore deve sapere che c'è e dov'è, non solo durante la gara). Rombo
+## verde con anello, distinto dal rombo arancio del porto.
+func _draw_race_start(rect: Rect2) -> void:
+	var course := get_tree().get_first_node_in_group(&"race_course") as RaceCourse
+	if course == null:
+		return
+	var p := _to_map(rect, course.start_position())
+	var s := 7.0 if _expanded else 4.5
+	draw_arc(p, s + 2.0, 0.0, TAU, 18, RACE_COLOR, 1.5)
+	_draw_diamond(p, s, RACE_COLOR)
+	if _expanded:
+		draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), "Regata",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 
 
 ## Solo durante la regata: il prossimo cancello da prendere, dello
@@ -295,7 +312,10 @@ func _draw_legend(rect: Rect2) -> void:
 	x = _legend_label(font, x, y, "vento")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, PORT_COLOR)
 	x += 11.0
-	_legend_label(font, x, y, "porto")
+	x = _legend_label(font, x, y, "porto")
+	_draw_diamond(Vector2(x, y - 5.0), 6.0, RACE_COLOR)
+	x += 11.0
+	_legend_label(font, x, y, "regata")
 
 
 ## Disegna un'etichetta di legenda e restituisce la x della voce dopo.

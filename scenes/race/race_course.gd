@@ -114,6 +114,12 @@ func next_gate_position() -> Vector3:
 	return _waypoints[mini(_player_next, _waypoints.size() - 1)]
 
 
+## Punto di partenza della regata: marker permanente in minimappa (feedback
+## playtest round 2: il giocatore deve sapere che la regata esiste e dov'è).
+func start_position() -> Vector3:
+	return global_position
+
+
 # --- Partenza ----------------------------------------------------------------
 
 func _can_start() -> bool:

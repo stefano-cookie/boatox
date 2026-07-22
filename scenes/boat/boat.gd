@@ -96,9 +96,14 @@ var _sample_right := Vector3(0.9, 0.0, 0.0)
 @onready var _visual: Node3D = $Visual
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 
+## Spruzzo d'acqua all'urto (feedback playtest round 2): creato in codice
+## per non toccare la scena, piazzato al punto d'impatto e fatto ripartire.
+var _splash: CPUParticles3D
+
 
 func _ready() -> void:
 	GameState.boat_changed.connect(func(_def: BoatDefinition) -> void: _apply_definition())
+	_build_splash()
 	_apply_definition()
 
 
@@ -241,13 +246,46 @@ func _update_velocity(delta: float) -> void:
 func _handle_impacts(pre_impact_velocity: Vector3) -> void:
 	if _impact_timer > 0.0 or get_slide_collision_count() == 0:
 		return
-	var normal := get_slide_collision(0).get_normal()
+	var collision := get_slide_collision(0)
+	var normal := collision.get_normal()
 	var impact := -pre_impact_velocity.dot(normal)
 	if impact <= min_impact_speed:
 		return
 	_impact_timer = impact_cooldown
 	_speed *= 0.3
 	GameState.apply_damage((impact - min_impact_speed) * damage_per_speed)
+	# Feedback percepibile: HUD (flash scafo) e camera (shake) via segnale,
+	# spruzzo qui al punto di contatto, scalato sulla forza dell'urto.
+	GameState.report_boat_hit(impact)
+	_spawn_splash(collision.get_position(), impact)
+
+
+func _build_splash() -> void:
+	_splash = CPUParticles3D.new()
+	_splash.emitting = false
+	_splash.one_shot = true
+	_splash.amount = 20
+	_splash.lifetime = 0.6
+	_splash.explosiveness = 0.9
+	_splash.direction = Vector3.UP
+	_splash.spread = 55.0
+	_splash.initial_velocity_min = 3.0
+	_splash.initial_velocity_max = 6.0
+	_splash.gravity = Vector3(0.0, -9.0, 0.0)
+	_splash.scale_amount_min = 0.12
+	_splash.scale_amount_max = 0.25
+	_splash.color = Color(0.8, 0.92, 1.0, 0.9)
+	add_child(_splash)
+
+
+## Spruzzo all'impatto: più particelle e più veloci quanto più forte l'urto.
+func _spawn_splash(pos: Vector3, impact: float) -> void:
+	var strength := clampf((impact - min_impact_speed) / max_speed, 0.15, 1.0)
+	_splash.global_position = Vector3(pos.x, 0.2, pos.z)
+	_splash.amount = roundi(lerpf(10.0, 30.0, strength))
+	_splash.initial_velocity_max = lerpf(4.0, 8.0, strength)
+	_splash.restart()
+	_splash.emitting = true
 
 
 func _turn_factor() -> float:

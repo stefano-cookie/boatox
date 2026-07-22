@@ -15,6 +15,13 @@ signal boat_changed(def: BoatDefinition)
 signal notice_posted(text: String)
 signal danger_changed(text: String)
 signal danger_cleared
+## Urto contro qualcosa: forza = velocità d'impatto (m/s). L'HUD lampeggia
+## la barra scafo e la ChaseCamera scuote, in proporzione alla forza.
+signal boat_hit(force: float)
+## Obiettivo guidato d'avvio cambiato (feedback playtest round 2): il
+## nuovo giocatore ha sempre una riga che gli dice cosa fare. step = tappa
+## corrente (TUTORIAL_DONE quando finito), text = riga da mostrare.
+signal tutorial_changed(step: int, text: String)
 ## Vero quando almeno un pannello con puntatore (porto, pesca, regata,
 ## pausa) è aperto: la ChaseCamera rilascia/ricattura il mouse su questo
 ## segnale, senza duplicare la logica in ogni pannello.
@@ -207,6 +214,30 @@ const UPGRADE_NAME: Dictionary[int, String] = {
 	UpgradeType.STABILITY: "Stabilità",
 	UpgradeType.CARGO: "Stiva",
 }
+## Cosa fa in gioco ogni upgrade (feedback playtest round 2: "non sono
+## spiegati"). Mostrato nel cantiere accanto al delta del prossimo livello.
+const UPGRADE_DESC: Dictionary[int, String] = {
+	UpgradeType.MOTOR: "Velocità di punta più alta",
+	UpgradeType.HULL: "Reggi più urti prima di cedere",
+	UpgradeType.STABILITY: "Tieni la barra col mare mosso",
+	UpgradeType.CARGO: "Porti più carico prima di vendere",
+}
+
+## Obiettivo guidato d'avvio (feedback playtest round 2): tappe leggere,
+## una riga contestuale che si aggiorna. Avanzano da sole al verificarsi
+## dell'evento; TUTORIAL_DONE nasconde la riga. Salvato: chi ha già un
+## salvataggio "vecchio" parte da DONE (non lo si annoia).
+const TUTORIAL_COLLECT: int = 0
+const TUTORIAL_SELL: int = 1
+const TUTORIAL_EXPLORE: int = 2
+const TUTORIAL_DONE: int = 3
+const TUTORIAL_HINTS: Dictionary[int, String] = {
+	TUTORIAL_COLLECT: "Obiettivo: raccogli 3 boe passandoci sopra con la barca",
+	TUTORIAL_SELL: "Obiettivo: torna al porto (rombo arancio in minimappa, tasto M) e vendi il carico",
+	TUTORIAL_EXPLORE: "Obiettivo: prova qualcosa di nuovo — la pesca (anelli azzurri) o una regata",
+}
+## Quante boe raccogliere per superare la prima tappa.
+const TUTORIAL_BUOY_GOAL: int = 3
 
 ## Ordine di progressione: è anche l'ordine di listino del cantiere.
 const BOAT_DEFS: Array[BoatDefinition] = [
@@ -246,6 +277,9 @@ var fish_cargo: Dictionary[int, int] = {}
 
 ## Vittorie in regata: la prima sblocca le barche con requires_race_win.
 var race_wins: int = 0
+
+## Tappa dell'obiettivo guidato d'avvio (vedi TUTORIAL_*). Salvato.
+var tutorial_step: int = TUTORIAL_COLLECT
 
 var owned_boats: Array[StringName] = [&"dinghy"]
 var current_boat_id: StringName = &"dinghy"
@@ -299,6 +333,29 @@ func upgrade_cost(type: int, boat_id: StringName = current_boat_id) -> int:
 	if level >= costs.size():
 		return -1
 	return costs[level]
+
+
+## Anteprima dell'effetto del prossimo livello ("42 → 46"), per il
+## cantiere: il giocatore vede cosa guadagna. "" se l'upgrade è al massimo.
+func upgrade_delta_preview(type: int) -> String:
+	var level := upgrade_level(type)
+	if level >= upgrade_max_level(type):
+		return ""
+	var def := current_def()
+	match type:
+		UpgradeType.MOTOR:
+			var cur := effective_max_speed()
+			return "vel %d → %d" % [roundi(cur), roundi(cur + def.motor_speed_step)]
+		UpgradeType.HULL:
+			var cur := hull_max()
+			return "scafo %d → %d" % [roundi(cur), roundi(cur + def.hull_step)]
+		UpgradeType.STABILITY:
+			var cur := roundi(effective_stability() * 100.0)
+			var nxt := roundi(clampf(def.stability + (level + 1) * def.stability_step, 0.0, 1.0) * 100.0)
+			return "stab %d%% → %d%%" % [cur, nxt]
+		_:
+			var cur := cargo_capacity()
+			return "stiva %d → %d" % [cur, cur + def.cargo_step]
 
 
 func effective_max_speed() -> float:
@@ -467,6 +524,8 @@ func collect_buoy(type: int) -> bool:
 	if type == BuoyType.BLUE:
 		post_notice("Boa blu! Rarissima: +%d $ di carico" % BUOY_VALUE[type])
 	cargo_changed.emit()
+	if tutorial_step == TUTORIAL_COLLECT and cargo_count() >= TUTORIAL_BUOY_GOAL:
+		_advance_tutorial(TUTORIAL_COLLECT)
 	return true
 
 
@@ -477,6 +536,7 @@ func collect_fish(type: int) -> bool:
 		return false
 	fish_cargo[type] = fish_cargo.get(type, 0) + 1
 	cargo_changed.emit()
+	_advance_tutorial(TUTORIAL_EXPLORE)
 	return true
 
 
@@ -527,6 +587,7 @@ func sell_cargo() -> int:
 	money_changed.emit(money)
 	cargo_changed.emit()
 	post_notice("Carico venduto: +%d $" % earned)
+	_advance_tutorial(TUTORIAL_SELL)
 	return earned
 
 
@@ -582,6 +643,7 @@ func record_race_result(rank: int, total: int) -> void:
 			post_notice("Regata vinta: +%d $" % prize)
 	else:
 		post_notice("Regata: %d° su %d (+%d $)" % [rank, total, prize])
+	_advance_tutorial(TUTORIAL_EXPLORE)
 	save_game()
 
 
@@ -688,6 +750,7 @@ func save_game() -> void:
 		"cargo": cargo_out,
 		"fish": fish_out,
 		"race_wins": race_wins,
+		"tutorial_step": tutorial_step,
 		"owned_boats": owned_out,
 		"current_boat": String(current_boat_id),
 		"upgrades": upgrades_out,
@@ -716,6 +779,8 @@ func load_game() -> void:
 		return
 	money = int(data.get("money", 0))
 	race_wins = int(data.get("race_wins", 0))
+	# Salvataggi pre-tutorial: chi giocava già conosce le basi, parte da DONE.
+	tutorial_step = int(data.get("tutorial_step", TUTORIAL_DONE))
 	current_boat_id = StringName(data.get("current_boat", "dinghy"))
 	owned_boats.clear()
 	for id: String in data.get("owned_boats", ["dinghy"]):
@@ -759,6 +824,7 @@ func delete_save() -> void:
 func reset() -> void:
 	money = 0
 	race_wins = 0
+	tutorial_step = TUTORIAL_COLLECT
 	cargo.clear()
 	fish_cargo.clear()
 	owned_boats.clear()
@@ -775,11 +841,36 @@ func reset() -> void:
 	fuel_changed.emit(fuel, fuel_capacity())
 	cargo_changed.emit()
 	boat_changed.emit(current_def())
+	tutorial_changed.emit(tutorial_step, tutorial_hint())
 	clear_danger()
 
 
 func post_notice(text: String) -> void:
 	notice_posted.emit(text)
+
+
+# --- Obiettivo guidato d'avvio -----------------------------------------------
+
+## Riga da mostrare per la tappa corrente ("" quando finito).
+func tutorial_hint() -> String:
+	return TUTORIAL_HINTS.get(tutorial_step, "")
+
+
+## Avanza alla tappa successiva solo se siamo davvero su `from` (le
+## chiamate arrivano da eventi di gioco): evita salti e doppie emissioni.
+func _advance_tutorial(from: int) -> void:
+	if tutorial_step != from:
+		return
+	tutorial_step = from + 1
+	tutorial_changed.emit(tutorial_step, tutorial_hint())
+	save_game()
+
+
+# --- Feedback d'urto ---------------------------------------------------------
+
+## Chiamato dalla barca a ogni impatto: propaga la forza a HUD e camera.
+func report_boat_hit(force: float) -> void:
+	boat_hit.emit(force)
 
 
 # --- Focus UI (mouse) --------------------------------------------------------

@@ -20,6 +20,7 @@ var _tackle_open: bool = false
 
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
+var _upgrade_labels: Dictionary[int, Label] = {}
 var _gear_buttons: Dictionary[int, Button] = {}
 
 @onready var _zone: Area3D = $DockZone
@@ -258,12 +259,24 @@ func _build_shipyard_rows() -> void:
 		row.add_child(button)
 		_boats_box.add_child(row)
 		_boat_buttons[def.id] = button
+	# Ogni upgrade come riga: a sinistra nome, effetto in gioco e delta del
+	# prossimo livello (feedback playtest round 2: "non sono spiegati"), a
+	# destra il bottone d'acquisto. Come le righe barca e la bottega di Nino.
 	for type: int in GameState.UPGRADE_NAME:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var label := Label.new()
+		label.add_theme_font_size_override("font_size", 18)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
 		var button := Button.new()
 		button.add_theme_font_size_override("font_size", 22)
+		button.custom_minimum_size = Vector2(210, 0)
 		button.pressed.connect(_on_upgrade_pressed.bind(type))
-		_upgrades_box.add_child(button)
+		row.add_child(button)
+		_upgrades_box.add_child(row)
 		_upgrade_buttons[type] = button
+		_upgrade_labels[type] = label
 
 
 func _on_boat_row_pressed(id: StringName) -> void:
@@ -298,15 +311,19 @@ func _refresh_shipyard() -> void:
 	_upgrades_title.text = "Upgrade — %s" % GameState.current_def().display_name
 	for type: int in _upgrade_buttons:
 		var button := _upgrade_buttons[type]
+		var label := _upgrade_labels[type]
 		var level := GameState.upgrade_level(type)
 		var cost := GameState.upgrade_cost(type)
+		var up_name := GameState.UPGRADE_NAME[type]
+		var desc := GameState.UPGRADE_DESC[type]
 		if cost < 0:
-			button.text = "%s liv. %d — MAX" % [GameState.UPGRADE_NAME[type], level]
+			label.text = "%s — %s" % [up_name, desc]
+			button.text = "liv. %d — MAX" % level
 			button.disabled = true
 		else:
-			button.text = "%s liv. %d → %d (-%d $)" % [
-				GameState.UPGRADE_NAME[type], level, level + 1, cost,
-			]
+			var delta := GameState.upgrade_delta_preview(type)
+			label.text = "%s — %s\n[%s]" % [up_name, desc, delta]
+			button.text = "liv. %d → %d (-%d $)" % [level, level + 1, cost]
 			button.disabled = GameState.money < cost
 
 

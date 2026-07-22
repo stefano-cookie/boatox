@@ -33,6 +33,14 @@ const FUEL_LOW_RATIO: float = 0.2
 @export var sea: Sea
 @export var weather: Weather
 @export var world: World
+## Moltiplica i font_size di tutti i pannelli all'avvio (feedback playtest
+## round 2: "l'interfaccia è troppo piccola"). 1.0 = dimensioni base della
+## scena; si tara da Inspector senza toccare i singoli nodi.
+@export var ui_scale: float = 1.0
+
+## Flash rosso della barra scafo a ogni urto.
+const HULL_FLASH_COLOR := Color(1.0, 0.3, 0.25)
+const HULL_FLASH_TIME: float = 0.4
 
 @onready var _money_label: Label = $TopLeft/Margin/VBox/MoneyLabel
 @onready var _boat_label: Label = $TopLeft/Margin/VBox/BoatLabel
@@ -48,7 +56,11 @@ const FUEL_LOW_RATIO: float = 0.2
 @onready var _speed_bar: ProgressBar = $SpeedBox/Margin/VBox/SpeedBar
 @onready var _zone_label: Label = $SpeedBox/Margin/VBox/ZoneLabel
 @onready var _weather_label: Label = $SpeedBox/Margin/VBox/WeatherLabel
+@onready var _goal_box: PanelContainer = $GoalBox
+@onready var _goal_label: Label = $GoalBox/GoalMargin/GoalLabel
 @onready var _minimap: Minimap = $Minimap
+
+var _hull_flash: Tween
 
 
 func _ready() -> void:
@@ -60,6 +72,8 @@ func _ready() -> void:
 	GameState.notice_posted.connect(_on_notice_posted)
 	GameState.danger_changed.connect(_on_danger_changed)
 	GameState.danger_cleared.connect(_danger_label.hide)
+	GameState.tutorial_changed.connect(_on_tutorial_changed)
+	GameState.boat_hit.connect(_on_boat_hit)
 	if weather != null:
 		weather.state_changed.connect(_on_weather_changed)
 		_on_weather_changed(weather.rough)
@@ -72,6 +86,8 @@ func _ready() -> void:
 	_on_fuel_changed(GameState.fuel, GameState.fuel_capacity())
 	_on_cargo_changed()
 	_on_boat_changed(GameState.current_def())
+	_apply_ui_scale()
+	_on_tutorial_changed(GameState.tutorial_step, GameState.tutorial_hint())
 
 
 func _process(_delta: float) -> void:
@@ -149,3 +165,53 @@ func _on_notice_posted(text: String) -> void:
 func _on_danger_changed(text: String) -> void:
 	_danger_label.text = text
 	_danger_label.show()
+
+
+## Obiettivo guidato: mostra la riga della tappa, nasconde il pannello a
+## tutorial finito.
+func _on_tutorial_changed(step: int, text: String) -> void:
+	if step >= GameState.TUTORIAL_DONE or text.is_empty():
+		_goal_box.hide()
+		return
+	_goal_label.text = text
+	_goal_box.show()
+
+
+## Flash rosso della barra scafo a ogni urto (feedback playtest round 2:
+## "quando sbatti non te ne accorgi"). La forza qui non serve: il flash è
+## uguale, sono lo shake camera e le particelle a scalare con l'impatto.
+func _on_boat_hit(_force: float) -> void:
+	if _hull_flash != null and _hull_flash.is_valid():
+		_hull_flash.kill()
+	_hull_bar.modulate = HULL_FLASH_COLOR
+	_hull_flash = create_tween()
+	_hull_flash.tween_property(_hull_bar, "modulate", Color.WHITE, HULL_FLASH_TIME)
+
+
+# --- Scala UI ----------------------------------------------------------------
+
+## Moltiplica i font (e le dimensioni minime delle barre) dei pannelli per
+## ui_scale. I pannelli sono Container e si ridimensionano al contenuto,
+## quindi crescono senza uscire dallo schermo (restano ancorati agli angoli).
+func _apply_ui_scale() -> void:
+	if is_equal_approx(ui_scale, 1.0):
+		return
+	for root: Node in [$TopLeft, $SpeedBox, $GoalBox]:
+		_scale_control_tree(root)
+	_scale_font(_notice_label)
+	_scale_font(_danger_label)
+
+
+func _scale_control_tree(node: Node) -> void:
+	for child in node.get_children():
+		if child is ProgressBar:
+			(child as ProgressBar).custom_minimum_size *= ui_scale
+		elif child is Label or child is RichTextLabel:
+			_scale_font(child)
+		_scale_control_tree(child)
+
+
+func _scale_font(control: Control) -> void:
+	var key := "normal_font_size" if control is RichTextLabel else "font_size"
+	var size := control.get_theme_font_size(key)
+	control.add_theme_font_size_override(key, roundi(size * ui_scale))

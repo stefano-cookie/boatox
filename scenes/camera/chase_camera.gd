@@ -35,7 +35,19 @@ extends Camera3D
 ## La camera non scende mai sotto quest'altezza sull'acqua.
 @export var min_height: float = 1.2
 
+@export_group("Scuotimento urto")
+## Spostamento massimo (m) della camera a impatto pieno.
+@export var shake_max_offset: float = 0.7
+## Secondi di durata dello scuotimento.
+@export var shake_duration: float = 0.4
+## Velocità d'impatto (m/s) oltre cui lo shake è al massimo.
+@export var shake_force_ref: float = 12.0
+
 var _yaw: float = 0.0
+## Scuotimento da urto: _shake_time scende a 0, _shake_amount è l'intensità
+## 0..1 dell'ultimo impatto (feedback playtest round 2).
+var _shake_time: float = 0.0
+var _shake_amount: float = 0.0
 ## Scarto d'orbita del mouse rispetto alla poppa (0 = dietro la barca):
 ## _orbit_yaw insegue con smorzamento _target_orbit_yaw, mosso dal mouse.
 var _orbit_yaw: float = 0.0
@@ -58,6 +70,7 @@ func _ready() -> void:
 	_pitch = _base_pitch
 	_target_pitch = _base_pitch
 	GameState.ui_focus_changed.connect(_on_ui_focus_changed)
+	GameState.boat_hit.connect(_on_boat_hit)
 	_on_ui_focus_changed.call_deferred(GameState.ui_focus_open())
 	if target == null:
 		return
@@ -85,7 +98,21 @@ func _physics_process(delta: float) -> void:
 	_pitch = lerpf(_pitch, _target_pitch, t_orbit)
 	var t := 1.0 - exp(-position_smoothing * delta)
 	global_position = global_position.lerp(_desired_position(), t)
+	if _shake_time > 0.0:
+		_shake_time -= delta
+		# Decadimento quadratico (trauma²): scuote forte all'inizio e si
+		# spegne morbido, senza sobbalzi a fine effetto.
+		var trauma := _shake_amount * maxf(_shake_time / shake_duration, 0.0)
+		var mag := shake_max_offset * trauma * trauma
+		global_position += Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0),
+			randf_range(-1.0, 1.0)) * mag
 	_look()
+
+
+## Urto della barca: avvia lo scuotimento, con intensità sulla forza.
+func _on_boat_hit(force: float) -> void:
+	_shake_amount = clampf(force / shake_force_ref, 0.0, 1.0)
+	_shake_time = shake_duration
 
 
 func _unhandled_input(event: InputEvent) -> void:
