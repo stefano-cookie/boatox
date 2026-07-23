@@ -21,6 +21,9 @@ extends Node3D
 ## Non ancora usati nell'alpha: arrivano con costruzione e difese (beta).
 @export var defense_level: int = 0
 @export var prosperity: int = 0
+## Riga di colore in testa al pannello (B4): la voce della città — chi
+## sei per loro, cosa offrono. Vuota = niente riga.
+@export_multiline var flavor_text: String = ""
 
 @export_group("Servizi")
 @export var service_sell: bool = true
@@ -379,7 +382,10 @@ func _refresh() -> void:
 		cargo_text = "%s — vale [color=#8ee3a8]%d $[/color]" % [
 			GameState.cargo_detail_bbcode(), GameState.cargo_value(),
 		]
-	_info.text = "Denaro: [color=#8ee3a8]%d $[/color]\nBarca: %s\nScafo: %d%%  ·  Benzina: %d/%d L\nStiva %d/%d: %s\n%s" % [
+	var flavor := ""
+	if flavor_text != "":
+		flavor = "[i][color=#aab7c4]%s[/color][/i]\n" % flavor_text
+	_info.text = flavor + "Denaro: [color=#8ee3a8]%d $[/color]\nBarca: %s\nScafo: %d%%  ·  Benzina: %d/%d L\nStiva %d/%d: %s\n%s" % [
 		GameState.money,
 		GameState.current_def().display_name,
 		roundi(GameState.hull / GameState.hull_max() * 100.0),

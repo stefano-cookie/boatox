@@ -20,12 +20,17 @@ const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission
 @export var sea: Sea
 
 @export_group("Confini")
-## Distanza massima dalla costa prima del countdown di recupero.
-@export var bounds_depth: float = 700.0
-## Mezza larghezza della baia giocabile (oltre i promontori si è fuori).
-@export var bounds_half_width: float = 450.0
+## Distanza massima dalla costa prima del countdown di recupero: dal
+## mare grande di B4 abbraccia anche le due città lontane.
+@export var bounds_depth: float = 4000.0
+## Mezza larghezza del mare giocabile.
+@export var bounds_half_width: float = 2600.0
 ## Secondi per rientrare in zona prima del recupero al porto.
 @export var escape_countdown: float = 10.0
+## Profondità della baia di Bova, il cuore dettagliato: boe, taniche,
+## zone di pesca e navi "di casa" restano qui dentro (era il vecchio
+## confine mappa dell'alpha). Oltre inizia la traversata di B4.
+@export var bay_depth: float = 700.0
 
 @export_group("Affondamento")
 ## A scafo zero oltre le acque medie la barca affonda (feedback playtest
@@ -44,9 +49,27 @@ const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission
 @export var fishing_zones_per_band: int = 1
 
 @export_group("Navi (roadmap B1)")
-## Mercantili e predoni tenuti in acqua dallo ShipDirector.
+## Mercantili e predoni della baia di Bova (ShipDirector di casa).
 @export var merchant_count: int = 2
 @export var raider_count: int = 2
+## Navi della traversata (B4): la rotta non è più deserta — mercantili da
+## predare e predoni di pattuglia riempiono il mare aperto tra Bova e le
+## città (feedback: "il mare è molto vuoto"). Il bottino si rivende agli
+## scali di rifornimento senza tornare a casa.
+@export var crossing_merchant_count: int = 3
+@export var crossing_raider_count: int = 2
+## Navi nelle acque di ciascuna città (entrambe ostili ora): niente
+## mercantili amici, solo predoni al loro soldo che pattugliano la rada.
+@export var city_merchant_count: int = 2
+@export var city_raider_count: int = 2
+## Mezzo lato del recinto navale intorno a ogni città.
+@export var city_waters_radius: float = 500.0
+
+@export_group("Traversata (roadmap B4)")
+## Taniche e boe blu sparse sulla rotta tra Bova e le città: il pieno di
+## fortuna e il bottino che ripagano il viaggio.
+@export var route_fuel_count: int = 20
+@export var route_buoy_count: int = 16
 ## Le boe vengono campionate con |x| entro questo limite, per non
 ## finire dentro i promontori.
 @export var scatter_half_width: float = 255.0
@@ -71,6 +94,7 @@ var _sinking: bool = false
 @onready var _islands: Node3D = $Islands
 @onready var _rock_fields: Node3D = $RockFields
 @onready var _port: Port = $Port
+@onready var _cities: Node3D = $Cities
 
 
 func _ready() -> void:
@@ -92,21 +116,64 @@ func _ready() -> void:
 	# non finiscono dentro gli anelli.
 	_spawn_fishing_zones()
 	_spawn_zone_buoys()
-	_spawn_ship_director()
+	_spawn_route_pickups()
+	_spawn_ship_directors()
 	# Missione di recupero già in corso nel salvataggio: il pacco torna in acqua.
 	_sync_mission_pickup()
 
 
-## Le navi del mare aperto (roadmap B1): il direttore le tiene in acqua
-## e le rimpiazza; qui solo il cablaggio con mare, barca e confini.
-func _spawn_ship_director() -> void:
+## Le navi del mare (roadmap B1, allargato in B4): un direttore per zona
+## — la baia di casa, la traversata di mezzo e le acque delle due città,
+## ognuna con le navi della sua fazione.
+func _spawn_ship_directors() -> void:
+	_add_director(
+		Vector3(-scatter_half_width_open, 0.0, sea.shore_z),
+		Vector3(scatter_half_width_open, 0.0, sea.shore_z + bay_depth - 60.0),
+		merchant_count, raider_count, &"")
+	_add_director(
+		Vector3(-bounds_half_width + 400.0, 0.0, sea.shore_z + bay_depth + 200.0),
+		Vector3(bounds_half_width - 400.0, 0.0, sea.shore_z + bounds_depth - 700.0),
+		crossing_merchant_count, crossing_raider_count, &"")
+	for node in _cities.get_children():
+		var city := node as City
+		if city == null:
+			continue
+		var center := city.global_position
+		var is_hostile := Diplomacy.is_hostile(_city_faction(city))
+		_add_director(
+			center - Vector3(city_waters_radius, 0.0, city_waters_radius),
+			center + Vector3(city_waters_radius, 0.0, city_waters_radius),
+			0 if is_hostile else city_merchant_count,
+			city_raider_count if is_hostile else 0,
+			_city_faction(city))
+
+
+## La fazione di una città è quella del suo porto (l'istanza Port più
+## vicina): un posto solo per la verità, niente doppioni da disallineare.
+func _city_faction(city: City) -> StringName:
+	var best: Port = null
+	var best_d := INF
+	for node in get_tree().get_nodes_in_group(&"ports"):
+		var port := node as Port
+		if port == null:
+			continue
+		var d := port.global_position.distance_to(city.global_position)
+		if d < best_d:
+			best_d = d
+			best = port
+	return best.faction if best != null else &""
+
+
+func _add_director(area_min: Vector3, area_max: Vector3,
+		merchants: int, raiders: int, faction: StringName) -> void:
 	var director := ShipDirector.new()
 	director.sea = sea
 	director.boat = boat
-	director.half_width = scatter_half_width_open
-	director.depth_max = bounds_depth - 60.0
-	director.merchant_count = merchant_count
-	director.raider_count = raider_count
+	director.area_min = area_min
+	director.area_max = area_max
+	director.merchant_count = merchants
+	director.raider_count = raiders
+	director.faction_override = faction
 	add_child(director)
 
 
@@ -148,7 +215,17 @@ func port_position() -> Vector3:
 
 
 func map_islands() -> Array[Node]:
-	return _islands.get_children()
+	var nodes := _islands.get_children()
+	# Gli isolotti satellite delle città (le City sono Node3D, le isole
+	# StaticBody3D: si distinguono da sole).
+	for child in _cities.get_children():
+		if child is StaticBody3D:
+			nodes.append(child)
+	# Gli scali di rifornimento della traversata: macchie di terra in
+	# minimappa come gli isolotti.
+	for node in get_tree().get_nodes_in_group(&"supply_islands"):
+		nodes.append(node)
+	return nodes
 
 
 func map_rocks() -> Array[Vector3]:
@@ -277,17 +354,33 @@ func _spawn_zone_buoys() -> void:
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.RED)
 	for i in blue_point_count:
-		var pos := _sample_band(sea.medium_width + 15.0, bounds_depth - 60.0,
+		var pos := _sample_band(sea.medium_width + 15.0, bay_depth - 60.0,
 			_buoy_positions, 12.0, scatter_half_width_open)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.BLUE)
 	# Le taniche vagano su tutta la baia: la fortuna può capitare ovunque.
 	for i in fuel_point_count:
 		var wide := i % 2 == 1
-		var pos := _sample_band(20.0, bounds_depth - 60.0, _buoy_positions, 10.0,
+		var pos := _sample_band(20.0, bay_depth - 60.0, _buoy_positions, 10.0,
 			scatter_half_width_open if wide else -1.0)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_fuel_can(pos)
+
+
+## La traversata di B4: taniche di soccorso e boe blu sparse tra la baia
+## e le città lontane. Poca roba su tanto mare — trovarle è fortuna, non
+## raccolta sistematica (il grosso del viaggio resta vento e incontri).
+func _spawn_route_pickups() -> void:
+	for i in route_fuel_count:
+		var pos := _sample_band(bay_depth + 100.0, bounds_depth - 300.0,
+			_buoy_positions, 60.0, bounds_half_width - 500.0)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_fuel_can(pos)
+	for i in route_buoy_count:
+		var pos := _sample_band(bay_depth + 100.0, bounds_depth - 300.0,
+			_buoy_positions, 60.0, bounds_half_width - 500.0)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_buoy(pos, GameState.BuoyType.BLUE)
 
 
 ## Una zona di pesca per fascia di mare (GDD § Pesca): specie e
@@ -299,7 +392,7 @@ func _spawn_fishing_zones() -> void:
 		Vector3(25.0, sea.calm_width - 20.0, 0.0),
 		Vector3(sea.calm_width + 15.0, sea.medium_width - 15.0, 1.0),
 		Vector3(sea.medium_width + 20.0, sea.medium_width + 220.0, 2.0),
-		Vector3(sea.medium_width + 280.0, bounds_depth - 70.0, 2.0),
+		Vector3(sea.medium_width + 280.0, bay_depth - 70.0, 2.0),
 	]
 	for band in bands:
 		var tier := int(band.z)
@@ -369,10 +462,21 @@ func _far_from(pos: Vector3, points: Array[Vector3], min_dist: float) -> bool:
 	return true
 
 
-## Vero se il punto non finisce dentro isole, porti, scogli o zone di pesca.
+## Vero se il punto non finisce dentro isole, porti, città, scogli o
+## zone di pesca.
 func _is_clear(pos: Vector3) -> bool:
 	for island: Node3D in _islands.get_children():
 		if pos.distance_to(island.global_position) < 14.0 * island.scale.x:
+			return false
+	# Le città lontane tengono libera la loro rada interna.
+	for node in get_tree().get_nodes_in_group(&"cities"):
+		var city := node as City
+		if city != null and pos.distance_to(city.global_position) < city.island_radius * 2.2:
+			return false
+	# Gli scali di rifornimento: niente boe o taniche addosso all'isolotto.
+	for node in get_tree().get_nodes_in_group(&"supply_islands"):
+		var isl := node as SupplyIsland
+		if isl != null and pos.distance_to(isl.global_position) < isl.island_radius + 22.0:
 			return false
 	# Tutti i porti (principale + approdo secondario), non solo _port.
 	for node in get_tree().get_nodes_in_group(&"ports"):

@@ -11,14 +11,20 @@ extends Node3D
 
 @export var build_seed: int = 12
 ## Mezza larghezza della costa: più larga dei confini di gioco, così
-## dall'acqua non se ne vede mai la fine.
-@export var half_width: float = 520.0
+## dall'acqua non se ne vede mai la fine (dal mare grande di B4 copre
+## tutta la larghezza del mondo: la terraferma è una sola, lunga costa).
+@export var half_width: float = 2700.0
+## Oltre questa distanza i pezzi della costa non si disegnano più: la
+## nebbia (fog_depth_end 650) li copre molto prima, è solo risparmio.
+@export var visibility_range: float = 1500.0
 ## Linea di costa: deve coincidere con shore_z della Sea.
 @export var shore_z: float = -140.0
+## Il paese resta raccolto intorno al porto di Bova; colline, monti e
+## alberi si spalmano su tutta la costa larga.
 @export var house_count: int = 22
-@export var tree_count: int = 46
-@export var hill_count: int = 12
-@export var mountain_count: int = 9
+@export var tree_count: int = 120
+@export var hill_count: int = 42
+@export var mountain_count: int = 30
 
 var _rng := RandomNumberGenerator.new()
 
@@ -50,6 +56,9 @@ func _build_beach() -> void:
 	var beach := _add_box(Vector3(half_width * 2.0, 4.0, 48.0),
 		Vector3(0.0, -1.6, shore_z - 20.0), _mat_sand)
 	beach.rotation.x = deg_to_rad(3.5)
+	# La striscia attraversa tutta la mappa: il culling per distanza
+	# dall'origine la spegnerebbe ai lati mentre è a due passi.
+	beach.visibility_range_end = 0.0
 	# Collisione verticale al filo di costa: la barca si ferma sulla
 	# sabbia invece di salire sulla spiaggia.
 	var body := StaticBody3D.new()
@@ -66,8 +75,10 @@ func _build_beach() -> void:
 ## le montagne e la portata della nebbia (niente buchi grigi tra le
 ## colline guardando la costa dal largo).
 func _build_plain() -> void:
-	_add_box(Vector3(half_width * 2.0, 4.0, 420.0),
+	var plain := _add_box(Vector3(half_width * 2.0, 4.0, 420.0),
 		Vector3(0.0, -0.5, shore_z - 250.0), _mat_grass)
+	# Come la spiaggia: copre tutta la larghezza, niente culling.
+	plain.visibility_range_end = 0.0
 
 
 func _build_hills() -> void:
@@ -183,6 +194,7 @@ func _add_box(size: Vector3, pos: Vector3, material: StandardMaterial3D) -> Mesh
 	instance.mesh = box
 	instance.material_override = material
 	instance.position = pos
+	instance.visibility_range_end = visibility_range
 	add_child(instance)
 	return instance
 
@@ -200,6 +212,7 @@ func _add_cone(bottom_radius: float, top_radius: float, height: float,
 	instance.material_override = material
 	instance.position = pos
 	instance.rotation.y = _rng.randf_range(0.0, TAU)
+	instance.visibility_range_end = visibility_range
 	add_child(instance)
 	return instance
 

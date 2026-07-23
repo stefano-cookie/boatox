@@ -40,10 +40,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -270.0
-offset_right = 240.0
-offset_bottom = 270.0
+offset_left = -310.0
+offset_top = -280.0
+offset_right = 310.0
+offset_bottom = 280.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("title_style")
@@ -57,7 +57,7 @@ theme_override_constants/margin_bottom = 26
 
 [node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Root/Panel/Margin/VBox"]
 layout_mode = 2
@@ -73,21 +73,82 @@ theme_override_colors/font_color = Color(0.7, 0.8, 0.88, 1)
 text = "La baia di Bova Marina ti aspetta"
 horizontal_alignment = 1
 
-[node name="PlayButton" type="Button" parent="Root/Panel/Margin/VBox"]
+[node name="MenuBox" type="VBoxContainer" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ContinueButton" type="Button" parent="Root/Panel/Margin/VBox/MenuBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "Salpa!"
+text = "Continua"
 
-[node name="SettingsButton" type="Button" parent="Root/Panel/Margin/VBox"]
+[node name="NewButton" type="Button" parent="Root/Panel/Margin/VBox/MenuBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Nuova partita"
+
+[node name="WorldsButton" type="Button" parent="Root/Panel/Margin/VBox/MenuBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "I mondi"
+
+[node name="SettingsButton" type="Button" parent="Root/Panel/Margin/VBox/MenuBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Impostazioni"
 
-[node name="SettingsPanel" parent="Root/Panel/Margin/VBox" instance=ExtResource("2")]
+[node name="SettingsPanel" parent="Root/Panel/Margin/VBox/MenuBox" instance=ExtResource("2")]
 visible = false
 layout_mode = 2
 
-[node name="QuitButton" type="Button" parent="Root/Panel/Margin/VBox"]
+[node name="QuitButton" type="Button" parent="Root/Panel/Margin/VBox/MenuBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Esci"
+
+[node name="NewBox" type="VBoxContainer" parent="Root/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="NewLabel" type="Label" parent="Root/Panel/Margin/VBox/NewBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Come si chiama il nuovo mondo?"
+horizontal_alignment = 1
+
+[node name="NameEdit" type="LineEdit" parent="Root/Panel/Margin/VBox/NewBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+max_length = 28
+alignment = 1
+
+[node name="CreateButton" type="Button" parent="Root/Panel/Margin/VBox/NewBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Crea e salpa!"
+
+[node name="NewBackButton" type="Button" parent="Root/Panel/Margin/VBox/NewBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Indietro"
+
+[node name="WorldsBox" type="VBoxContainer" parent="Root/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Scroll" type="ScrollContainer" parent="Root/Panel/Margin/VBox/WorldsBox"]
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="WorldsList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/WorldsBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="WorldsBackButton" type="Button" parent="Root/Panel/Margin/VBox/WorldsBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Indietro"

@@ -303,3 +303,24 @@ func _warehouse() -> Dictionary:
 	if not GameState.world_state.has("warehouse"):
 		GameState.world_state["warehouse"] = {}
 	return GameState.world_state["warehouse"]
+
+
+# --- Cheat di playtest -------------------------------------------------------
+
+## Bova al massimo splendore in un colpo (chiamato da
+## GameState.debug_max_all, lancio con --maxed): tutti gli edifici
+## costruiti e potenziati a fondo, prosperità a fondo scala. Passa dalle
+## funzioni vere (build/upgrade/_add_prosperity), così segnali, visuali
+## e salvataggio restano coerenti.
+func debug_max() -> void:
+	var pairs: Dictionary[StringName, StringName] = {
+		&"molo": &"molo_grande",
+		&"lungomare": &"conserva",
+		&"paese": &"magazzino",
+		&"promontorio": &"faro",
+	}
+	for slot: StringName in pairs:
+		build(slot, pairs[slot])
+		while upgrade(slot):
+			pass
+	_add_prosperity(maxi(0, PROSPERITY_THRESHOLDS[-1] - prosperity_points()))

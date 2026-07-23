@@ -12,14 +12,17 @@ extends MeshInstance3D
 ## parallele alla costa. Il meteo dinamico moltiplica tutto.
 
 @export var follow_target: Node3D
-## Limite sud dell'inseguimento: il piano non scorre oltre, così il suo
-## bordo nord resta sempre infilato sotto la spiaggia (niente buchi
-## d'acqua guardando la costa dal largo). Feedback playtest round 2: il
-## mare sembrava finire come un muro al largo. Col piano ora 1400×1400
-## (mezzo lato 700), a follow_z_max=500 il bordo nord resta a z≈-200
-## (sotto la costa a shore_z=-140) e quello sud arriva oltre z=1200 —
-## ben oltre bounds_depth: l'orizzonte resta acqua, la nebbia lo sfuma.
+## Limite sud dell'inseguimento vicino alla costa: il piano non scorre
+## oltre, così il suo bordo nord resta sempre infilato sotto la spiaggia
+## (niente buchi d'acqua guardando la costa dal largo). Feedback playtest
+## round 2: il mare sembrava finire come un muro al largo. Col piano
+## 1400×1400 (mezzo lato 700), a follow_z_max=500 il bordo nord resta a
+## z≈-200 (sotto la costa a shore_z=-140).
 @export var follow_z_max: float = 500.0
+## Oltre questa z il piano segue libero (roadmap B4, mare grande): la
+## costa è ormai fuori dalla nebbia (fog_depth_end 650 < 700 di mezzo
+## piano), quindi il bordo nord non si vede mai scoperto.
+@export var follow_free_z: float = 700.0
 
 @export_group("Costa e zone di mare")
 ## Linea di costa: la terra occupa z < shore_z.
@@ -73,6 +76,16 @@ extends MeshInstance3D
 ## nodo Weather: 1 = calmo, sale col mare mosso sopra le zone statiche.
 var weather_multiplier: float = 1.0
 
+## Tetto dell'array harbor_calms nello shader del mare (2 città lontane +
+## le isole di rifornimento neutrali della traversata, roadmap B4).
+const MAX_HARBORS: int = 8
+
+## Rade calme delle città lontane (roadmap B4): i nodi nel gruppo
+## "calm_harbors" (le City) spengono il mare grosso in un cerchio intorno
+## a sé, così l'attracco lontano da casa resta gestibile. xy = centro,
+## z = raggio, w = attiva. Raccolte una volta a scena montata.
+var _harbors := PackedVector4Array()
+
 var _time: float = 0.0
 var _grid_step: float = 2.5
 
@@ -83,6 +96,22 @@ func _ready() -> void:
 	var plane := mesh as PlaneMesh
 	if plane != null:
 		_grid_step = plane.size.x / float(plane.subdivide_width + 1)
+	# Le città sono sorelle nella scena main: si raccolgono a fine setup.
+	refresh_harbors.call_deferred()
+
+
+## Rilegge il gruppo "calm_harbors" (nodi con harbor_radius). Da
+## richiamare se una rada nasce o sparisce a runtime.
+func refresh_harbors() -> void:
+	_harbors.clear()
+	if not is_inside_tree():
+		return
+	for node in get_tree().get_nodes_in_group(&"calm_harbors"):
+		var harbor := node as Node3D
+		if harbor == null or _harbors.size() >= MAX_HARBORS:
+			continue
+		var radius: float = harbor.get(&"harbor_radius")
+		_harbors.append(Vector4(harbor.global_position.x, harbor.global_position.z, radius, 1.0))
 
 
 func _process(delta: float) -> void:
@@ -90,7 +119,10 @@ func _process(delta: float) -> void:
 	_update_uniforms()
 	if follow_target != null:
 		global_position.x = snappedf(follow_target.global_position.x, _grid_step)
-		global_position.z = minf(snappedf(follow_target.global_position.z, _grid_step), follow_z_max)
+		var target_z := snappedf(follow_target.global_position.z, _grid_step)
+		if follow_target.global_position.z <= follow_free_z:
+			target_z = minf(target_z, follow_z_max)
+		global_position.z = target_z
 
 
 func get_height(world_pos: Vector3) -> float:
@@ -118,7 +150,21 @@ func state_multiplier(world_pos: Vector3) -> float:
 	m *= lerpf(shore_min_multiplier, 1.0, smoothstep(0.0, shore_lap_distance, d))
 	if wind_field != null:
 		m *= wind_field.wind_multiplier(world_pos)
-	return m * weather_multiplier
+	# Dentro una rada il mare torna alle acque calme, meteo e vento
+	# compresi: attraccare a una città lontana non è mai una lotteria.
+	return lerpf(m * weather_multiplier, calm_multiplier, harbor_calm01(world_pos))
+
+
+## Quanto il punto è protetto da una rada cittadina: 0 in mare libero,
+## 1 nel cuore della rada. Stesso falloff del loop harbor_calms nello shader.
+func harbor_calm01(world_pos: Vector3) -> float:
+	var p := Vector2(world_pos.x, world_pos.z)
+	var best := 0.0
+	for harbor in _harbors:
+		if harbor.w <= 0.0 or harbor.z <= 0.0:
+			continue
+		best = maxf(best, 1.0 - smoothstep(harbor.z * 0.45, harbor.z, p.distance_to(Vector2(harbor.x, harbor.y))))
+	return best
 
 
 ## Quanto il mare scuote in un punto (zona × meteo): la barca lo usa per
@@ -136,7 +182,14 @@ func wave_push_direction() -> Vector3:
 
 
 ## 0 = calme, 1 = medie, 2 = mare aperto (per HUD e spawn delle boe).
+## Le rade delle città contano come acque calme: l'HUD lo dice e gli
+## eventi casuali non scattano sul molo di un porto lontano.
 func zone_index(world_pos: Vector3) -> int:
+	var harbor := harbor_calm01(world_pos)
+	if harbor >= 0.6:
+		return 0
+	if harbor >= 0.25:
+		return 1
 	var d := shore_distance(world_pos)
 	if d < calm_width:
 		return 0
@@ -169,9 +222,18 @@ func _update_uniforms() -> void:
 	_material.set_shader_parameter("shore_lap_distance", shore_lap_distance)
 	_material.set_shader_parameter("shore_min_multiplier", shore_min_multiplier)
 	_material.set_shader_parameter("weather_mult", weather_multiplier)
+	_material.set_shader_parameter("harbor_calms", _harbors_padded())
 	if wind_field != null:
 		_material.set_shader_parameter("wind_cells", wind_field.cells_packed())
 		_material.set_shader_parameter("wind_strength", wind_field.strength)
+
+
+## Rade impacchettate per lo shader: sempre lunghe MAX_HARBORS (pad a zero).
+func _harbors_padded() -> PackedVector4Array:
+	var packed := _harbors.duplicate()
+	while packed.size() < MAX_HARBORS:
+		packed.append(Vector4.ZERO)
+	return packed
 
 
 func _wave_vec(dir_deg: float, amplitude: float, length: float) -> Vector4:

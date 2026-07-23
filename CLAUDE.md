@@ -17,6 +17,10 @@ Gioco 3D low-poly per PC: navigazione arcade (WASD) + progressione gestionale. P
 # Lancia il gioco
 /Applications/Godot.app/Contents/MacOS/Godot --path .
 
+# Playtest con tutto al massimo (flotta, upgrade, Bova; corsari restano ostili).
+# Usa il salvataggio separato save_maxed.json: quello vero non si tocca.
+/Applications/Godot.app/Contents/MacOS/Godot --path . -- --maxed
+
 # Import/validazione headless (dopo aver aggiunto asset o su CI)
 /Applications/Godot.app/Contents/MacOS/Godot --path . --headless --import
 ```

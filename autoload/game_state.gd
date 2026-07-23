@@ -265,14 +265,29 @@ const RADAR_UPGRADE_COSTS: Dictionary[int, Array] = {
 	RadarUpgrade.DURATION: [350, 800, 1600],
 }
 
-## Reputazione (roadmap A1): -100..+100, per-fazione (per ora solo il
-## porto di Bova — predisposizione B0 alla diplomazia per-città della
-## beta). Sconta o rincara i servizi di porto di ±REP_PRICE_EFFECT a
-## fondo scala.
+## Reputazione (roadmap A1): -100..+100, per-fazione. Dalle città
+## lontane di B4 è la relazione diplomatica vera e propria (Diplomacy la
+## legge a soglie). Sconta o rincara i servizi di porto di
+## ±REP_PRICE_EFFECT a fondo scala.
 const FACTION_BOVA: StringName = &"bova"
+## Città lontane del mare grande (roadmap B4): Catania a sud-ovest (più
+## vicina) e Il Cairo a sud-est (molto più lontana). Entrambe ostili dal
+## primo giorno (deciso il 23/07/2026 con Stefano): il finale beta le apre
+## con la diplomazia, non partono amiche. "franco" è la fazione neutra
+## degli scali di rifornimento in mezzo al mare (né amici né nemici).
+const FACTION_CATANIA: StringName = &"catania"
+const FACTION_CAIRO: StringName = &"cairo"
+const FACTION_FRANCO: StringName = &"franco"
 const REP_MIN: int = -100
 const REP_MAX: int = 100
 const REP_PRICE_EFFECT: float = 0.15
+## Relazioni di partenza con le fazioni che non cominciano neutrali:
+## Catania e Il Cairo sono ostili dal primo giorno (roadmap B4). Applicate
+## al reset e ai salvataggi che non conoscono la fazione.
+const FACTION_START_REP: Dictionary[StringName, int] = {
+	FACTION_CATANIA: -40,
+	FACTION_CAIRO: -40,
+}
 
 ## Missioni della bacheca (roadmap A1): ricompensa scalata su distanza e
 ## fascia di mare del punto (più a largo = più soldi, GDD pillar 2).
@@ -450,9 +465,18 @@ const TOW_HULL_RESTORE: float = 20.0
 const SALVAGE_FEE: int = 100
 
 const SAVE_VERSION: int = 1
+## Cartella dei mondi (menu principale stile "i mondi"): ogni partita è
+## un file JSON qui dentro, col suo nome e la data dell'ultima sessione.
+## Var come save_path: i test headless la reindirizzano su una propria.
+var worlds_dir: String = "user://worlds"
 ## Var e non const: i test headless la reindirizzano su un file proprio
 ## per non toccare (e cancellare!) il salvataggio vero del giocatore.
 var save_path: String = "user://save.json"
+## Nome del mondo corrente, mostrato nel menu e salvato nel file.
+var world_name: String = "Bova Marina"
+## Alzato dal title prima di ricaricare la scena (nuovo mondo o cambio
+## mondo): al giro dopo il title salta il menu e salpa subito.
+var autostart_once: bool = false
 
 var money: int = 0
 var hull: float = 100.0
@@ -485,8 +509,9 @@ var upgrades: Dictionary[StringName, Dictionary] = {}
 var fishing_gear: Dictionary[int, int] = {}
 
 ## Reputazione per fazione (vedi FACTION_*). Salvata. Letta a soglie
-## dall'autoload Diplomacy (predisposizione B0).
-var reputation: Dictionary[StringName, int] = {}
+## dall'autoload Diplomacy (predisposizione B0). Parte dalle relazioni
+## iniziali anche a freddo, senza salvataggio (Catania e Il Cairo ostili).
+var reputation: Dictionary[StringName, int] = FACTION_START_REP.duplicate()
 ## Stato del mondo gestionale (predisposizione B0, roadmap beta):
 ## prosperità di Bova e difese costruite; le relazioni vivono già in
 ## `reputation`. Salvato accanto a denaro e upgrade. Le chiavi si
@@ -530,6 +555,30 @@ var alpha_end_shown: bool = false
 
 
 func _ready() -> void:
+	# Cheat di playtest: lanciando con `--maxed` (dopo il `--` di Godot)
+	# la sessione parte con tutto al massimo, su un salvataggio separato —
+	# i mondi veri non si toccano. Deferred: Town e la scena devono esserci.
+	if OS.get_cmdline_user_args().has("--maxed"):
+		save_path = "user://save_maxed.json"
+		load_game()
+		debug_max_all.call_deferred()
+		return
+	# In headless (test, CI) niente menu dei mondi: si carica il percorso
+	# di default come sempre (i test impostano save_path da soli).
+	if DisplayServer.get_name() == "headless":
+		load_game()
+		return
+	# Avvio normale: si carica il mondo giocato più di recente come
+	# fondale del title; è poi il menu (Continua / Nuova partita / I
+	# mondi) a decidere cosa si gioca davvero.
+	migrate_legacy_save()
+	# Tre mondi di prova sempre presenti nel menu "i mondi" (richiesta di
+	# Stefano, 23/07/2026): Da zero, A metà, Maxato — comodi per testare gli
+	# stati del gioco. Creati solo se assenti: non toccano i mondi veri e i
+	# progressi fatti su di essi restano.
+	seed_demo_worlds()
+	var recent := most_recent_world_path()
+	save_path = recent if recent != "" else worlds_dir + "/da-zero.json"
 	load_game()
 
 
@@ -1049,7 +1098,7 @@ func generate_mission_offers(world: World) -> Array[Dictionary]:
 	var near := _recovery_offer(world, sea.calm_width + 10.0, sea.medium_width - 10.0)
 	if not near.is_empty():
 		offers.append(near)
-	var far := _recovery_offer(world, sea.medium_width + 40.0, world.bounds_depth - 80.0)
+	var far := _recovery_offer(world, sea.medium_width + 40.0, world.bay_depth - 80.0)
 	if not far.is_empty():
 		offers.append(far)
 	return offers
@@ -1534,6 +1583,8 @@ func save_game() -> void:
 		mission_out[key] = _vec3_to_array(value) if value is Vector3 else value
 	var data := {
 		"version": SAVE_VERSION,
+		"world_name": world_name,
+		"last_played": int(Time.get_unix_time_from_system()),
 		"money": money,
 		"hull": hull,
 		"fuel": fuel,
@@ -1584,6 +1635,7 @@ func load_game() -> void:
 		hull = hull_max()
 		fuel = fuel_capacity()
 		return
+	world_name = str(data.get("world_name", "Bova Marina"))
 	money = int(data.get("money", 0))
 	race_wins = int(data.get("race_wins", 0))
 	# Salvataggi pre-tutorial: chi giocava già conosce le basi, parte da DONE.
@@ -1633,6 +1685,9 @@ func load_game() -> void:
 	var rep_in: Dictionary = data.get("reputation", {})
 	for faction: String in rep_in:
 		reputation[StringName(faction)] = clampi(int(rep_in[faction]), REP_MIN, REP_MAX)
+	# Salvataggi pre-B4: le fazioni nuove partono dalla loro relazione
+	# iniziale (merge non tocca le chiavi già presenti).
+	reputation.merge(FACTION_START_REP)
 	# Salvataggi pre-B0: mondo allo stato iniziale. Le chiavi salvate si
 	# sovrappongono ai default, così aggiungerne di nuove non li invalida.
 	world_state = _default_world_state()
@@ -1723,6 +1778,7 @@ func reset() -> void:
 	radar_unlocked = false
 	radar_upgrades.clear()
 	reputation.clear()
+	reputation.merge(FACTION_START_REP)
 	world_state = _default_world_state()
 	active_mission.clear()
 	mission_time_left = 0.0
@@ -1814,3 +1870,206 @@ func set_danger(text: String) -> void:
 
 func clear_danger() -> void:
 	danger_cleared.emit()
+
+
+# --- Cheat di playtest -------------------------------------------------------
+
+## Tutto al massimo in un colpo (lancio con --maxed): flotta completa,
+## upgrade, cannone, attrezzatura, radar, vernici e accessori, reputazione
+## di casa a fondo scala, Bova al massimo splendore. Passa dalle funzioni
+## d'acquisto vere, così ogni invariante e segnale regge. Le città lontane
+## restano ostili: la loro storia è parte del gioco, non un numero da maxare.
+func debug_max_all() -> void:
+	money = 999999
+	race_wins = maxi(race_wins, 1)
+	tutorial_step = TUTORIAL_DONE
+	grandson_quest = GrandsonQuest.DONE
+	radar_unlocked = true
+	for def in BOAT_DEFS:
+		if not owns_boat(def.id):
+			buy_boat(def.id)
+	for def in BOAT_DEFS:
+		select_boat(def.id)
+		for type: int in UPGRADE_NAME:
+			while buy_upgrade(type):
+				pass
+		for paint in PAINTS:
+			buy_paint(paint["id"])
+		for accessory in ACCESSORIES:
+			buy_accessory(accessory["id"])
+	select_boat(&"cruiser")
+	while buy_cannon():
+		pass
+	for gear: int in FISHING_GEAR_NAME:
+		while buy_fishing_gear(gear):
+			pass
+	for upgrade: int in RADAR_UPGRADE_NAME:
+		while buy_radar_upgrade(upgrade):
+			pass
+	add_reputation(REP_MAX, FACTION_BOVA)
+	Town.debug_max()
+	money = 999999
+	hull = hull_max()
+	fuel = fuel_capacity()
+	money_changed.emit(money)
+	hull_changed.emit(hull, hull_max())
+	fuel_changed.emit(fuel, fuel_capacity())
+	tutorial_changed.emit(tutorial_step, tutorial_hint())
+	post_notice("MAXED: flotta, upgrade e Bova al massimo")
+	save_game()
+
+
+# --- I mondi (menu principale, stile Minecraft) ------------------------------
+
+## Elenca i mondi salvati in worlds_dir, dal più recente: per ogni file
+## il minimo che serve alle righe del menu (nome, ultima sessione, un
+## riassunto della partita). I file illeggibili si saltano senza drammi.
+func list_worlds() -> Array[Dictionary]:
+	var worlds: Array[Dictionary] = []
+	var dir := DirAccess.open(worlds_dir)
+	if dir == null:
+		return worlds
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".json"):
+			continue
+		var path := worlds_dir + "/" + file_name
+		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if data == null or not data is Dictionary:
+			continue
+		worlds.append({
+			"path": path,
+			"name": str(data.get("world_name", "Bova Marina")),
+			"last_played": int(data.get("last_played", 0)),
+			"money": int(data.get("money", 0)),
+			"play_seconds": float(data.get("play_seconds", 0.0)),
+			"boat": StringName(data.get("current_boat", "dinghy")),
+		})
+	worlds.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["last_played"]) > int(b["last_played"]))
+	return worlds
+
+
+func most_recent_world_path() -> String:
+	var worlds := list_worlds()
+	return str(worlds[0]["path"]) if not worlds.is_empty() else ""
+
+
+## Nuovo mondo: partita da zero su un file suo. Il chiamante (title)
+## ricarica poi la scena per ripartire sulla baia nuova.
+func create_world(name: String) -> void:
+	DirAccess.make_dir_recursive_absolute(worlds_dir)
+	save_path = _unique_world_path(name)
+	reset()
+	world_name = name.strip_edges()
+	if world_name == "":
+		world_name = "Mondo senza nome"
+	save_game()
+
+
+## Cambia mondo: carica il file e riallinea gli autoload. Il chiamante
+## ricarica poi la scena, che rilegge tutto lo stato da zero.
+func switch_world(path: String) -> void:
+	save_path = path
+	load_game()
+	hull = clampf(hull, 0.0, hull_max())
+	_ui_focus_count = 0
+	Radar.reset()
+
+
+## Elimina il file di un mondo. Se era quello corrente, si passa al più
+## recente rimasto (o a uno stato vergine, senza file finché non si salva).
+func delete_world(path: String) -> void:
+	DirAccess.remove_absolute(path)
+	if path != save_path:
+		return
+	var recent := most_recent_world_path()
+	if recent != "":
+		switch_world(recent)
+	else:
+		save_path = worlds_dir + "/bova-marina.json"
+		reset()
+
+
+## Il salvataggio unico pre-mondi diventa il primo mondo della lista
+## ("Bova Marina"), una volta sola: l'originale resta dov'è come scorta.
+func migrate_legacy_save() -> void:
+	if DirAccess.dir_exists_absolute(worlds_dir) or not FileAccess.file_exists("user://save.json"):
+		return
+	DirAccess.make_dir_recursive_absolute(worlds_dir)
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://save.json"))
+	if data == null or not data is Dictionary:
+		return
+	data["world_name"] = "Bova Marina"
+	var file := FileAccess.open(worlds_dir + "/bova-marina.json", FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(data, "\t"))
+
+
+## Tre mondi di prova sempre disponibili nel menu (richiesta di Stefano,
+## 23/07/2026): "Da zero", "A metà" e "Maxato". Creati solo se assenti, così
+## non toccano i mondi veri e i progressi fatti su di essi restano. Ognuno
+## passa dalle funzioni vere (reset, acquisti, Town), quindi lo stato è
+## coerente come una partita giocata. Lascia lo stato live sul mondo maxato:
+## il chiamante ricarica subito il mondo scelto (load_game rimette tutto).
+func seed_demo_worlds() -> void:
+	DirAccess.make_dir_recursive_absolute(worlds_dir)
+	_seed_world_if_absent("da-zero.json", "Da zero", Callable())
+	_seed_world_if_absent("a-meta.json", "A metà", _apply_mid_preset)
+	_seed_world_if_absent("maxato.json", "Maxato", debug_max_all)
+
+
+func _seed_world_if_absent(file_name: String, name: String, apply: Callable) -> void:
+	var path := worlds_dir + "/" + file_name
+	if FileAccess.file_exists(path):
+		return
+	save_path = path
+	reset()
+	world_name = name
+	if apply.is_valid():
+		apply.call()
+	world_name = name
+	save_game()
+
+
+## Preset "a metà partita": peschereccio, qualche upgrade, cannone base,
+## radar, un paio di edifici a Bova e un gruzzolo modesto. Un punto di
+## partenza credibile a mezza progressione, senza doverci arrivare giocando.
+func _apply_mid_preset() -> void:
+	tutorial_step = TUTORIAL_DONE
+	grandson_quest = GrandsonQuest.DONE
+	radar_unlocked = true
+	race_wins = 1
+	money = 30000
+	buy_boat(&"fishing_boat")
+	for i in 2:
+		buy_upgrade(UpgradeType.MOTOR)
+	buy_upgrade(UpgradeType.HULL)
+	buy_upgrade(UpgradeType.CARGO)
+	buy_cannon()
+	buy_fishing_gear(FishingGear.ROD)
+	buy_radar_upgrade(RadarUpgrade.RANGE)
+	Town.build(&"molo", &"molo_grande")
+	Town.build(&"lungomare", &"conserva")
+	money = 2200
+	hull = hull_max()
+	fuel = fuel_capacity()
+
+
+## Percorso libero per un mondo nuovo, dal nome: minuscole e trattini
+## (es. "La mia baia" -> la-mia-baia.json), con suffisso se già preso.
+func _unique_world_path(name: String) -> String:
+	var slug := ""
+	for character in name.to_lower():
+		if character.is_valid_identifier() or character.is_valid_int():
+			slug += character
+		elif not slug.ends_with("-"):
+			slug += "-"
+	slug = slug.strip_edges().trim_prefix("-").trim_suffix("-")
+	if slug == "":
+		slug = "mondo"
+	var path := worlds_dir + "/" + slug + ".json"
+	var attempt := 2
+	while FileAccess.file_exists(path):
+		path = worlds_dir + "/" + slug + "-" + str(attempt) + ".json"
+		attempt += 1
+	return path

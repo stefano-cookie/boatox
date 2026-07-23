@@ -31,6 +31,7 @@ Obiettivo: il "loop completo in piccolo" del GDD, giocabile da un estraneo dall'
 	- 6 vernici (tinta scafo + rifinitura, per barca, salvate) e 3 accessori (bandiera, parabordi, luci di cortesia) come nodi montati dal codice (`scripts/boat_customization.gd`). Prezzi alti (400–600 $ le vernici): è il pozzo dell'economia (GDD pillar 3). Shop "Vernici e accessori" nel cantiere, anteprima live passando col mouse sulla vernice.
 - [x] **Menu principale e impostazioni complete** (pausa base fatta in M1)
 	- Title sopra la baia viva (stessa scena di gioco in pausa, niente scena separata); pannello impostazioni condiviso title/pausa: master/musica/sfx, sensibilità mouse (moltiplicatore 0.3–2×), schermo intero persistito, azzeramento salvataggio con doppia conferma. Tutto in `user://settings.cfg` via l'Audio autoload.
+	- *Esteso il 23/07/2026 (richiesta di Stefano)*: menu **"i mondi"** stile Minecraft — Continua (mondo più recente), Nuova partita (nome libero), lista mondi con salpa/elimina (doppia conferma), Impostazioni, Esci. Ogni mondo è un file in `user://worlds/` (nome, data, riassunto della partita in lista); il salvataggio unico pre-mondi migra da solo come "Bova Marina" (l'originale resta come scorta). L'azzeramento ora azzera il mondo corrente mantenendone il nome. Test headless `tests/menu_worlds.tscn`. *Da verificare in gioco: leggibilità delle righe mondo, focus/navigazione con le frecce, il doppio caricamento su Continua (ricarica la scena: se pesa, si ottimizza).*
 - [x] **Audio: rifiniture**
 	- Slider master e sensibilità mouse accanto ai volumi esistenti: fatti (vedi sopra). Eventuali tracce registrate CC0 al posto delle procedurali solo se il gusto lo chiede (decisione da playtest).
 - [ ] **Verifiche playtest arretrate** (accumulate nei "da verificare in gioco")
@@ -67,7 +68,7 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 | Difesa di Bova | **Tempo reale con preavviso**: allarme → l'attacco arriva dopo X minuti → puoi rientrare a difendere; le difese costruite combattono comunque |
 | Attività alpha | **Si automatizzano**: flottiglie di pesca/raccolta passive sbloccate dalla crescita di Bova; il giocatore fa azione, la base genera economia |
 | Costruzione | **Slot predefiniti** disegnati a mano su costa e isole: scegli cosa costruire lì, non dove — la baia resta bella e leggibile |
-| Città lontane | **2 nella beta**: una a vocazione commerciale, una ostile/aggressiva (gli archi accordo e guerra esistono entrambi col minimo scope) |
+| Città lontane | **2 nella beta**, coste modellate (non isolotti): **Catania** a sud-ovest (vicina) e **Il Cairo** a sud-est (lontana), **entrambe ostili all'inizio** (deciso il 23/07/2026): la diplomazia le apre. Scali di rifornimento neutrali riempiono la traversata |
 | Diplomazia | **Solo col giocatore**: relazione per città (estende la reputazione dell'alpha); le rivalità tra città sono raccontate, non simulate |
 | Fine beta | **Doppio traguardo**: Bova al massimo splendore E ogni città risolta (alleata o sottomessa) |
 
@@ -114,6 +115,10 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 ## B3 — Difendere casa
 
+*Rimandata dopo la prima tranche di B4 (deciso il 23/07/2026). Direzione di design fissata col feedback di Stefano, da definire insieme prima di partire:*
+- *Niente cartelli svolazzanti sugli slot e niente costruzione dispersa nel pannello porto (oggi è difficile da capire): serve un luogo dedicato, un **arsenale**, con una **mappa di Bova** su cui scegliere e piazzare le difese, che poi appaiono nel mondo reale.*
+- *Catalogo difese da definire insieme: cannone/batteria costiera, un sistema di **scogli/ostacoli** che danneggiano le navi nemiche in rotta, torre d'avvistamento, pattuglia… (sessione di design con Stefano prima di scrivere codice).*
+
 - [ ] **Difese costruibili** negli slot: torre d'avvistamento (allunga il preavviso), batteria costiera (spara con `Weapon`), pattuglia (nave `Vessel` alleata in rada)
 - [ ] **Attacchi dei predoni**: allarme (campana + HUD + marker minimappa) → i predoni arrivano dopo X minuti → le difese combattono da sole, il giocatore può rientrare e fare la differenza
 - [ ] Se l'attacco riesce: **razzia** — prosperità e magazzino calano, nessun game over (la progressione non si cancella, come per l'affondamento)
@@ -122,13 +127,21 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 ## B4 — Il mare grande e le due città
 
-- [ ] **Allargamento della mappa**: mare continuo molto più vasto (la baia di Bova resta il cuore dettagliato); il viaggio lungo è gioco vero — carburante, celle di vento, incontri; verifiche performance (LOD, streaming dei chunk se serve)
+*Prima tranche fatta (23/07/2026): la mappa grande con le due città come approdi minimi.*
+
+*Seconda tranche fatta (23/07/2026, feedback di Stefano "il mare è vuoto, le città sono isolette"): le due città rifatte come **coste modellate** (city.gd) e rinominate **Catania** (sud-ovest, vicina) e **Il Cairo** (sud-est, lontana), **entrambe ostili** dal primo giorno (porti chiusi, predoni in rada). Aggiunti **scali di rifornimento** neutrali in mezzo al mare (`scenes/world/supply_island.gd`: vendi/ripara/rifornisci, fazione "franco") e densificata la traversata (mercantili+predoni 3+2, taniche/boe 20/16, campi di scogli-landmark). Tre mondi di prova nel menu (Da zero / A metà / Maxato, `seed_demo_worlds`). MAX_HARBORS 4→8 per le rade in più. Test `tests/b4_world.tscn` aggiornato e verde. Restano: diplomazia attiva, commercio, guerra.*
+
+- [x] **Allargamento della mappa**: mare continuo molto più vasto (la baia di Bova resta il cuore dettagliato); il viaggio lungo è gioco vero — carburante, celle di vento, incontri; verifiche performance (LOD, streaming dei chunk se serve)
+	- Mondo 5200×4000 m (era 900×700): le città a ~3,8 km da Bova, 3-4 minuti a tutto gas col Cabinato. Baia invariata (`bay_depth`: boe, pesca e navi di casa restano lì). Piano mare che segue libero oltre la baia; celle di vento fino a 12, più larghe, su tutta la traversata; taniche e boe blu sparse sulla rotta; eventi casuali attivi ovunque oltre le acque calme. Direttori navali per zona: baia (2+2), traversata (3+2, densificata nella seconda tranche), acque di Catania e Il Cairo (2 predoni ciascuna, entrambe ostili). Performance: `visibility_range_end` sui props procedurali di costa e città (niente LOD/streaming: basta così, low-poly). Minimappa rifatta: compatta = vista locale che segue la barca (porti fuori vista appiccicati al bordo nella loro direzione), M = carta nautica del mondo con nomi e distanze. Test headless `tests/b4_world.tscn`.
 - [ ] **Due città lontane**, ognuna con costa modellata, porto, flotta e personalità: una **commerciale** (accordi, prezzi migliori per le tue merci, missioni), una **ostile** (predoni al suo soldo, razzie, blocchi navali)
+	- *Fatto (seconda tranche, 23/07/2026)*: **Catania** (sud-ovest, vicina; costa mediterranea verde, monte scuro) e **Il Cairo** (sud-est, lontana; capitale desertica, sabbia e dune), **entrambe ostili** dal primo giorno (porti chiusi in faccia, torre di guardia, predoni di pattuglia in rada, reputazione iniziale -40). Non più isolotti ma **coste modellate** (`scenes/world/city.gd`: spiaggia che entra in acqua, paese, colline/monti nella foschia, due promontori che chiudono la rada). Rada = cerchio d'acqua calma condiviso da mare CPU e shader. **Scali di rifornimento** neutrali sulla traversata (`scenes/world/supply_island.gd`, fazione "franco"): l'unico approdo amico ora che le città sono ostili. *Restano*: diplomazia attiva, accordi/prezzi/missioni, razzie e blocchi.
 - [ ] **Diplomazia solo col giocatore**: relazione -100..+100 per città (estende la reputazione di A1); predare le sue navi la peggiora, missioni e accordi la migliorano; soglie leggibili (alleata / neutrale / ostile / in guerra)
+	- *Predisposto*: fazioni `catania`/`cairo` in GameState (relazioni iniziali -40 in `FACTION_START_REP`, salvate e retrocompatibili), navi delle città marchiate con la fazione, `Diplomacy` già a soglie. *Resta*: far muovere la relazione da predazioni/missioni/accordi e mostrarla.
 - [ ] **Commercio**: accordi che aprono rotte automatizzate (le tue navi mercantili viaggiano visibili sulla rotta e rendono passivamente — e sono attaccabili: da difendere o scortare)
 - [ ] **Guerra**: attaccare il porto nemico (difese sue speculari alle tue), rappresaglie su Bova, fino alla sottomissione (tributo o cessate il fuoco)
 - [ ] **Criterio di uscita**: scegliere tra la via del mercante e quella del corsaro cambia davvero la partita
 - [ ] *Le città interagiscono solo col giocatore nella beta; simulazione città-vs-città in BACKLOG*
+- [ ] *Da verificare in gioco (prima tranche)*: durata e noia della traversata (distanza città, `compact_span` della minimappa); consumo carburante sul viaggio (il gommone non ce la fa andata e ritorno: giusto così?); frequenza/forza di celle di vento e danni tempesta in mare aperto; leggibilità della carta nautica (M) e dei porti al bordo della vista locale; l'arrivo in città (la nebbia a 650 m nasconde la costa fino all'ultimo: serve un faro/landmark visibile prima?); tono dei due porti ostili (flavor text) e dei predoni di pattuglia; **la leggibilità delle coste modellate di Catania e Il Cairo** e delle personalità cromatiche; **gli scali di rifornimento** (posizione lungo la rotta, che si capisca che lì si vende/rifornisce); **densità della traversata** (ora troppa/troppo poca?); i tre mondi di prova nel menu.
 
 ## B5 — Chiusura beta
 

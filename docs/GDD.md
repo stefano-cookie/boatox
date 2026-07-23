@@ -99,12 +99,13 @@ Terza persona stile GTA: dietro e sopra la barca, inclinata verso il basso — s
 
 Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar di tutto. Le attività dell'alpha (pesca, boe) si **automatizzano** con la crescita di Bova — flottiglie che lavorano per te — e il giocatore sale di ruolo: da pescatore a comandante. I tre pillars restano validi e decidono anche qui. Riferimenti: Dave the Diver (loop azione + meta gestionale), Sid Meier's Pirates! (preda e diplomazia), il feedback visivo dei city builder.
 
-**Tono**: fantasia leggera stilizzata — fazioni immaginarie (predoni, mercanti, città rivali), nessun aggancio storico o contemporaneo sensibile. Arcade spensierato.
+**Tono**: fantasia leggera stilizzata, arcade spensierato — nello spirito di un Risiko. Le fazioni di mare (predoni, mercanti) restano immaginarie; le due città lontane portano nomi reali di piazze mediterranee — **Catania** e **Il Cairo** — scelta di Stefano (23/07/2026): con questa grafica stilizzata sono caselle di gioco, non un aggancio politico. Nessuna pretesa storica o realistica: è mare da tavolo.
 
 ### Il mondo
 
-- **Mappa unica allargata**: un solo mare continuo, molto più vasto; la baia di Bova resta il cuore dettagliato. Le città sono fisicamente lontane e ci si naviga in tempo reale: il viaggio è gioco (carburante, celle di vento, incontri), non uno schermo di caricamento.
-- **Due città lontane**, ognuna con costa, porto, flotta e personalità: una **commerciale** (accordi, prezzi migliori, missioni), una **ostile** (predoni al suo soldo, razzie, blocchi navali).
+- **Mappa unica allargata**: un solo mare continuo, molto più vasto; la baia di Bova resta il cuore dettagliato. Le città sono fisicamente lontane (3-4 minuti a tutto gas con la barca veloce, deciso il 23/07/2026) e ci si naviga in tempo reale: il viaggio è gioco (carburante, celle di vento, incontri), non uno schermo di caricamento.
+- **Due città-costa lontane** a sud del mare grande — coste modellate, non isolotti (feedback di Stefano, 23/07/2026): spiaggia che entra in acqua, paese addossato al porto, colline e monti nella foschia, due promontori che chiudono la rada. **Catania** a sud-ovest, più vicina (clima mediterraneo, verde, monte scuro sul fondo); **Il Cairo** a sud-est, molto più lontana (capitale desertica, sabbia e dune pallide). **Entrambe ostili dal primo giorno** (deciso il 23/07/2026): porti chiusi in faccia, torre di guardia, predoni al loro soldo di pattuglia in rada. La diplomazia della beta serve ad aprirle — non partono amiche. Ogni rada è un cerchio d'acqua calma: attraccare non è mai una lotteria.
+- **Scali di rifornimento** neutrali in mezzo al mare: isolette con un piccolo scalo franco (vendi, ripara, fai il pieno; niente cantiere). Con le due città ostili sono l'unico approdo amico della traversata — svuoti la stiva del bottino e riparti col pieno senza tornare a casa. Danno senso e respiro al lungo viaggio (riempiono il vuoto del mare aperto).
 
 ### Combattimento navale
 
@@ -126,7 +127,7 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 ### Diplomazia, commercio, guerra
 
-- **Relazione solo col giocatore**, -100..+100 per città (estende la reputazione dell'alpha); soglie leggibili: alleata / neutrale / ostile / in guerra. Le rivalità tra città sono raccontate, non simulate.
+- **Relazione solo col giocatore**, -100..+100 per città (estende la reputazione dell'alpha); soglie leggibili: alleata / neutrale / ostile / in guerra. Entrambe le città partono ostili (-40): la relazione si guadagna, non si eredita. Le rivalità tra città sono raccontate, non simulate.
 - **Via del mercante**: accordi che aprono rotte automatizzate — le tue navi viaggiano visibili e rendono passivamente, ma sono attaccabili: da difendere o scortare.
 - **Via del corsaro**: predare peggiora la relazione, fino alla guerra aperta — attaccare il porto nemico, subire rappresaglie, imporre la sottomissione (tributo o cessate il fuoco).
 - Le due vie devono cambiare davvero la partita: è il criterio di uscita della beta.

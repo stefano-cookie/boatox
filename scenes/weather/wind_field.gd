@@ -9,9 +9,11 @@ extends Node
 ## sea.gdshader (wind_cells) va tenuta allineata.
 
 ## Numero di celle gestite (lo shader ne accetta al massimo MAX_CELLS).
-@export_range(1, 6) var cell_count: int = 5
-@export var radius_min: float = 100.0
-@export var radius_max: float = 200.0
+@export_range(1, 12) var cell_count: int = 10
+## Sul mare grande le celle sono più larghe: da schivare con una virata
+## vera, non con un colpo di timone.
+@export var radius_min: float = 120.0
+@export var radius_max: float = 320.0
 ## Moltiplicatore extra di agitazione al centro di una cella a intensità 1.
 @export var strength: float = 0.9
 ## Velocità di deriva del centro cella, in m/s.
@@ -26,15 +28,17 @@ extends Node
 
 @export_group("Area (coordinate mondo)")
 ## Le celle vivono solo al largo: coi raggi massimi il loro bordo non
-## tocca mai le acque calme (costa = sicurezza, GDD pillar 2).
-@export var area_half_width: float = 380.0
+## tocca mai le acque calme (costa = sicurezza, GDD pillar 2). Dal mare
+## grande di B4 l'area copre tutta la traversata verso le due città —
+## le rade cittadine spengono comunque le celle che ci finiscono sopra.
+@export var area_half_width: float = 2300.0
 @export var area_z_min: float = 200.0
-@export var area_z_max: float = 520.0
+@export var area_z_max: float = 3400.0
 
 ## Quota del raggio dove il falloff inizia a scendere (come nello shader).
 const FALLOFF_INNER: float = 0.35
 ## Tetto dell'array di celle nello shader del mare.
-const MAX_CELLS: int = 6
+const MAX_CELLS: int = 12
 
 ## Una voce per cella: pos (Vector2 xz), radius, intensity, target,
 ## timer, drift (Vector2).

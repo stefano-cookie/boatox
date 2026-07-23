@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/world/island.tscn" id="2"]
@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/town/build_slot.tscn" id="7"]
 [ext_resource type="Script" path="res://scenes/town/town_growth.gd" id="8"]
 [ext_resource type="Script" path="res://scenes/town/fleet.gd" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/world/city.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/world/supply_island.tscn" id="11"]
 
 [node name="World" type="Node3D"]
 script = ExtResource("1")
@@ -73,6 +75,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 300, 0, 300)
 [node name="FieldFarSouth" type="Marker3D" parent="RockFields"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 0, 500)
 
+[node name="FieldCrossingWest" type="Marker3D" parent="RockFields"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -820, 0, 1150)
+
+[node name="FieldCrossingMid" type="Marker3D" parent="RockFields"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120, 0, 1780)
+
+[node name="FieldCrossingEast" type="Marker3D" parent="RockFields"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 940, 0, 1520)
+
+[node name="FieldNearCatania" type="Marker3D" parent="RockFields"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1280, 0, 2160)
+
+[node name="FieldNearCairo" type="Marker3D" parent="RockFields"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1520, 0, 3040)
+
 [node name="Port" parent="." instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -138)
 
@@ -88,6 +105,130 @@ service_tackle = false
 service_missions = false
 service_town = false
 is_delivery_target = true
+
+[node name="Cities" type="Node3D" parent="."]
+
+[node name="Catania" parent="Cities" instance=ExtResource("10")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1650, 0, 2500)
+display_name = "Catania"
+build_seed = 41
+harbor_radius = 190.0
+island_radius = 120.0
+coast_width = 860.0
+house_count = 26
+tree_count = 20
+wall_color = Color(0.94, 0.91, 0.84, 1)
+roof_color = Color(0.72, 0.36, 0.24, 1)
+sand_color = Color(0.88, 0.8, 0.6, 1)
+veg_color = Color(0.5, 0.56, 0.34, 1)
+mountain_color = Color(0.34, 0.36, 0.4, 1)
+
+[node name="Cairo" parent="Cities" instance=ExtResource("10")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1950, 0, 3550)
+display_name = "Il Cairo"
+build_seed = 87
+harbor_radius = 220.0
+island_radius = 150.0
+coast_width = 1040.0
+house_count = 34
+tree_count = 7
+hill_count = 14
+mountain_count = 18
+wall_color = Color(0.86, 0.78, 0.6, 1)
+roof_color = Color(0.7, 0.6, 0.42, 1)
+sand_color = Color(0.9, 0.84, 0.66, 1)
+veg_color = Color(0.62, 0.6, 0.4, 1)
+mountain_color = Color(0.78, 0.68, 0.5, 1)
+
+[node name="IsolaCatania1" parent="Cities" instance=ExtResource("2")]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, -1420, 0, 2340)
+
+[node name="IsolaCatania2" parent="Cities" instance=ExtResource("2")]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, -1930, 0, 2400)
+
+[node name="IsolaCairo1" parent="Cities" instance=ExtResource("2")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 1660, 0, 3360)
+
+[node name="IsolaCairo2" parent="Cities" instance=ExtResource("2")]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 2260, 0, 3420)
+
+[node name="PortCatania" parent="." instance=ExtResource("3")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1650, 0, 2432)
+port_display_name = "CATANIA"
+map_label = "Catania"
+faction = &"catania"
+flavor_text = "Catania non apre il porto agli sconosciuti: pattuglie in rada, mercato sbarrato. Servirà tempo — o forza."
+service_sell = false
+service_repair = false
+service_refuel = false
+service_shipyard = false
+service_tackle = false
+service_missions = false
+service_town = false
+
+[node name="PortCairo" parent="." instance=ExtResource("3")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1950, 0, 3482)
+port_display_name = "IL CAIRO"
+map_label = "Il Cairo"
+faction = &"cairo"
+flavor_text = "Il Cairo, capitale lontana e diffidente. Il suo porto ti è chiuso in faccia — per ora."
+service_sell = false
+service_repair = false
+service_refuel = false
+service_shipyard = false
+service_tackle = false
+service_missions = false
+service_town = false
+
+[node name="SupplyIslands" type="Node3D" parent="."]
+
+[node name="ScaloPonente" parent="SupplyIslands" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -950, 0, 1900)
+display_name = "Scalo Ponente"
+build_seed = 5
+
+[node name="ScaloMezzo" parent="SupplyIslands" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 200, 0, 1350)
+display_name = "Scalo di Mezzo"
+build_seed = 11
+
+[node name="ScaloLevante" parent="SupplyIslands" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1150, 0, 2650)
+display_name = "Scalo Levante"
+build_seed = 23
+
+[node name="PortPonente" parent="." instance=ExtResource("3")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -950, 0, 1852)
+port_display_name = "SCALO PONENTE"
+map_label = "Scalo Ponente"
+faction = &"franco"
+flavor_text = "Scalo franco: si vende, si ripara e si fa il pieno. Nessuno fa domande."
+service_shipyard = false
+service_tackle = false
+service_missions = false
+service_town = false
+
+[node name="PortMezzo" parent="." instance=ExtResource("3")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 200, 0, 1302)
+port_display_name = "SCALO DI MEZZO"
+map_label = "Scalo di Mezzo"
+faction = &"franco"
+flavor_text = "Scalo franco: si vende, si ripara e si fa il pieno. Nessuno fa domande."
+service_shipyard = false
+service_tackle = false
+service_missions = false
+service_town = false
+
+[node name="PortLevante" parent="." instance=ExtResource("3")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1150, 0, 2602)
+port_display_name = "SCALO LEVANTE"
+map_label = "Scalo Levante"
+faction = &"franco"
+flavor_text = "Scalo franco: si vende, si ripara e si fa il pieno. Nessuno fa domande."
+service_shipyard = false
+service_tackle = false
+service_missions = false
+service_town = false
 
 [node name="TownGrowth" type="Node3D" parent="."]
 script = ExtResource("8")

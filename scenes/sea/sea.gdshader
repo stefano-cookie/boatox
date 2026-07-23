@@ -28,8 +28,12 @@ uniform float shore_min_multiplier = 0.25;
 uniform float weather_mult = 1.0;
 // Celle di vento del WindField: xy = centro, z = raggio, w = intensità.
 // Falloff identico a WindField.wind_multiplier (le copie vanno allineate).
-uniform vec4 wind_cells[6];
+uniform vec4 wind_cells[12];
 uniform float wind_strength = 0.9;
+// Rade calme delle città lontane (roadmap B4): xy = centro, z = raggio,
+// w = attiva. Dentro una rada il mare torna alle acque calme, meteo e
+// vento compresi. Falloff identico a Sea.harbor_calm01.
+uniform vec4 harbor_calms[8];
 
 float sea_state(vec2 p) {
 	float d = p.y - shore_z;
@@ -41,7 +45,7 @@ float sea_state(vec2 p) {
 		smoothstep(medium_width - zone_blend * 0.5, medium_width + zone_blend * 0.5, d));
 	m *= mix(shore_min_multiplier, 1.0, smoothstep(0.0, shore_lap_distance, d));
 	float wind = 0.0;
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 12; i++) {
 		float r = wind_cells[i].z;
 		if (wind_cells[i].w <= 0.0 || r <= 0.0) {
 			continue;
@@ -50,7 +54,15 @@ float sea_state(vec2 p) {
 		wind += wind_cells[i].w * fall;
 	}
 	m *= 1.0 + wind_strength * wind;
-	return m * weather_mult;
+	float harbor = 0.0;
+	for (int i = 0; i < 8; i++) {
+		float r = harbor_calms[i].z;
+		if (harbor_calms[i].w <= 0.0 || r <= 0.0) {
+			continue;
+		}
+		harbor = max(harbor, 1.0 - smoothstep(r * 0.45, r, distance(p, harbor_calms[i].xy)));
+	}
+	return mix(m * weather_mult, zone_amps.x, harbor);
 }
 
 uniform vec3 deep_color : source_color = vec3(0.02, 0.15, 0.28);

@@ -1,11 +1,13 @@
 class_name Minimap
 extends Control
 
-## Minimappa schematica della baia: fasce di mare, costa, porto, isole,
-## scogli, boe e taniche presenti in acqua, freccia della barca. Compatta
-## in basso a sinistra, il tasto M (azione "toggle_map") la espande al
-## centro con la legenda. Tutto disegnato in _draw leggendo Sea e World:
-## niente seconda viewport, costo minimo.
+## Minimappa schematica del mare (dal B4 non più solo la baia): fasce,
+## costa, porti, città lontane con le loro rade, isole, scogli, boe e
+## taniche, freccia della barca. Compatta in basso a sinistra è una
+## vista locale che segue la barca (mezzo chilometro abbondante); il
+## tasto M (azione "toggle_map") apre la carta nautica dell'intero mondo
+## con nomi, distanze e legenda. Tutto disegnato in _draw leggendo Sea e
+## World: niente seconda viewport, costo minimo.
 
 ## Terra mostrata sopra la linea di costa, in metri di mondo.
 const LAND_DEPTH: float = 45.0
@@ -39,6 +41,9 @@ const MISSION_COLOR := Color(1.0, 0.8, 0.3)
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
 @export var small_height: float = 190.0
 @export_range(0.1, 1.0) var expanded_height_ratio: float = 0.72
+## Lato della vista locale compatta, in metri di mondo: quanto mare si
+## vede intorno alla barca durante la navigazione.
+@export var compact_span: float = 720.0
 
 var _boat: Boat
 var _sea: Sea
@@ -49,6 +54,9 @@ var _panel_style: StyleBoxFlat
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# La vista locale scorre col mondo: ciò che esce dalla finestra va
+	# tagliato, non spalmato sull'HUD.
+	clip_contents = true
 	_panel_style = StyleBoxFlat.new()
 	_panel_style.bg_color = Color(0.06, 0.1, 0.16, 0.85)
 	_panel_style.border_color = Color(0.45, 0.65, 0.85, 0.35)
@@ -83,17 +91,24 @@ func is_expanded() -> bool:
 
 # --- Layout ------------------------------------------------------------------
 
-## Larghezza e profondità del mondo mappato (baia + striscia di terra).
-func _world_size() -> Vector2:
+## Finestra di mondo mostrata, in coordinate mondo (x, z). Compatta:
+## quadrato centrato sulla barca. Espansa: tutto il mare giocabile più la
+## striscia di terra a nord — la carta nautica del viaggio (roadmap B4).
+func _view_rect() -> Rect2:
+	if not _expanded and _boat != null:
+		var pos := _boat.global_position
+		return Rect2(pos.x - compact_span * 0.5, pos.z - compact_span * 0.5,
+			compact_span, compact_span)
 	var half_width := _world.bounds_half_width if _world != null else 330.0
 	var depth := _world.bounds_depth if _world != null else 340.0
-	return Vector2(half_width * 2.0, depth + LAND_DEPTH)
+	var shore := _sea.shore_z if _sea != null else -140.0
+	return Rect2(-half_width, shore - LAND_DEPTH, half_width * 2.0, depth + LAND_DEPTH)
 
 
 func _apply_layout() -> void:
 	var vp := get_viewport_rect().size
-	var world_size := _world_size()
-	var aspect := world_size.x / world_size.y
+	var view := _view_rect()
+	var aspect := view.size.x / view.size.y
 	var h := vp.y * expanded_height_ratio if _expanded else small_height
 	var w := h * aspect
 	if w > vp.x * 0.9:
@@ -107,15 +122,27 @@ func _apply_layout() -> void:
 
 
 func _to_map(rect: Rect2, world_pos: Vector3) -> Vector2:
-	var ws := _world_size()
-	var u := (world_pos.x + ws.x * 0.5) / ws.x
-	var v := (world_pos.z - (_sea.shore_z - LAND_DEPTH)) / ws.y
+	var view := _view_rect()
+	var u := (world_pos.x - view.position.x) / view.size.x
+	var v := (world_pos.z - view.position.y) / view.size.y
 	return rect.position + Vector2(u, v) * rect.size
 
 
 ## Metri di mondo -> pixel di mappa (la scala è uniforme sui due assi).
 func _px(rect: Rect2, meters: float) -> float:
-	return meters * rect.size.x / _world_size().x
+	return meters * rect.size.x / _view_rect().size.x
+
+
+## Vero se il punto (con margine in metri) cade nella finestra corrente:
+## per saltare il disegno di ciò che sta a chilometri dalla vista.
+func _in_view(world_pos: Vector3, margin: float = 0.0) -> bool:
+	return _view_rect().grow(margin).has_point(Vector2(world_pos.x, world_pos.z))
+
+
+## Blocca un punto mappa dentro la cornice: i marker di missione e i
+## porti fuori vista restano appiccicati al bordo, nella loro direzione.
+func _clamp_to_rect(rect: Rect2, p: Vector2, margin: float = 6.0) -> Vector2:
+	return p.clamp(rect.position + Vector2(margin, margin), rect.end - Vector2(margin, margin))
 
 
 # --- Disegno -----------------------------------------------------------------
@@ -126,6 +153,7 @@ func _draw() -> void:
 	draw_style_box(_panel_style, Rect2(Vector2.ZERO, size))
 	var rect := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
 	_draw_bands(rect)
+	_draw_harbors(rect)
 	_draw_wind_cells(rect)
 	_draw_bounds(rect)
 	_draw_rocks(rect)
@@ -146,19 +174,46 @@ func _draw() -> void:
 		_draw_badge(rect)
 
 
-## Terra in alto, poi le tre fasce di mare parallele alla costa.
+## Striscia orizzontale [y0, y1] tagliata sulla cornice: le fasce si
+## disegnano solo per la parte che cade nella finestra corrente.
+func _fill_hband(rect: Rect2, y0: float, y1: float, color: Color) -> void:
+	var top := maxf(y0, rect.position.y)
+	var bottom := minf(y1, rect.end.y)
+	if bottom > top:
+		draw_rect(Rect2(rect.position.x, top, rect.size.x, bottom - top), color)
+
+
+## Mare aperto come fondo, poi le fasce sotto costa e la terra in alto —
+## quello che ne entra nella finestra corrente.
 func _draw_bands(rect: Rect2) -> void:
+	draw_rect(rect, ROUGH_COLOR)
+	var land_y := _to_map(rect, Vector3(0, 0, _sea.shore_z - LAND_DEPTH)).y
 	var shore_y := _to_map(rect, Vector3(0, 0, _sea.shore_z)).y
 	var calm_y := _to_map(rect, Vector3(0, 0, _sea.shore_z + _sea.calm_width)).y
 	var medium_y := _to_map(rect, Vector3(0, 0, _sea.shore_z + _sea.medium_width)).y
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x, shore_y - rect.position.y)), LAND_COLOR)
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x, (shore_y - rect.position.y) * 0.4)), HILLS_COLOR)
-	draw_rect(Rect2(Vector2(rect.position.x, shore_y), Vector2(rect.size.x, calm_y - shore_y)), CALM_COLOR)
-	draw_rect(Rect2(Vector2(rect.position.x, calm_y), Vector2(rect.size.x, medium_y - calm_y)), MEDIUM_COLOR)
-	draw_rect(Rect2(Vector2(rect.position.x, medium_y), Vector2(rect.size.x, rect.end.y - medium_y)), ROUGH_COLOR)
+	_fill_hband(rect, calm_y, medium_y, MEDIUM_COLOR)
+	_fill_hband(rect, shore_y, calm_y, CALM_COLOR)
+	_fill_hband(rect, rect.position.y, shore_y, LAND_COLOR)
+	_fill_hband(rect, land_y, land_y + (shore_y - land_y) * 0.4, HILLS_COLOR)
 	var separator := Color(1, 1, 1, 0.12)
-	draw_line(Vector2(rect.position.x, calm_y), Vector2(rect.end.x, calm_y), separator, 1.0)
-	draw_line(Vector2(rect.position.x, medium_y), Vector2(rect.end.x, medium_y), separator, 1.0)
+	if calm_y > rect.position.y and calm_y < rect.end.y:
+		draw_line(Vector2(rect.position.x, calm_y), Vector2(rect.end.x, calm_y), separator, 1.0)
+	if medium_y > rect.position.y and medium_y < rect.end.y:
+		draw_line(Vector2(rect.position.x, medium_y), Vector2(rect.end.x, medium_y), separator, 1.0)
+
+
+## Le città lontane (roadmap B4): la macchia d'acqua calma della rada e
+## la sagoma dell'isola. Il nome lo mette il porto (stessa posizione).
+func _draw_harbors(rect: Rect2) -> void:
+	for node in get_tree().get_nodes_in_group(&"cities"):
+		var city := node as City
+		if city == null or not _in_view(city.global_position, city.harbor_radius + 50.0):
+			continue
+		var center := _to_map(rect, city.global_position)
+		var harbor_px := _px(rect, city.harbor_radius)
+		draw_circle(center, harbor_px, Color(CALM_COLOR, 0.55))
+		draw_arc(center, harbor_px, 0.0, TAU, 32, Color(CALM_COLOR, 0.9), 1.5)
+		draw_circle(center, maxf(_px(rect, city.island_radius), 3.0), ISLAND_COLOR)
 
 
 ## Celle di vento attive come macchie scure sul mare (feedback playtest
@@ -168,7 +223,7 @@ func _draw_wind_cells(rect: Rect2) -> void:
 	if field == null:
 		return
 	for cell in field.cells_packed():
-		if cell.w < 0.15:
+		if cell.w < 0.15 or not _in_view(Vector3(cell.x, 0.0, cell.y), cell.z):
 			continue
 		var center := _to_map(rect, Vector3(cell.x, 0.0, cell.y))
 		var radius := _px(rect, cell.z)
@@ -179,26 +234,33 @@ func _draw_wind_cells(rect: Rect2) -> void:
 ## Bordo rosso sui lati di mare aperto: oltre scatta il countdown.
 func _draw_bounds(rect: Rect2) -> void:
 	var shore_y := _to_map(rect, Vector3(0, 0, _sea.shore_z)).y
+	var left_x := _to_map(rect, Vector3(-_world.bounds_half_width, 0, 0)).x
+	var right_x := _to_map(rect, Vector3(_world.bounds_half_width, 0, 0)).x
+	var bottom_y := _to_map(rect, Vector3(0, 0, _sea.shore_z + _world.bounds_depth)).y
 	var width := 2.0
-	draw_line(Vector2(rect.position.x + 1, shore_y), Vector2(rect.position.x + 1, rect.end.y), BOUNDS_COLOR, width)
-	draw_line(Vector2(rect.end.x - 1, shore_y), Vector2(rect.end.x - 1, rect.end.y), BOUNDS_COLOR, width)
-	draw_line(Vector2(rect.position.x + 1, rect.end.y - 1), Vector2(rect.end.x - 1, rect.end.y - 1), BOUNDS_COLOR, width)
+	draw_line(Vector2(left_x, maxf(shore_y, rect.position.y)), Vector2(left_x, bottom_y), BOUNDS_COLOR, width)
+	draw_line(Vector2(right_x, maxf(shore_y, rect.position.y)), Vector2(right_x, bottom_y), BOUNDS_COLOR, width)
+	draw_line(Vector2(left_x, bottom_y), Vector2(right_x, bottom_y), BOUNDS_COLOR, width)
 
 
 func _draw_rocks(rect: Rect2) -> void:
 	var radius := maxf(_px(rect, 2.5), 1.5)
 	for pos in _world.map_rocks():
-		draw_circle(_to_map(rect, pos), radius, ROCK_COLOR)
+		if _in_view(pos, 10.0):
+			draw_circle(_to_map(rect, pos), radius, ROCK_COLOR)
 
 
 func _draw_islands(rect: Rect2) -> void:
 	for island: Node3D in _world.map_islands():
+		if not _in_view(island.global_position, 30.0):
+			continue
 		var radius := maxf(_px(rect, 13.0 * island.scale.x), 3.0)
 		draw_circle(_to_map(rect, island.global_position), radius, ISLAND_COLOR)
 
 
-## Tutti i porti del gruppo (principale + approdo secondario di A1), con
-## l'etichetta breve del Port parametrico.
+## Tutti i porti del gruppo, con l'etichetta breve del Port parametrico e
+## la distanza sulla carta espansa. Nella vista locale i porti fuori
+## finestra restano al bordo, nella loro direzione: la bussola del viaggio.
 func _draw_port(rect: Rect2) -> void:
 	var s := 8.0 if _expanded else 5.0
 	for node in get_tree().get_nodes_in_group(&"ports"):
@@ -206,9 +268,17 @@ func _draw_port(rect: Rect2) -> void:
 		if port == null:
 			continue
 		var p := _to_map(rect, port.global_position)
+		if not _expanded and not _in_view(port.global_position):
+			p = _clamp_to_rect(rect, p)
+			_draw_diamond(p, s * 0.8, Color(PORT_COLOR, 0.8))
+			continue
 		_draw_diamond(p, s, PORT_COLOR)
 		if _expanded:
-			draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), port.map_label,
+			var km := port.global_position.distance_to(_boat.global_position) / 1000.0
+			var label := port.map_label
+			if km >= 0.25:
+				label += " · %.1f km" % km
+			draw_string(ThemeDB.fallback_font, p + Vector2(12.0, 5.0), label,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 
 
@@ -221,16 +291,17 @@ func _draw_fishing_zones(rect: Rect2) -> void:
 		var zone := node as FishingZone
 		if zone == null or zone.is_resting() or not _radar_reveals(zone.global_position):
 			continue
-		draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
+		if _in_view(zone.global_position, 20.0):
+			draw_arc(_to_map(rect, zone.global_position), radius, 0.0, TAU, 20, FISHING_COLOR, 2.0)
 
 
 ## Vero se un impulso radar è attivo e il punto cade nel suo raggio: solo
 ## allora la minimappa lo rivela (boe, taniche, zone). Il raggio è una
-## frazione di bounds_depth, allargata dai potenziamenti del radar.
+## frazione della profondità della baia, allargata dai potenziamenti.
 func _radar_reveals(world_pos: Vector3) -> bool:
 	if not Radar.is_active():
 		return false
-	var radius := Radar.range_fraction() * _world.bounds_depth
+	var radius := Radar.range_fraction() * _world.bay_depth
 	return Radar.origin().distance_to(world_pos) <= radius
 
 
@@ -239,7 +310,7 @@ func _draw_radar(rect: Rect2) -> void:
 	if not Radar.is_active():
 		return
 	var center := _to_map(rect, Radar.origin())
-	var radius := _px(rect, Radar.range_fraction() * _world.bounds_depth)
+	var radius := _px(rect, Radar.range_fraction() * _world.bay_depth)
 	draw_arc(center, radius, 0.0, TAU, 48, Color(RADAR_RING_COLOR, 0.4), 1.5)
 
 
@@ -249,14 +320,15 @@ func _draw_quest(rect: Rect2) -> void:
 	var npc := get_tree().get_first_node_in_group(&"rescue_npc") as RescueNpc
 	if npc == null:
 		return
-	var np := _to_map(rect, npc.global_position)
-	_draw_diamond(np, 6.0 if _expanded else 4.0, QUEST_COLOR)
-	if _expanded:
-		draw_string(ThemeDB.fallback_font, np + Vector2(12.0, 5.0), "Zu' Vito",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+	if _in_view(npc.global_position, 10.0):
+		var np := _to_map(rect, npc.global_position)
+		_draw_diamond(np, 6.0 if _expanded else 4.0, QUEST_COLOR)
+		if _expanded:
+			draw_string(ThemeDB.fallback_font, np + Vector2(12.0, 5.0), "Zu' Vito",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
 	if not npc.show_quest_marker():
 		return
-	var target := _to_map(rect, npc.quest_marker_position())
+	var target := _clamp_to_rect(rect, _to_map(rect, npc.quest_marker_position()))
 	var radius := 8.0 if _expanded else 5.5
 	draw_arc(target, radius, 0.0, TAU, 20, QUEST_COLOR, 2.5)
 	draw_circle(target, 2.5, QUEST_COLOR)
@@ -264,11 +336,11 @@ func _draw_quest(rect: Rect2) -> void:
 
 ## Marker della missione della bacheca (roadmap A1): il punto del pacco o
 ## l'approdo di consegna finché c'è da andare, il porto del rientro a
-## pacco raccolto. Stessa logica del cancello regata.
+## pacco raccolto. Fuori finestra resta al bordo, nella sua direzione.
 func _draw_mission(rect: Rect2) -> void:
 	if not GameState.mission_active():
 		return
-	var p := _to_map(rect, GameState.mission_marker_position())
+	var p := _clamp_to_rect(rect, _to_map(rect, GameState.mission_marker_position()))
 	var radius := 8.0 if _expanded else 5.5
 	draw_arc(p, radius, 0.0, TAU, 20, MISSION_COLOR, 2.5)
 	draw_circle(p, 2.5, MISSION_COLOR)
@@ -281,7 +353,7 @@ func _draw_race_start(rect: Rect2) -> void:
 	var s := 7.0 if _expanded else 4.5
 	for node in get_tree().get_nodes_in_group(&"race_course"):
 		var course := node as RaceCourse
-		if course == null:
+		if course == null or not _in_view(course.start_position(), 20.0):
 			continue
 		var p := _to_map(rect, course.start_position())
 		draw_arc(p, s + 2.0, 0.0, TAU, 18, RACE_COLOR, 1.5)
@@ -301,7 +373,7 @@ func _draw_race_gate(rect: Rect2) -> void:
 		var course := node as RaceCourse
 		if course == null or not course.is_racing():
 			continue
-		var p := _to_map(rect, course.next_gate_position())
+		var p := _clamp_to_rect(rect, _to_map(rect, course.next_gate_position()))
 		draw_arc(p, radius, 0.0, TAU, 16, RACE_COLOR, 2.5)
 		draw_circle(p, 2.0, RACE_COLOR)
 
@@ -315,12 +387,16 @@ func _draw_pickups(rect: Rect2) -> void:
 		var buoy := node as Buoy
 		if buoy == null or not buoy.visible or not _radar_reveals(buoy.global_position):
 			continue
+		if not _in_view(buoy.global_position, 10.0):
+			continue
 		var color := Color("#" + GameState.BUOY_HEX[buoy.type])
 		draw_circle(_to_map(rect, buoy.global_position), buoy_radius, color)
 	var can_size := 8.0 if _expanded else 5.0
 	for node in get_tree().get_nodes_in_group(&"fuel_cans"):
 		var can := node as FuelCan
 		if can == null or not can.visible or not _radar_reveals(can.global_position):
+			continue
+		if not _in_view(can.global_position, 10.0):
 			continue
 		var p := _to_map(rect, can.global_position)
 		draw_rect(Rect2(p - Vector2(can_size, can_size) * 0.5, Vector2(can_size, can_size)), FUEL_COLOR)
