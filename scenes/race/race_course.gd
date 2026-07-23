@@ -22,6 +22,19 @@ enum State { IDLE, COUNTDOWN, RACING, RESULT }
 ## guadagna di più (GDD pillar 2). 1.0 = gara base sotto costa.
 @export var prize_multiplier: float = 1.0
 
+@export_group("Percorso procedurale (roadmap R3)")
+## Se vero, i checkpoint della scena vengono ignorati e il percorso è
+## generato attorno all'origine con proc_seed: spot di gara che il World
+## semina in punti casuali del largo, diversi a ogni partita.
+@export var procedural: bool = false
+## Numero di cancelli del percorso generato (senza contare il traguardo).
+@export var proc_gate_count: int = 6
+## Raggio dell'anello di cancelli del percorso generato.
+@export var proc_radius: float = 150.0
+## Seme del percorso generato: lo imposta chi spawna la gara, così spot
+## diversi hanno tracciati diversi ma stabili per la sessione.
+var proc_seed: int = 0
+
 ## Assegnata dal World: serve a IA e classifica (rallentamento a zone).
 var sea: Sea
 
@@ -64,6 +77,8 @@ func _ready() -> void:
 	_start_zone.body_exited.connect(_on_zone_body_exited)
 	_close_button.pressed.connect(_close_result)
 	GameState.hull_depleted.connect(_on_hull_depleted)
+	if procedural:
+		_generate_checkpoints()
 	_build_gates()
 	_panel.hide()
 	_hint.hide()
@@ -292,6 +307,30 @@ func _cleanup() -> void:
 
 
 # --- Cancelli ----------------------------------------------------------------
+
+## Percorso generato attorno all'origine (roadmap R3): scarta i checkpoint
+## della scena e ne crea di nuovi su un anello, con l'ultimo (traguardo)
+## sulla linea di partenza. proc_seed dà un tracciato diverso per spot ma
+## stabile per la sessione. L'anello è spostato in avanti (+Z) così non
+## copre la zona di partenza all'origine.
+func _generate_checkpoints() -> void:
+	for child in _checkpoints.get_children():
+		_checkpoints.remove_child(child)
+		child.free()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = proc_seed
+	var start_angle := -PI * 0.5
+	for i in proc_gate_count:
+		var angle := start_angle + TAU * float(i) / float(proc_gate_count)
+		var r := proc_radius * rng.randf_range(0.75, 1.15)
+		var marker := Marker3D.new()
+		_checkpoints.add_child(marker)
+		marker.position = Vector3(cos(angle) * r, 0.0, sin(angle) * r + proc_radius)
+	# Traguardo sulla linea di partenza.
+	var finish := Marker3D.new()
+	_checkpoints.add_child(finish)
+	finish.position = Vector3.ZERO
+
 
 ## Un pilone luminoso con colonna di luce per ogni marker in Checkpoints
 ## (l'ultimo è il traguardo, sulla linea di partenza). Visibili solo in

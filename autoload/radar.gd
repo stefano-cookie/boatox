@@ -39,7 +39,7 @@ func ping(origin: Vector3) -> void:
 	_origin = origin
 	_range_fraction = GameState.radar_range_fraction()
 	_window_left = GameState.radar_duration()
-	_cooldown_left = GameState.RADAR_COOLDOWN
+	_cooldown_left = GameState.radar_cooldown()
 	GameState.radar_pinged.emit()
 	GameState.post_notice("Radar: impulso lanciato")
 

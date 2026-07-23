@@ -60,6 +60,12 @@ func _run() -> void:
 	print("UPGRADE: frazione %.2f -> %.2f (attesa in salita), durata %.0f -> %.0f (attesa in salita)" % [
 		range_before, GameState.radar_range_fraction(), dur_before, GameState.radar_duration()])
 
+	# --- Condensatori: il cooldown scende (roadmap R3) ---
+	var cd_before := GameState.radar_cooldown()
+	GameState.buy_radar_upgrade(GameState.RadarUpgrade.COOLDOWN)
+	print("CONDENSATORI: cooldown %.0f -> %.0f (attesa in discesa, base 60 -> 45)" % [
+		cd_before, GameState.radar_cooldown()])
+
 	# --- Salvataggio: roundtrip di quest, sblocco e livelli radar ---
 	GameState.save_game()
 	GameState.grandson_quest = GameState.GrandsonQuest.NONE

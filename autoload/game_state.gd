@@ -94,9 +94,10 @@ enum GrandsonQuest { NONE, ACCEPTED, CARRYING, DONE }
 
 ## Potenziamenti del radar (GDD § Missioni): comprati dall'NPC del nipote
 ## dopo lo sblocco. Ampiezza allarga il raggio di rilevazione, durata
-## allunga la finestra visibile in minimappa. È una famiglia a sé, come
-## l'attrezzatura da pesca (personale, non della barca).
-enum RadarUpgrade { RANGE, DURATION }
+## allunga la finestra visibile in minimappa, condensatori accorciano il
+## cooldown (roadmap R3). È una famiglia a sé, come l'attrezzatura da pesca
+## (personale, non della barca).
+enum RadarUpgrade { RANGE, DURATION, COOLDOWN }
 
 ## Missioni della bacheca del porto (roadmap A1). Consegna: porta N casse
 ## all'approdo secondario entro il tempo limite (le casse occupano stiva).
@@ -252,9 +253,12 @@ const FISHING_LINE_SURGE_MULT: Array[float] = [1.0, 0.85, 0.72, 0.6]
 ## zone in minimappa con una progressione. Sbloccato dalla missione del
 ## nipote, si attiva a impulsi (tasto R): boe, taniche e zone dentro il
 ## raggio compaiono in minimappa per una finestra, poi si spegne fino al
-## cooldown. I potenziamenti (comprati dall'NPC) allargano il raggio e
-## allungano la finestra. Curve per livello, si bilanciano qui.
-const RADAR_COOLDOWN: float = 60.0
+## cooldown. I potenziamenti (comprati dall'NPC) allargano il raggio,
+## allungano la finestra e accorciano il cooldown. Curve per livello, si
+## bilanciano qui.
+## Secondi di ricarica tra un impulso e l'altro, per livello del
+## potenziamento "Condensatori" (roadmap R3): base 60 s, giù fino a 15 s.
+const RADAR_COOLDOWN_STEPS: Array[float] = [60.0, 45.0, 30.0, 20.0, 15.0]
 ## Raggio di rilevazione come frazione di World.bounds_depth, per livello
 ## di ampiezza (0 = base: circa un terzo della mappa).
 const RADAR_RANGE_FRACTION: Array[float] = [0.34, 0.5, 0.68, 0.9]
@@ -263,14 +267,17 @@ const RADAR_DURATION: Array[float] = [10.0, 14.0, 18.0, 24.0]
 const RADAR_UPGRADE_NAME: Dictionary[int, String] = {
 	RadarUpgrade.RANGE: "Antenna",
 	RadarUpgrade.DURATION: "Ricevitore",
+	RadarUpgrade.COOLDOWN: "Condensatori",
 }
 const RADAR_UPGRADE_DESC: Dictionary[int, String] = {
 	RadarUpgrade.RANGE: "raggio di rilevazione più ampio",
 	RadarUpgrade.DURATION: "i rilevamenti restano visibili più a lungo",
+	RadarUpgrade.COOLDOWN: "il radar si ricarica più in fretta tra un impulso e l'altro",
 }
 const RADAR_UPGRADE_COSTS: Dictionary[int, Array] = {
 	RadarUpgrade.RANGE: [400, 900, 1800],
 	RadarUpgrade.DURATION: [350, 800, 1600],
+	RadarUpgrade.COOLDOWN: [500, 1000, 1900, 3200],
 }
 
 ## Reputazione (roadmap A1): -100..+100, per-fazione. Dalle città
@@ -347,6 +354,26 @@ const LOOT_NAME_PLURAL: Dictionary[int, String] = {
 }
 ## Colore BBCode del bottino nel dettaglio stiva.
 const LOOT_HEX: String = "d8b04a"
+
+## Ricompensa per acque difficili (roadmap R3, GDD pillar 2): oltre alle
+## fasce di mare (boe/pesca/bottino/gare già scalano per fascia), un
+## fattore continuo che cresce con la distanza dalla costa e con
+## l'agitazione locale del mare (celle di vento comprese). 1.0 sotto costa
+## e col mare gestibile, fino a DIFFICULTY_REWARD_MAX al largo e in
+## tempesta. Lo leggono chi assegna ricompense a posizione nota (bottino,
+## regate al largo): i punti più lontani e più mossi rendono di più.
+const DIFFICULTY_REWARD_MAX: float = 2.0
+## Distanza dalla costa oltre le acque medie a cui il contributo distanza
+## satura.
+const DIFFICULTY_REWARD_FULL_DISTANCE: float = 1400.0
+## Peso relativo dei due contributi (distanza, agitazione): la loro somma
+## pesata scala il bonus oltre 1.0.
+const DIFFICULTY_REWARD_DISTANCE_WEIGHT: float = 0.6
+const DIFFICULTY_REWARD_AGITATION_WEIGHT: float = 0.4
+## Agitazione (Sea.agitation) di riferimento: sotto CALM è mare gestibile
+## (nessun contributo), sopra ROUGH conta come mare grosso (contributo pieno).
+const DIFFICULTY_AGITATION_CALM: float = 1.5
+const DIFFICULTY_AGITATION_ROUGH: float = 3.2
 
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
@@ -870,6 +897,12 @@ func radar_duration() -> float:
 		RADAR_DURATION.size() - 1)]
 
 
+## Secondi di cooldown correnti dell'impulso, dal livello di "Condensatori".
+func radar_cooldown() -> float:
+	return RADAR_COOLDOWN_STEPS[clampi(radar_upgrade_level(RadarUpgrade.COOLDOWN), 0,
+		RADAR_COOLDOWN_STEPS.size() - 1)]
+
+
 # --- Cannone di bordo (roadmap B1) --------------------------------------------
 
 func cannon_owned() -> bool:
@@ -1346,6 +1379,22 @@ func collect_loot(tier: int) -> bool:
 	cargo_changed.emit()
 	loot_collected.emit(tier)
 	return true
+
+
+## Fattore ricompensa per acque difficili in un punto (roadmap R3): 1.0
+## sotto costa e col mare calmo, cresce con la distanza dalla costa e con
+## l'agitazione locale, fino a DIFFICULTY_REWARD_MAX. Chi assegna premi a
+## posizione nota (bottino delle prede, regate al largo) ci scala sopra.
+func difficulty_multiplier(world_pos: Vector3, sea: Sea) -> float:
+	if sea == null:
+		return 1.0
+	var span := maxf(DIFFICULTY_REWARD_FULL_DISTANCE - sea.medium_width, 1.0)
+	var dist01 := clampf((sea.shore_distance(world_pos) - sea.medium_width) / span, 0.0, 1.0)
+	var agit_span := maxf(DIFFICULTY_AGITATION_ROUGH - DIFFICULTY_AGITATION_CALM, 0.01)
+	var agit01 := clampf((sea.agitation(world_pos) - DIFFICULTY_AGITATION_CALM) / agit_span, 0.0, 1.0)
+	var bonus := DIFFICULTY_REWARD_DISTANCE_WEIGHT * dist01 \
+		+ DIFFICULTY_REWARD_AGITATION_WEIGHT * agit01
+	return 1.0 + bonus * (DIFFICULTY_REWARD_MAX - 1.0)
 
 
 ## Include le casse missione: occupano stiva ma non si vendono.

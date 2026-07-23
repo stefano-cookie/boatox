@@ -36,6 +36,7 @@ var _time: float = 0.0
 @onready var _action_button: Button = $DialogUI/Panel/Margin/VBox/ActionButton
 @onready var _range_button: Button = $DialogUI/Panel/Margin/VBox/RangeButton
 @onready var _duration_button: Button = $DialogUI/Panel/Margin/VBox/DurationButton
+@onready var _cooldown_button: Button = $DialogUI/Panel/Margin/VBox/CooldownButton
 @onready var _close_button: Button = $DialogUI/Panel/Margin/VBox/CloseButton
 
 
@@ -47,6 +48,7 @@ func _ready() -> void:
 	_action_button.pressed.connect(_on_action_pressed)
 	_range_button.pressed.connect(_on_range_pressed)
 	_duration_button.pressed.connect(_on_duration_pressed)
+	_cooldown_button.pressed.connect(_on_cooldown_pressed)
 	_close_button.pressed.connect(_close_dialog)
 	_grandson.global_position = rescue_point
 	_panel.hide()
@@ -158,6 +160,7 @@ func _refresh_dialog() -> void:
 	_title.text = "Zu' Vito"
 	_range_button.hide()
 	_duration_button.hide()
+	_cooldown_button.hide()
 	match GameState.grandson_quest:
 		GameState.GrandsonQuest.NONE:
 			_body.text = "Ragazzo mio, il mio nipote Totò è uscito in mare e non è più tornato. Le onde l'hanno portato al largo. Me lo vai a riprendere? Ti do il mio [color=#8fd4ff]radar[/color] da pesca."
@@ -175,6 +178,7 @@ func _refresh_dialog() -> void:
 			_action_button.hide()
 			_range_button.show()
 			_duration_button.show()
+			_cooldown_button.show()
 			_refresh_radar_shop()
 	_close_button.grab_focus()
 
@@ -182,6 +186,7 @@ func _refresh_dialog() -> void:
 func _refresh_radar_shop() -> void:
 	_refresh_radar_button(_range_button, GameState.RadarUpgrade.RANGE)
 	_refresh_radar_button(_duration_button, GameState.RadarUpgrade.DURATION)
+	_refresh_radar_button(_cooldown_button, GameState.RadarUpgrade.COOLDOWN)
 
 
 func _refresh_radar_button(button: Button, upgrade: int) -> void:
@@ -217,6 +222,11 @@ func _on_range_pressed() -> void:
 
 func _on_duration_pressed() -> void:
 	GameState.buy_radar_upgrade(GameState.RadarUpgrade.DURATION)
+	_refresh_dialog()
+
+
+func _on_cooldown_pressed() -> void:
+	GameState.buy_radar_upgrade(GameState.RadarUpgrade.COOLDOWN)
 	_refresh_dialog()
 
 

@@ -230,6 +230,10 @@ theme_override_font_sizes/font_size = 22
 text = "Ricevitore"
 theme_override_font_sizes/font_size = 22
 
+[node name="CooldownButton" type="Button" parent="DialogUI/Panel/Margin/VBox"]
+text = "Condensatori"
+theme_override_font_sizes/font_size = 22
+
 [node name="CloseButton" type="Button" parent="DialogUI/Panel/Margin/VBox"]
 text = "Chiudi (E)"
 theme_override_font_sizes/font_size = 24

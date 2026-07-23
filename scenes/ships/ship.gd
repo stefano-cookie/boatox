@@ -151,7 +151,11 @@ func _finish_sinking() -> void:
 
 func _drop_loot() -> void:
 	var tier := sea.zone_index(global_position) if sea != null else 2
-	var count := randi_range(definition.loot_min, definition.loot_max)
+	# Ricompensa per acque difficili (roadmap R3): più casse quando la preda
+	# affonda lontano da costa e col mare grosso — sempre almeno il minimo.
+	var base_count := randi_range(definition.loot_min, definition.loot_max)
+	var count := maxi(definition.loot_min,
+		roundi(base_count * GameState.difficulty_multiplier(global_position, sea)))
 	for i in count:
 		var crate := LOOT_SCENE.instantiate() as LootCrate
 		crate.tier = tier

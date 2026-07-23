@@ -15,6 +15,7 @@ const ROCK_SCENE: PackedScene = preload("res://scenes/world/rock.tscn")
 const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zone.tscn")
 const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission_pickup.tscn")
+const RACE_COURSE_SCENE: PackedScene = preload("res://scenes/race/race_course.tscn")
 
 @export var boat: Boat
 @export var sea: Sea
@@ -42,11 +43,26 @@ const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission
 ## Feedback playtest round 2: le gialle intasavano la mappa (28 → 14).
 @export var yellow_buoy_count: int = 14
 @export var red_point_count: int = 18
+## Boe rosse al largo (roadmap R3): una banda di riempitivo tra le blu del
+## mare aperto, così spingersi fuori non è mai un vuoto di raccolta.
+@export var open_red_point_count: int = 14
 @export var blue_point_count: int = 24
 ## Punti tanica di benzina, sparsi su tutta la baia (spawn al 5%).
 @export var fuel_point_count: int = 22
 ## Zone di pesca per fascia di mare (GDD beta: 2-3 zone in tutto).
 @export var fishing_zones_per_band: int = 1
+
+@export_group("Mare aperto ricco (roadmap R3)")
+## Zone di pesca extra al largo profondo, piazzate a caso a ogni partita
+## (RNG randomizzato, non il seed fisso): l'attività al largo non è sempre
+## nello stesso punto. Tier 2 (specie pregiate).
+@export var open_activity_zones: int = 2
+## Spot di gara procedurali seminati in punti casuali del largo (roadmap
+## R3): tracciato generato attorno al punto, IA aggressive, premi ricchi.
+@export var open_race_count: int = 1
+## Premio base degli spot di gara al largo, poi scalato dal fattore
+## difficoltà del punto (distanza + agitazione).
+@export var open_race_prize_base: float = 1.6
 
 @export_group("Navi (roadmap B1)")
 ## Mercantili e predoni della baia di Bova (ShipDirector di casa).
@@ -115,9 +131,11 @@ func _ready() -> void:
 	# Le zone di pesca prima delle boe: prendono posto pulito e le boe
 	# non finiscono dentro gli anelli.
 	_spawn_fishing_zones()
+	_spawn_open_activity_zones()
 	_spawn_zone_buoys()
 	_spawn_route_pickups()
 	_spawn_ship_directors()
+	_spawn_open_races()
 	# Missione di recupero già in corso nel salvataggio: il pacco torna in acqua.
 	_sync_mission_pickup()
 
@@ -358,6 +376,12 @@ func _spawn_zone_buoys() -> void:
 			_buoy_positions, 12.0, scatter_half_width_open)
 		if pos.is_finite() and _is_clear(pos):
 			_spawn_buoy(pos, GameState.BuoyType.BLUE)
+	# Boe rosse al largo (roadmap R3): riempitivo tra le blu del mare aperto.
+	for i in open_red_point_count:
+		var pos := _sample_band(sea.medium_width + 15.0, bay_depth - 60.0,
+			_buoy_positions, 12.0, scatter_half_width_open)
+		if pos.is_finite() and _is_clear(pos):
+			_spawn_buoy(pos, GameState.BuoyType.RED)
 	# Le taniche vagano su tutta la baia: la fortuna può capitare ovunque.
 	for i in fuel_point_count:
 		var wide := i % 2 == 1
@@ -410,6 +434,49 @@ func _spawn_fishing_zone(pos: Vector3, tier: int) -> void:
 	add_child(zone)
 	zone.global_position = Vector3(pos.x, 0.0, pos.z)
 	_fishing_positions.append(pos)
+
+
+## Zone di pesca extra al largo profondo (roadmap R3), piazzate col RNG
+## randomizzato delle missioni: posizioni nuove a ogni partita, così il
+## mare aperto non ha sempre le stesse zone. Sempre tier 2 (specie pregiate).
+func _spawn_open_activity_zones() -> void:
+	for i in open_activity_zones:
+		var pos := _sample_open_point(sea.medium_width + 120.0, bay_depth - 70.0)
+		if pos.is_finite():
+			_spawn_fishing_zone(pos, 2)
+
+
+## Spot di gara procedurali al largo (roadmap R3): tracciato generato
+## attorno a un punto casuale del mare aperto, IA aggressive e premi
+## scalati dal fattore difficoltà del punto. Randomizzati a ogni partita.
+func _spawn_open_races() -> void:
+	for i in open_race_count:
+		var center := _sample_open_point(sea.medium_width + 250.0, bay_depth + 500.0)
+		if not center.is_finite():
+			continue
+		var course := RACE_COURSE_SCENE.instantiate() as RaceCourse
+		course.procedural = true
+		course.proc_seed = _mission_rng.randi()
+		course.ai_hard = true
+		course.prize_multiplier = open_race_prize_base \
+			* GameState.difficulty_multiplier(center, sea)
+		# La posizione va impostata prima di add_child: _ready costruisce i
+		# cancelli dalle coordinate mondo dei marker (serve il transform).
+		course.position = center
+		add_child(course)
+		course.sea = sea
+
+
+## Punto libero nel mare aperto profondo, campionato col RNG randomizzato
+## (posizioni nuove a ogni partita). Vector3.INF se non trova posto.
+func _sample_open_point(d_min: float, d_max: float) -> Vector3:
+	for attempt in 30:
+		var pos := Vector3(
+			_mission_rng.randf_range(-scatter_half_width_open, scatter_half_width_open),
+			0.0, sea.shore_z + _mission_rng.randf_range(d_min, d_max))
+		if _is_clear(pos):
+			return pos
+	return Vector3.INF
 
 
 func _spawn_buoy(pos: Vector3, type: int) -> void:
