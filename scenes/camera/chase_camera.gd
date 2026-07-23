@@ -109,6 +109,19 @@ func _physics_process(delta: float) -> void:
 	_look()
 
 
+## Focus della finestra: uscendo (Cmd-Tab, click su un'altra app o sul
+## desktop) il mouse si libera — così in modalità finestra si può afferrare
+## il bordo e ridimensionare. Rientrando si ricattura, ma solo se si sta
+## davvero guidando (nessun pannello aperto, gioco non in pausa): in pausa o
+## coi menu il cursore resta libero come già fa ui_focus_changed.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		if is_inside_tree() and not GameState.ui_focus_open() and not get_tree().paused:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
 ## Urto della barca: avvia lo scuotimento, con intensità sulla forza.
 func _on_boat_hit(force: float) -> void:
 	_shake_amount = clampf(force / shake_force_ref, 0.0, 1.0)
