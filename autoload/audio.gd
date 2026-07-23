@@ -234,6 +234,12 @@ func _connect_signals() -> void:
 	GameState.buoy_collected.connect(_on_buoy_collected)
 	GameState.fish_caught.connect(func(_type: int) -> void: _play(&"fish"))
 	GameState.radar_pinged.connect(func() -> void: _play(&"radar"))
+	# Combattimento navale (roadmap B1): boato dello sparo (di chiunque),
+	# legnata sulla nave colpita, gorgoglio dell'affondamento, bottino a bordo.
+	GameState.cannon_fired.connect(func() -> void: _play(&"cannon", randf_range(0.92, 1.1)))
+	GameState.ship_hit.connect(func(_pos: Vector3) -> void: _play(&"impact", 1.25, -6.0))
+	GameState.ship_sunk.connect(func(_pos: Vector3) -> void: _play(&"sink"))
+	GameState.loot_collected.connect(func(_tier: int) -> void: _play(&"pop", 0.8))
 	# Tick discreto su ogni avviso: conferma che qualcosa è successo, basso
 	# volume per non stancare (le vendite hanno già il loro cha-ching sopra).
 	GameState.notice_posted.connect(func(_text: String) -> void: _play(&"tick", 1.0, -14.0))
@@ -357,6 +363,19 @@ func _build_streams() -> void:
 	b = AudioSynth.buffer(0.05)
 	AudioSynth.add_sine(b, 0.0, 1200.0, 0.03, 0.3, 20.0, 0.001)
 	_sfx[&"tick"] = AudioSynth.to_wav(b)
+
+	# Cannone (roadmap B1): botta di rumore secca + fondamentale grave che
+	# scende — un boato tondo, non un petardo.
+	b = AudioSynth.buffer(0.45)
+	AudioSynth.add_noise(b, 0.0, 0.3, 0.8, 10.0, 0.2, 33)
+	AudioSynth.add_sine(b, 0.0, 70.0, 0.35, 0.8, 7.0, 0.004, 40.0)
+	_sfx[&"cannon"] = AudioSynth.to_wav(b)
+
+	# Affondamento: rimbombo profondo con gorgoglio (rumore lento) sopra.
+	b = AudioSynth.buffer(1.1)
+	AudioSynth.add_sine(b, 0.0, 48.0, 0.9, 0.6, 3.0, 0.01, 30.0)
+	AudioSynth.add_noise(b, 0.15, 0.8, 0.3, 4.0, 0.5, 47)
+	_sfx[&"sink"] = AudioSynth.to_wav(b)
 
 
 ## Motore: fondamentale a 60 Hz con due sole armoniche, tutte con un numero

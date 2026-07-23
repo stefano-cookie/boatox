@@ -42,6 +42,11 @@ const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission
 @export var fuel_point_count: int = 22
 ## Zone di pesca per fascia di mare (GDD beta: 2-3 zone in tutto).
 @export var fishing_zones_per_band: int = 1
+
+@export_group("Navi (roadmap B1)")
+## Mercantili e predoni tenuti in acqua dallo ShipDirector.
+@export var merchant_count: int = 2
+@export var raider_count: int = 2
 ## Le boe vengono campionate con |x| entro questo limite, per non
 ## finire dentro i promontori.
 @export var scatter_half_width: float = 255.0
@@ -87,8 +92,22 @@ func _ready() -> void:
 	# non finiscono dentro gli anelli.
 	_spawn_fishing_zones()
 	_spawn_zone_buoys()
+	_spawn_ship_director()
 	# Missione di recupero già in corso nel salvataggio: il pacco torna in acqua.
 	_sync_mission_pickup()
+
+
+## Le navi del mare aperto (roadmap B1): il direttore le tiene in acqua
+## e le rimpiazza; qui solo il cablaggio con mare, barca e confini.
+func _spawn_ship_director() -> void:
+	var director := ShipDirector.new()
+	director.sea = sea
+	director.boat = boat
+	director.half_width = scatter_half_width_open
+	director.depth_max = bounds_depth - 60.0
+	director.merchant_count = merchant_count
+	director.raider_count = raider_count
+	add_child(director)
 
 
 func _physics_process(delta: float) -> void:

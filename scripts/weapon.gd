@@ -1,11 +1,11 @@
 class_name Weapon
 extends Node3D
 
-## Arma generica (predisposizione B0): la forma condivisa che useranno
-## cannoni di bordo, torri e batterie costiere (B1/B3). Legge raggio,
-## danno e cadenza dalla WeaponDefinition e gestisce solo il cooldown;
-## per ora il colpo è istantaneo — il proiettile ad arco e la mira libera
-## arrivano in B1.
+## Arma generica: la forma condivisa di cannoni di bordo, predoni e (in
+## B3) torri e batterie costiere. Legge raggio, danno e cadenza dalla
+## WeaponDefinition e gestisce solo il cooldown. Due modi d'uso: fire_at
+## per il colpo istantaneo (batterie future), consume_cooldown per chi
+## spara proiettili ad arco veri (CannonBall, roadmap B1).
 
 signal fired(target: Node3D)
 
@@ -25,6 +25,22 @@ func can_fire() -> bool:
 func in_range(point: Vector3) -> bool:
 	return definition != null \
 		and global_position.distance_to(point) <= definition.fire_range
+
+
+## Consuma il cooldown se l'arma è pronta: chi spara proiettili veri lo
+## chiama al posto di fire_at e si occupa lui del colpo.
+func consume_cooldown() -> bool:
+	if not can_fire():
+		return false
+	_cooldown = definition.fire_interval
+	return true
+
+
+## Frazione 0..1 del cooldown ancora da scontare (per l'HUD del mirino).
+func cooldown_fraction() -> float:
+	if definition == null or definition.fire_interval <= 0.0:
+		return 0.0
+	return _cooldown / definition.fire_interval
 
 
 ## Spara al bersaglio se cadenza e gittata lo permettono. Il bersaglio

@@ -86,11 +86,16 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 *Prima il divertimento: se predare non è divertente, il resto non regge.*
 
-- [ ] Arma di bordo con **mira libera**: mirino sulla camera orbitale, proiettile ad arco, `Input.MOUSE_MODE_CAPTURED` già gestito; cadenza/danno/gittata in `Resource` (famiglia di upgrade come motore/scafo)
-- [ ] Navi IA in mare aperto: **mercantile** (rotta + fuga se attaccato) e **predone** (ti punta e sperona/spara) — primi figli di `Vessel`
-- [ ] Danneggiare/affondare una nave → **bottino galleggiante** da raccogliere (riusa il pattern boe); prede migliori dove il mare è più duro (GDD pillar 2)
-- [ ] Feedback d'impatto sui colpi (riusa flash/shake/SFX esistenti), salute della preda leggibile
+- [x] Arma di bordo con **mira libera**: mirino sulla camera orbitale, proiettile ad arco, `Input.MOUSE_MODE_CAPTURED` già gestito; cadenza/danno/gittata in `Resource` (famiglia di upgrade come motore/scafo)
+	- 3 livelli in `resources/weapons/cannone_*.tres` (900/1800/3200 $), riga dedicata nel cantiere; il cannone è personale come l'attrezzatura da pesca (vale su ogni barca). Mirino con anello di ricarica al centro schermo (`scenes/hud/crosshair.gd`); il pezzo (`scenes/combat/boat_cannon.gd`, montato in coperta dalla Boat) si orienta sull'alzo e spara col tasto sinistro un `CannonBall` ad arco balistico che ricade sul punto mirato, gittata permettendo.
+- [x] Navi IA in mare aperto: **mercantile** (rotta + fuga se attaccato) e **predone** (ti punta e sperona/spara) — primi figli di `Vessel`
+	- Base comune `Ship` (`scenes/ships/ship.gd`: Damageable, barra salute billboard, affondamento, bottino) + `ShipDefinition` .tres per bilanciare da Inspector. Il mercantile fa la spola su rotte ad anello e fugge dai colpi; il predone pattuglia il largo, aggancia entro il raggio, spara con l'anticipo e sperona — ma non insegue sotto le acque medie (il rientro è la via di fuga). Lo `ShipDirector` (spawn dal World) tiene in acqua 2+2 navi e rimpiazza le affondate.
+- [x] Danneggiare/affondare una nave → **bottino galleggiante** da raccogliere (riusa il pattern boe); prede migliori dove il mare è più duro (GDD pillar 2)
+	- Casse `LootCrate` (pattern boe/pacco missione): valore dalla fascia di mare dell'affondamento (40/80/150 $), in stiva con boe e pesci, vendute al porto. Le fascia-alta luccicano; dopo 3 minuti il mare se le riprende.
+- [x] Feedback d'impatto sui colpi (riusa flash/shake/SFX esistenti), salute della preda leggibile
+	- Colpo al giocatore = flash scafo + shake camera (riusa `boat_hit`); nave colpita = sbuffo, scrollone e barra salute; SFX nuovi (boato del cannone, gorgoglio dell'affondamento) e riusati (impact, pop) via segnali GameState. Test headless `tests/b1_combat.tscn`.
 - [ ] **Criterio di uscita**: inseguire e predare un mercantile è divertente quanto vincere una regata
+	- *Da verificare in gioco: mira e arco del proiettile (gravità 18, tempo minimo di volo); posizione/proporzioni del cannone sui tre modelli; velocità e aggressività del predone (aggro 95 m, speronata 12); fuga del mercantile; valori del bottino vs boe blu; leggibilità di mirino e barra salute; suono del cannone.*
 
 ## B2 — Bova cresce (costruzione, prosperità, automazione)
 

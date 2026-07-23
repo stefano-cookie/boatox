@@ -46,6 +46,16 @@ signal customization_changed
 ## Acquisto del primo Cabinato: il traguardo dell'alpha (roadmap A2).
 ## La schermata di fine alpha si mostra su questo, una volta sola.
 signal alpha_completed
+## Cannone comprato o potenziato (roadmap B1): la barca monta/aggiorna il
+## pezzo su questo, l'HUD accende il mirino.
+signal cannon_changed
+## Momenti del combattimento navale (roadmap B1) per audio e feedback:
+## un colpo partito (di chiunque), una nave colpita, una nave affondata,
+## bottino raccolto. Event-driven come il resto.
+signal cannon_fired
+signal ship_hit(position: Vector3)
+signal ship_sunk(position: Vector3)
+signal loot_collected(tier: int)
 ## Il world_state è tornato ai default (azzeramento partita): l'autoload
 ## Town lo rilancia alle scene del paese (slot, crescita, flottiglia).
 signal world_state_reset
@@ -287,6 +297,34 @@ const CRATE_HEX: String = "c9a26b"
 ## scende sotto questa soglia per effetto di una scelta.
 const EVENT_MIN_HULL: float = 5.0
 
+## Cannone di bordo (roadmap B1): famiglia di upgrade come motore e scafo,
+## ma personale come l'attrezzatura da pesca (vale su ogni barca: non si
+## ricompra cambiando scafo). Livello 0 = nessun cannone; ogni livello è
+## una WeaponDefinition .tres con danno/gittata/cadenza e prezzo.
+const CANNON_DEFS: Array[WeaponDefinition] = [
+	preload("res://resources/weapons/cannone_1.tres"),
+	preload("res://resources/weapons/cannone_2.tres"),
+	preload("res://resources/weapons/cannone_3.tres"),
+]
+
+## Bottino galleggiante mollato dalle navi affondate (roadmap B1): casse
+## per fascia di mare del punto dell'affondamento — prede migliori dove il
+## mare è più duro (GDD pillar 2). Vanno in stiva come le boe e si vendono
+## al porto.
+const LOOT_VALUE: Dictionary[int, int] = {0: 40, 1: 80, 2: 150}
+const LOOT_NAME: Dictionary[int, String] = {
+	0: "bottino modesto",
+	1: "bottino buono",
+	2: "bottino ricco",
+}
+const LOOT_NAME_PLURAL: Dictionary[int, String] = {
+	0: "bottini modesti",
+	1: "bottini buoni",
+	2: "bottini ricchi",
+}
+## Colore BBCode del bottino nel dettaglio stiva.
+const LOOT_HEX: String = "d8b04a"
+
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
 ## giocatore al via (feedback playtest M3): la gara resta combattuta con
@@ -424,6 +462,13 @@ var cargo: Dictionary[int, int] = {}
 ## Conteggio pesci in stiva per specie (chiave: FishType); condivide la
 ## capacità con le boe: la stiva è una sola (GDD § Pesca).
 var fish_cargo: Dictionary[int, int] = {}
+## Bottino in stiva per fascia (chiave: 0..2, vedi LOOT_VALUE): stessa
+## stiva di boe e pesci. Salvato.
+var loot_cargo: Dictionary[int, int] = {}
+
+## Livello del cannone di bordo (0 = nessuno, indice+1 in CANNON_DEFS).
+## Personale come l'attrezzatura da pesca. Salvato.
+var cannon_level: int = 0
 
 ## Vittorie in regata: la prima sblocca le barche con requires_race_win.
 var race_wins: int = 0
@@ -766,6 +811,55 @@ func radar_range_fraction() -> float:
 func radar_duration() -> float:
 	return RADAR_DURATION[clampi(radar_upgrade_level(RadarUpgrade.DURATION), 0,
 		RADAR_DURATION.size() - 1)]
+
+
+# --- Cannone di bordo (roadmap B1) --------------------------------------------
+
+func cannon_owned() -> bool:
+	return cannon_level > 0
+
+
+## Definizione del cannone corrente; null se non ancora comprato.
+func cannon_def() -> WeaponDefinition:
+	if cannon_level <= 0:
+		return null
+	return CANNON_DEFS[clampi(cannon_level - 1, 0, CANNON_DEFS.size() - 1)]
+
+
+## Costo del prossimo livello; -1 se già al massimo.
+func cannon_cost() -> int:
+	if cannon_level >= CANNON_DEFS.size():
+		return -1
+	return CANNON_DEFS[cannon_level].price
+
+
+func buy_cannon() -> bool:
+	var cost := cannon_cost()
+	if cost < 0 or money < cost:
+		return false
+	money -= cost
+	cannon_level += 1
+	money_changed.emit(money)
+	if cannon_level == 1:
+		post_notice("Cannone a bordo! Mira col mouse, spara col tasto sinistro")
+	else:
+		post_notice("%s installato" % cannon_def().display_name)
+	cannon_changed.emit()
+	save_game()
+	return true
+
+
+## Chi spara (barca o predone) lo annuncia da qui: l'audio fa il boato.
+func report_cannon_fired() -> void:
+	cannon_fired.emit()
+
+
+func report_ship_hit(position: Vector3) -> void:
+	ship_hit.emit(position)
+
+
+func report_ship_sunk(position: Vector3) -> void:
+	ship_sunk.emit(position)
 
 
 # --- Customizzazione estetica (roadmap A2) -----------------------------------
@@ -1156,6 +1250,18 @@ func collect_fish(type: int) -> bool:
 	return true
 
 
+## Falso a stiva piena, come per le boe: il bottino resta a galla.
+func collect_loot(tier: int) -> bool:
+	if cargo_count() >= cargo_capacity():
+		post_notice("Stiva piena! Vendi al porto")
+		return false
+	tier = clampi(tier, 0, 2)
+	loot_cargo[tier] = loot_cargo.get(tier, 0) + 1
+	cargo_changed.emit()
+	loot_collected.emit(tier)
+	return true
+
+
 ## Include le casse missione: occupano stiva ma non si vendono.
 func cargo_count() -> int:
 	var total := mission_crates
@@ -1163,6 +1269,8 @@ func cargo_count() -> int:
 		total += cargo[type]
 	for type in fish_cargo:
 		total += fish_cargo[type]
+	for tier in loot_cargo:
+		total += loot_cargo[tier]
 	return total
 
 
@@ -1172,6 +1280,8 @@ func cargo_value() -> int:
 		total += cargo[type] * BUOY_VALUE[type]
 	for type in fish_cargo:
 		total += fish_cargo[type] * FISH_VALUE[type]
+	for tier in loot_cargo:
+		total += loot_cargo[tier] * LOOT_VALUE[tier]
 	return total
 
 
@@ -1191,6 +1301,12 @@ func cargo_detail_bbcode() -> String:
 			continue
 		var fish_name: String = FISH_NAME[type] if count == 1 else FISH_NAME_PLURAL[type]
 		parts.append("[color=#%s]%d× %s[/color]" % [FISH_HEX[type], count, fish_name])
+	for tier: int in LOOT_VALUE:
+		var count: int = loot_cargo.get(tier, 0)
+		if count <= 0:
+			continue
+		var loot_name: String = LOOT_NAME[tier] if count == 1 else LOOT_NAME_PLURAL[tier]
+		parts.append("[color=#%s]%d× %s[/color]" % [LOOT_HEX, count, loot_name])
 	if mission_crates > 0:
 		var crate_name := "cassa" if mission_crates == 1 else "casse"
 		parts.append("[color=#%s]%d× %s (missione)[/color]" % [CRATE_HEX, mission_crates, crate_name])
@@ -1205,6 +1321,7 @@ func sell_cargo() -> int:
 	total_earned += earned
 	cargo.clear()
 	fish_cargo.clear()
+	loot_cargo.clear()
 	money_changed.emit(money)
 	cargo_changed.emit()
 	cargo_sold.emit(earned)
@@ -1336,6 +1453,7 @@ func salvage_after_sinking() -> void:
 	var lost := cargo_value()
 	cargo.clear()
 	fish_cargo.clear()
+	loot_cargo.clear()
 	money = maxi(money - SALVAGE_FEE, 0)
 	hull = TOW_HULL_RESTORE
 	money_changed.emit(money)
@@ -1372,6 +1490,9 @@ func save_game() -> void:
 	var fish_out: Dictionary = {}
 	for type in fish_cargo:
 		fish_out[str(type)] = fish_cargo[type]
+	var loot_out: Dictionary = {}
+	for tier in loot_cargo:
+		loot_out[str(tier)] = loot_cargo[tier]
 	var upgrades_out: Dictionary = {}
 	for boat_id in upgrades:
 		var levels: Dictionary = {}
@@ -1418,6 +1539,8 @@ func save_game() -> void:
 		"fuel": fuel,
 		"cargo": cargo_out,
 		"fish": fish_out,
+		"loot": loot_out,
+		"cannon_level": cannon_level,
 		"race_wins": race_wins,
 		"tutorial_step": tutorial_step,
 		"owned_boats": owned_out,
@@ -1488,6 +1611,12 @@ func load_game() -> void:
 	var fish_in: Dictionary = data.get("fish", {})
 	for type: String in fish_in:
 		fish_cargo[int(type)] = int(fish_in[type])
+	# Salvataggi pre-B1: niente bottino né cannone.
+	loot_cargo.clear()
+	var loot_in: Dictionary = data.get("loot", {})
+	for tier: String in loot_in:
+		loot_cargo[int(tier)] = int(loot_in[tier])
+	cannon_level = clampi(int(data.get("cannon_level", 0)), 0, CANNON_DEFS.size())
 	fishing_gear.clear()
 	var gear_in: Dictionary = data.get("fishing_gear", {})
 	for gear: String in gear_in:
@@ -1583,6 +1712,8 @@ func reset() -> void:
 	tutorial_step = TUTORIAL_COLLECT
 	cargo.clear()
 	fish_cargo.clear()
+	loot_cargo.clear()
+	cannon_level = 0
 	owned_boats.clear()
 	owned_boats.append(&"dinghy")
 	current_boat_id = &"dinghy"
@@ -1614,6 +1745,7 @@ func reset() -> void:
 	cargo_changed.emit()
 	boat_changed.emit(current_def())
 	customization_changed.emit()
+	cannon_changed.emit()
 	tutorial_changed.emit(tutorial_step, tutorial_hint())
 	reputation_changed.emit(FACTION_BOVA, 0)
 	mission_changed.emit()

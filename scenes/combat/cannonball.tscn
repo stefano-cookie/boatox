@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/cannonball.gd" id="1"]
+
+[sub_resource type="SphereShape3D" id="ball_shape"]
+radius = 0.4
+
+[sub_resource type="SphereMesh" id="ball_mesh"]
+radius = 0.22
+height = 0.44
+
+[sub_resource type="StandardMaterial3D" id="ball_mat"]
+albedo_color = Color(0.16, 0.16, 0.18, 1)
+roughness = 0.55
+metallic = 0.4
+
+[node name="CannonBall" type="Area3D"]
+script = ExtResource("1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("ball_shape")
+
+[node name="Ball" type="MeshInstance3D" parent="."]
+mesh = SubResource("ball_mesh")
+surface_material_override/0 = SubResource("ball_mat")
+
+[node name="Burst" type="CPUParticles3D" parent="."]
+emitting = false
+amount = 18
+lifetime = 0.5
+one_shot = true
+explosiveness = 0.95
+direction = Vector3(0, 1, 0)
+spread = 60.0
+gravity = Vector3(0, -8, 0)
+initial_velocity_min = 2.5
+initial_velocity_max = 6.0
+scale_amount_min = 0.12
+scale_amount_max = 0.3

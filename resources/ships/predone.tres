@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/weapons/predone.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Predone"
+faction = &"predoni"
+max_speed = 10.5
+turn_speed_deg = 52.0
+stability = 0.65
+hp = 80.0
+collision_size = Vector3(2.1, 1.5, 7.5)
+loot_min = 1
+loot_max = 2
+weapon = ExtResource("2")
+aggro_radius = 95.0
+ram_damage = 12.0
+flee_speed_mult = 1.0
+flee_time = 0.0
+hull_color = Color(0.22, 0.2, 0.22, 1)
+accent_color = Color(0.7, 0.25, 0.2, 1)

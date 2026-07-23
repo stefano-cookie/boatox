@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ShipDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Mercantile"
+faction = &"mercanti"
+max_speed = 6.5
+turn_speed_deg = 28.0
+stability = 0.55
+hp = 60.0
+collision_size = Vector3(2.8, 1.9, 10.0)
+loot_min = 2
+loot_max = 3
+aggro_radius = 0.0
+ram_damage = 0.0
+flee_speed_mult = 1.45
+flee_time = 14.0
+hull_color = Color(0.82, 0.78, 0.7, 1)
+accent_color = Color(0.3, 0.45, 0.6, 1)

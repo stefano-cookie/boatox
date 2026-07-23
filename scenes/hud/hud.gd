@@ -89,6 +89,9 @@ func _ready() -> void:
 	_notice_timer.timeout.connect(_notice_label.hide)
 	_notice_label.hide()
 	_danger_label.hide()
+	# Mirino del cannone (roadmap B1): creato in codice, si accende da solo
+	# quando il cannone è a bordo e il mouse è catturato.
+	add_child(Crosshair.new())
 	_on_money_changed(GameState.money)
 	_on_hull_changed(GameState.hull, GameState.hull_max())
 	_on_fuel_changed(GameState.fuel, GameState.fuel_capacity())

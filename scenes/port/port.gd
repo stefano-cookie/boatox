@@ -63,6 +63,8 @@ var _town_open: bool = false
 var _boat_buttons: Dictionary[StringName, Button] = {}
 var _upgrade_buttons: Dictionary[int, Button] = {}
 var _upgrade_labels: Dictionary[int, Label] = {}
+var _cannon_button: Button
+var _cannon_label: Label
 var _gear_buttons: Dictionary[int, Button] = {}
 var _paint_buttons: Dictionary[StringName, Button] = {}
 var _accessory_buttons: Dictionary[StringName, Button] = {}
@@ -637,6 +639,25 @@ func _build_shipyard_rows() -> void:
 		_upgrades_box.add_child(row)
 		_upgrade_buttons[type] = button
 		_upgrade_labels[type] = label
+	# Il cannone di bordo (roadmap B1): una riga come gli upgrade, ma è
+	# personale — vale su tutte le barche, come l'attrezzatura da pesca.
+	var cannon_row := HBoxContainer.new()
+	cannon_row.add_theme_constant_override("separation", 12)
+	_cannon_label = Label.new()
+	_cannon_label.add_theme_font_size_override("font_size", 18)
+	_cannon_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cannon_row.add_child(_cannon_label)
+	_cannon_button = Button.new()
+	_cannon_button.add_theme_font_size_override("font_size", 22)
+	_cannon_button.custom_minimum_size = Vector2(210, 0)
+	_cannon_button.pressed.connect(_on_cannon_pressed)
+	cannon_row.add_child(_cannon_button)
+	_upgrades_box.add_child(cannon_row)
+
+
+func _on_cannon_pressed() -> void:
+	GameState.buy_cannon()
+	_refresh_shipyard()
 
 
 func _on_boat_row_pressed(id: StringName) -> void:
@@ -685,6 +706,34 @@ func _refresh_shipyard() -> void:
 			label.text = "%s — %s\n[%s]" % [up_name, desc, delta]
 			button.text = "liv. %d → %d (-%d $)" % [level, level + 1, cost]
 			button.disabled = GameState.money < cost
+	_refresh_cannon_row()
+
+
+## Riga del cannone: stato attuale (o "disarmato") a sinistra, acquisto o
+## potenziamento a destra. Su tutte le barche: si compra una volta sola.
+func _refresh_cannon_row() -> void:
+	var current := GameState.cannon_def()
+	if current == null:
+		_cannon_label.text = "Cannone — predare le navi in mare aperto\n[disarmato]"
+	else:
+		_cannon_label.text = "Cannone — %s (su ogni barca)\n[danno %d · gittata %d m · colpo ogni %.1f s]" % [
+			current.display_name, roundi(current.damage),
+			roundi(current.fire_range), current.fire_interval,
+		]
+	var cost := GameState.cannon_cost()
+	if cost < 0:
+		_cannon_button.text = "liv. %d — MAX" % GameState.cannon_level
+		_cannon_button.disabled = true
+	else:
+		var next := GameState.CANNON_DEFS[GameState.cannon_level]
+		var action := "Compra" if current == null else "liv. %d → %d" % [
+			GameState.cannon_level, GameState.cannon_level + 1,
+		]
+		_cannon_button.text = "%s (-%d $)" % [action, cost]
+		_cannon_button.tooltip_text = "%s: danno %d, gittata %d m" % [
+			next.display_name, roundi(next.damage), roundi(next.fire_range),
+		]
+		_cannon_button.disabled = GameState.money < cost
 
 
 # --- Estetica: vernici e accessori (roadmap A2) ------------------------------

@@ -95,6 +95,9 @@ var _sample_right := Vector3(0.9, 0.0, 0.0)
 ## Spruzzo d'acqua all'urto (feedback playtest round 2): creato in codice
 ## per non toccare la scena, piazzato al punto d'impatto e fatto ripartire.
 var _splash: CPUParticles3D
+## Cannone di bordo (roadmap B1), montato sul Visual quando è comprato:
+## segue beccheggio e rollio come il resto della coperta.
+var _cannon: BoatCannon
 
 
 func _ready() -> void:
@@ -102,6 +105,7 @@ func _ready() -> void:
 	# Vernice o accessori cambiati (cantiere, anteprima inclusa): si
 	# rimonta il modello da zero, così togliere una vernice è gratis.
 	GameState.customization_changed.connect(_apply_definition)
+	GameState.cannon_changed.connect(_mount_cannon)
 	_build_splash()
 	_apply_definition()
 
@@ -183,10 +187,30 @@ func _apply_definition() -> void:
 
 	for child in _visual.get_children():
 		child.queue_free()
+	_cannon = null
 	if def.visual_scene != null:
 		var model := def.visual_scene.instantiate() as Node3D
 		_visual.add_child(model)
 		BoatCustomization.apply(model, def)
+	_mount_cannon()
+
+
+## (Ri)monta il cannone in coperta se è comprato: sul Visual, così ondeggia
+## con la barca. Livello salito = definizione nuova, si ricrea da zero.
+func _mount_cannon() -> void:
+	if _cannon != null:
+		_cannon.queue_free()
+		_cannon = null
+	if not GameState.cannon_owned():
+		return
+	var def := GameState.current_def()
+	_cannon = BoatCannon.new()
+	_cannon.boat = self
+	_cannon.definition = GameState.cannon_def()
+	_visual.add_child(_cannon)
+	# In coperta, poco a poppavia del centro; quote da tarare guardando
+	# i tre modelli (nota playtest B1).
+	_cannon.position = Vector3(0.0, def.collision_size.y * 0.75, def.collision_size.z * 0.08)
 
 
 ## Agitazione del mare nel punto della barca, tradotta in caos (guida)
