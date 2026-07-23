@@ -37,17 +37,17 @@ func _run() -> void:
 	# --- Vendita: incassa tutto e svuota anche i pesci ---
 	GameState.money = 0
 	var earned := GameState.sell_cargo()
-	print("VENDITA: +%d $ (attesi 284), stiva %d (attesa 0), pesci %d (attesi 0)" % [
-		earned, GameState.cargo_count(), GameState.fish_cargo.size()])
+	print("VENDITA: +%d $ (attesi 284), stiva %d (attesa 0), item %d (attesi 0)" % [
+		earned, GameState.cargo_count(), GameState.inventory.size()])
 
 	# --- Salvataggio: i pesci fanno il roundtrip ---
 	GameState.collect_fish(GameState.FishType.AMBERJACK)
 	GameState.collect_fish(GameState.FishType.AMBERJACK)
 	GameState.save_game()
-	GameState.fish_cargo.clear()
+	GameState.inventory.clear()
 	GameState.load_game()
-	print("SALVATAGGIO: %d ricciole (attese 2)" % GameState.fish_cargo.get(
-		GameState.FishType.AMBERJACK, 0))
+	print("SALVATAGGIO: %d ricciole (attese 2)" % GameState.item_count(
+		GameState.FISH_ITEM[GameState.FishType.AMBERJACK]))
 
 	# --- Mondo: una zona di pesca per fascia di mare (due al largo) ---
 	var tiers: Array[int] = []

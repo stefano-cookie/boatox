@@ -55,7 +55,7 @@ func _run() -> void:
 		GameState.collect_buoy(GameState.BuoyType.YELLOW)
 	var full_accept := GameState.accept_mission(offers[0])
 	print("STIVA PIENA: accettata=%s (atteso false)" % full_accept)
-	GameState.cargo.clear()
+	GameState.inventory.clear()
 	GameState.cargo_changed.emit()
 
 	# --- Recupero: pacco spawna, si raccoglie, si riconsegna al porto ---

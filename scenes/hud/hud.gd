@@ -270,18 +270,23 @@ func _on_tutorial_changed(step: int, text: String) -> void:
 ## invece di scorrere sull'unica scritta centrale. I segnali granulari di
 ## GameState arrivano qui e diventano righe.
 func _on_buoy_toast(type: int) -> void:
-	_push_toast(Color("#" + GameState.BUOY_HEX[type]), "Boa %s" % GameState.BUOY_NAME[type],
-		"+%d $" % GameState.BUOY_VALUE[type])
+	_push_item_toast(GameState.buoy_item(type))
 
 
 func _on_fish_toast(type: int) -> void:
-	_push_toast(Color("#" + GameState.FISH_HEX[type]), GameState.FISH_NAME[type].capitalize(),
-		"+%d $" % GameState.FISH_VALUE[type])
+	_push_item_toast(GameState.fish_item(type))
 
 
 func _on_loot_toast(tier: int) -> void:
-	_push_toast(Color("#" + GameState.LOOT_HEX), GameState.LOOT_NAME[tier].capitalize(),
-		"+%d $" % GameState.LOOT_VALUE[tier])
+	_push_item_toast(GameState.loot_item(tier))
+
+
+## Toast di un item raccolto (roadmap R4): pastiglia col colore dell'item,
+## nome e valore unitario, tutto dall'ItemDefinition.
+func _push_item_toast(def: ItemDefinition) -> void:
+	if def == null:
+		return
+	_push_toast(def.color, def.display_name.capitalize(), "+%d $" % def.base_value)
 
 
 func _on_fuel_toast(liters: float) -> void:

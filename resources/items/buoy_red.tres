@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"buoy_red"
+display_name = "boa rossa"
+display_name_plural = "boe rosse"
+base_value = 40
+category = 0
+color = Color(1, 0.482, 0.42, 1)
+shape = 0
+sellable = true

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"fish_amberjack"
+display_name = "ricciola"
+display_name_plural = "ricciole"
+base_value = 90
+category = 1
+color = Color(0.561, 0.831, 0.784, 1)
+shape = 1
+sellable = true

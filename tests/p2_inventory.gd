@@ -35,8 +35,8 @@ func _run() -> void:
 
 	# --- Apertura con I: pausa + focus, griglia aggiornata ---
 	_panel._unhandled_input(_press("inventory"))
-	var yellow_qty: Label = _panel._buoy_cells[GameState.BuoyType.YELLOW]["qty"]
-	var tuna_qty: Label = _panel._fish_cells[GameState.FishType.TUNA]["qty"]
+	var yellow_qty: Label = _panel._cells[GameState.BUOY_ITEM[GameState.BuoyType.YELLOW]]["qty"]
+	var tuna_qty: Label = _panel._cells[GameState.FISH_ITEM[GameState.FishType.TUNA]]["qty"]
 	print("APERTO: aperto=%s (atteso true), pausa=%s (atteso true), focus=%s (atteso true), visibile=%s (atteso true)" % [
 		_panel._open, get_tree().paused, GameState.ui_focus_open(), _panel._root.visible])
 	print("GRIGLIA: gialle=%s (atteso ×2), tonno=%s (atteso ×1)" % [yellow_qty.text, tuna_qty.text])

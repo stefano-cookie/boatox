@@ -37,7 +37,7 @@ func _run() -> void:
 		upgraded, GameState.upgrade_level(GameState.UpgradeType.MOTOR), _boat.max_speed])
 
 	# --- Stiva: a capacità piena la raccolta viene rifiutata ---
-	GameState.cargo.clear()
+	GameState.inventory.clear()
 	var capacity := GameState.cargo_capacity()
 	var accepted := 0
 	for i in capacity + 3:
@@ -50,7 +50,7 @@ func _run() -> void:
 	GameState.save_game()
 	var money_saved := GameState.money
 	GameState.money = 0
-	GameState.cargo.clear()
+	GameState.inventory.clear()
 	GameState.current_boat_id = &"dinghy"
 	GameState.load_game()
 	print("SALVATAGGIO: denaro=%d (atteso %d), stiva=%d (attesa %d), barca=%s (attesa fishing_boat), upgrade motore=%d (atteso 1)" % [

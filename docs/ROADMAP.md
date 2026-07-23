@@ -98,12 +98,12 @@ Fissate il 23/07/2026 (feedback del direttore):
 
 ### R4 — Inventario generico (fondazione della direzione item)
 
-*Oggi ogni categoria ha il suo dizionario dedicato in GameState (`cargo`, `fish_cargo`, `loot_cargo`, `mission_crates`) con costanti e rami UI paralleli: aggiungere un item nuovo tocca 8 punti. E il loot non compare nemmeno nel pannello inventario.*
+*Fatto: i quattro dizionari dedicati (`cargo`, `fish_cargo`, `loot_cargo`, `mission_crates`) e le costanti parallele di valore/nome/colore sono confluiti in un catalogo `ItemDefinition` + un inventario unico. Aggiungere un item ora è un solo `.tres`.*
 
-- [ ] **`ItemDefinition` (Resource)**: id, nome/plurale, valore base, categoria (boa/pesce/bottino/merce/missione), icona/colore, vendibile sì/no. Un `.tres` per item in `resources/items/` — item nuovi senza toccare codice.
-- [ ] **Inventario unico in GameState**: `Dictionary[StringName, int]` al posto dei quattro contenitori; refactor di `collect_*`/`cargo_count`/`cargo_value`/`sell_cargo`/`cargo_detail_bbcode` su ItemDefinition. **Migrazione salvataggi retrocompatibile** (i mondi esistenti non si perdono niente).
-- [ ] **Pannello inventario a griglia unica** per categoria, loot e casse missione finalmente visibili; toast (R2) e tracker già pronti a mostrare qualsiasi item.
-- [ ] **Criterio di uscita**: aggiungere un item nuovo = un file `.tres`, e appare ovunque (stiva, toast, vendita, missioni)
+- [x] **`ItemDefinition` (Resource)** (`scripts/item_definition.gd`): id, nome/plurale, valore base, categoria (`BUOY`/`FISH`/`LOOT`/`GOODS`/`MISSION`), colore e forma dell'icona (`BUOY`/`FISH`/`CRATE`), vendibile sì/no. Un `.tres` per item in `resources/items/` — 11 item (3 boe, 4 pesci, 3 bottini, cassa missione). Catalogo in `GameState.ITEM_DEFS`; gli enum di gameplay (spawn boe, specie di pesca, tier del bottino) restano e si agganciano all'item con le mappe `BUOY_ITEM`/`FISH_ITEM`/`LOOT_ITEM`.
+- [x] **Inventario unico in GameState**: `inventory: Dictionary[StringName, int]` al posto dei quattro contenitori (le casse missione sono l'item non vendibile `mission_crate`). Rifatti `collect_*`, `cargo_count`, `cargo_value` (solo item vendibili), `sell_cargo`/`_clear_sellable`, `cargo_detail_bbcode` (dal catalogo), salvataggio (chiave `inventory`) e **migrazione retrocompatibile** (`_migrate_legacy_cargo`: i mondi pre-R4 confluiscono senza perdere niente — verificato headless).
+- [x] **Pannello inventario a griglia unica** (`inventory_panel.gd`): sezioni costruite dal catalogo per categoria, bottino e casse missione finalmente visibili (icona a baule); toast (R2), porto e minimappa leggono anch'essi l'`ItemDefinition`. *Da validare in playtest.*
+- [x] **Criterio di uscita**: aggiungere un item nuovo = un file `.tres`, e appare ovunque (stiva, toast, vendita, missioni). *Da validare in playtest con Stefano.*
 
 ### R5 — Sessione di design con Stefano (niente codice prima)
 

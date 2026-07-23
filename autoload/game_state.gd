@@ -105,11 +105,47 @@ enum RadarUpgrade { RANGE, DURATION, COOLDOWN }
 ## galleggiante e riportalo al porto principale.
 enum MissionType { DELIVERY, RECOVERY }
 
-const BUOY_VALUE: Dictionary[int, int] = {
-	BuoyType.YELLOW: 10,
-	BuoyType.RED: 40,
-	BuoyType.BLUE: 150,
+## Catalogo item (roadmap R4): un .tres per item in resources/items/, ognuno
+## un ItemDefinition con nome, valore, categoria, colore e forma dell'icona.
+## È la fonte di verità di cosa si raccoglie e si porta a casa: l'inventario
+## unico li conta, il porto li vende, HUD e griglia li mostrano. Aggiungere un
+## item nuovo = un file qui, senza toccare codice. L'ordine è di presentazione
+## (griglia inventario, dettaglio stiva). Le curve di gameplay (spawn, pesca,
+## tier del bottino) restano a enum sotto, agganciate all'item dalla sua id.
+const ITEM_DEFS: Array[ItemDefinition] = [
+	preload("res://resources/items/buoy_yellow.tres"),
+	preload("res://resources/items/buoy_red.tres"),
+	preload("res://resources/items/buoy_blue.tres"),
+	preload("res://resources/items/fish_sardine.tres"),
+	preload("res://resources/items/fish_bream.tres"),
+	preload("res://resources/items/fish_amberjack.tres"),
+	preload("res://resources/items/fish_tuna.tres"),
+	preload("res://resources/items/loot_modest.tres"),
+	preload("res://resources/items/loot_good.tres"),
+	preload("res://resources/items/loot_rich.tres"),
+	preload("res://resources/items/mission_crate.tres"),
+]
+## Mappe dagli enum di gameplay (spawn boe, specie di pesca, tier del bottino
+## restano a enum) all'id dell'item: il mondo ragiona per tipo, la stiva per id.
+const BUOY_ITEM: Dictionary[int, StringName] = {
+	BuoyType.YELLOW: &"buoy_yellow",
+	BuoyType.RED: &"buoy_red",
+	BuoyType.BLUE: &"buoy_blue",
 }
+const FISH_ITEM: Dictionary[int, StringName] = {
+	FishType.SARDINE: &"fish_sardine",
+	FishType.BREAM: &"fish_bream",
+	FishType.AMBERJACK: &"fish_amberjack",
+	FishType.TUNA: &"fish_tuna",
+}
+const LOOT_ITEM: Dictionary[int, StringName] = {
+	0: &"loot_modest",
+	1: &"loot_good",
+	2: &"loot_rich",
+}
+## Casse missione: item non vendibile che occupa stiva (roadmap A1).
+const MISSION_CRATE_ITEM: StringName = &"mission_crate"
+
 ## Probabilità che il punto boa sia occupato a ogni tentativo di spawn.
 const BUOY_SPAWN_CHANCE: Dictionary[int, float] = {
 	BuoyType.YELLOW: 1.0,
@@ -121,49 +157,6 @@ const BUOY_RESPAWN: Dictionary[int, float] = {
 	BuoyType.RED: 90.0,
 	BuoyType.BLUE: 120.0,
 }
-const BUOY_NAME: Dictionary[int, String] = {
-	BuoyType.YELLOW: "gialla",
-	BuoyType.RED: "rossa",
-	BuoyType.BLUE: "blu",
-}
-const BUOY_NAME_PLURAL: Dictionary[int, String] = {
-	BuoyType.YELLOW: "gialle",
-	BuoyType.RED: "rosse",
-	BuoyType.BLUE: "blu",
-}
-## Colori BBCode per il dettaglio stiva (HUD e porto).
-const BUOY_HEX: Dictionary[int, String] = {
-	BuoyType.YELLOW: "ffd43b",
-	BuoyType.RED: "ff7b6b",
-	BuoyType.BLUE: "7da2ff",
-}
-
-const FISH_VALUE: Dictionary[int, int] = {
-	FishType.SARDINE: 8,
-	FishType.BREAM: 30,
-	FishType.AMBERJACK: 90,
-	FishType.TUNA: 250,
-}
-const FISH_NAME: Dictionary[int, String] = {
-	FishType.SARDINE: "sardina",
-	FishType.BREAM: "orata",
-	FishType.AMBERJACK: "ricciola",
-	FishType.TUNA: "tonno",
-}
-const FISH_NAME_PLURAL: Dictionary[int, String] = {
-	FishType.SARDINE: "sardine",
-	FishType.BREAM: "orate",
-	FishType.AMBERJACK: "ricciole",
-	FishType.TUNA: "tonni",
-}
-## Colori BBCode per il dettaglio stiva (HUD e porto).
-const FISH_HEX: Dictionary[int, String] = {
-	FishType.SARDINE: "b8c7d4",
-	FishType.BREAM: "e8c37a",
-	FishType.AMBERJACK: "8fd4c8",
-	FishType.TUNA: "e07a7a",
-}
-
 ## Pesca per fascia di mare (GDD pillar 2): più al largo pesci migliori,
 ## finestra di tempismo più stretta e cursore più rapido. Chiave: indice
 ## fascia di Sea.zone_index (0 = calme, 1 = medie, 2 = mosse).
@@ -320,8 +313,6 @@ const MISSION_ZONE_MULT: Array[float] = [1.0, 1.2, 1.5]
 const MISSION_REP_REWARD: int = 5
 const MISSION_REP_FAIL: int = -5
 const MISSION_REP_ABANDON: int = -3
-## Colore BBCode delle casse missione nel dettaglio stiva.
-const CRATE_HEX: String = "c9a26b"
 
 ## Gli eventi casuali non affondano mai la barca da soli: lo scafo non
 ## scende sotto questa soglia per effetto di una scelta.
@@ -337,23 +328,10 @@ const CANNON_DEFS: Array[WeaponDefinition] = [
 	preload("res://resources/weapons/cannone_3.tres"),
 ]
 
-## Bottino galleggiante mollato dalle navi affondate (roadmap B1): casse
+## Bottino galleggiante mollato dalle navi affondate (roadmap B1): tier
 ## per fascia di mare del punto dell'affondamento — prede migliori dove il
-## mare è più duro (GDD pillar 2). Vanno in stiva come le boe e si vendono
-## al porto.
-const LOOT_VALUE: Dictionary[int, int] = {0: 40, 1: 80, 2: 150}
-const LOOT_NAME: Dictionary[int, String] = {
-	0: "bottino modesto",
-	1: "bottino buono",
-	2: "bottino ricco",
-}
-const LOOT_NAME_PLURAL: Dictionary[int, String] = {
-	0: "bottini modesti",
-	1: "bottini buoni",
-	2: "bottini ricchi",
-}
-## Colore BBCode del bottino nel dettaglio stiva.
-const LOOT_HEX: String = "d8b04a"
+## mare è più duro (GDD pillar 2). Ogni tier è un item (LOOT_ITEM): va in
+## stiva come le boe e si vende al porto.
 
 ## Ricompensa per acque difficili (roadmap R3, GDD pillar 2): oltre alle
 ## fasce di mare (boe/pesca/bottino/gare già scalano per fascia), un
@@ -516,14 +494,12 @@ var autostart_once: bool = false
 var money: int = 0
 var hull: float = 100.0
 var fuel: float = 40.0
-## Conteggio boe in stiva per tipologia (chiave: BuoyType).
-var cargo: Dictionary[int, int] = {}
-## Conteggio pesci in stiva per specie (chiave: FishType); condivide la
-## capacità con le boe: la stiva è una sola (GDD § Pesca).
-var fish_cargo: Dictionary[int, int] = {}
-## Bottino in stiva per fascia (chiave: 0..2, vedi LOOT_VALUE): stessa
-## stiva di boe e pesci. Salvato.
-var loot_cargo: Dictionary[int, int] = {}
+## Inventario unico della stiva (roadmap R4): id item -> quantità. Un solo
+## contenitore per boe, pesci, bottino, casse missione e (da R5) merci e
+## materiali — la stiva è una sola (GDD § Pesca). Sostituisce i quattro
+## dizionari dedicati dell'alpha; i salvataggi vecchi vi confluiscono in
+## caricamento (_migrate_legacy_cargo). Salvato.
+var inventory: Dictionary[StringName, int] = {}
 
 ## Livello del cannone di bordo (0 = nessuno, indice+1 in CANNON_DEFS).
 ## Personale come l'attrezzatura da pesca. Salvato.
@@ -557,8 +533,9 @@ var world_state: Dictionary = _default_world_state()
 var active_mission: Dictionary = {}
 ## Secondi rimasti alla consegna (solo missioni DELIVERY). Salvato.
 var mission_time_left: float = 0.0
-## Casse missione in stiva: occupano capacità ma non si vendono. Salvate.
-var mission_crates: int = 0
+
+## Lookup id -> ItemDefinition, costruito da ITEM_DEFS all'avvio.
+var _item_by_id: Dictionary[StringName, ItemDefinition] = {}
 
 ## Missione del nipote in mare (vedi GrandsonQuest). Salvata.
 var grandson_quest: int = GrandsonQuest.NONE
@@ -590,6 +567,7 @@ var alpha_end_shown: bool = false
 
 
 func _ready() -> void:
+	_build_item_index()
 	# Cheat di playtest: lanciando con `--maxed` (dopo il `--` di Godot)
 	# la sessione parte con tutto al massimo, su un salvataggio separato —
 	# i mondi veri non si toccano. Deferred: Town e la scena devono esserci.
@@ -1091,6 +1069,12 @@ func mission_active() -> bool:
 	return not active_mission.is_empty()
 
 
+## Casse missione in stiva: occupano capacità ma non si vendono (item
+## MISSION_CRATE_ITEM nell'inventario unico).
+func mission_crate_count() -> int:
+	return item_count(MISSION_CRATE_ITEM)
+
+
 ## Tipo della missione attiva, -1 se nessuna.
 func mission_type() -> int:
 	return int(active_mission.get("type", -1))
@@ -1116,7 +1100,7 @@ func mission_status_text() -> String:
 		MissionType.DELIVERY:
 			var left := maxf(mission_time_left, 0.0)
 			return "Consegna: %d casse a %s · %d:%02d" % [
-				mission_crates, active_mission.get("target_name", "?"),
+				mission_crate_count(), active_mission.get("target_name", "?"),
 				int(left) / 60, int(left) % 60,
 			]
 		MissionType.RECOVERY:
@@ -1138,7 +1122,7 @@ func active_missions() -> Array[Dictionary]:
 			return [{
 				"title": str(active_mission.get("title", "Consegna")),
 				"stage": "Consegna a %s" % active_mission.get("target_name", "?"),
-				"progress": "%d casse a bordo" % mission_crates,
+				"progress": "%d casse a bordo" % mission_crate_count(),
 				"countdown": maxf(mission_time_left, 0.0),
 			}]
 		MissionType.RECOVERY:
@@ -1224,7 +1208,7 @@ func accept_mission(offer: Dictionary) -> bool:
 		if cargo_count() + crates > cargo_capacity():
 			post_notice("Stiva insufficiente: servono %d posti liberi per le casse" % crates)
 			return false
-		mission_crates = crates
+		_set_item(MISSION_CRATE_ITEM, crates)
 		mission_time_left = float(offer.get("time_limit", 0.0))
 	active_mission = offer.duplicate()
 	active_mission["recovered"] = false
@@ -1271,7 +1255,7 @@ func _finish_mission(what: String) -> void:
 	money += reward
 	total_earned += reward
 	add_reputation(rep)
-	mission_crates = 0
+	_set_item(MISSION_CRATE_ITEM, 0)
 	active_mission.clear()
 	mission_time_left = 0.0
 	money_changed.emit(money)
@@ -1287,7 +1271,7 @@ func _finish_mission(what: String) -> void:
 func fail_mission(reason: String) -> void:
 	if not mission_active():
 		return
-	mission_crates = 0
+	_set_item(MISSION_CRATE_ITEM, 0)
 	active_mission.clear()
 	mission_time_left = 0.0
 	add_reputation(MISSION_REP_FAIL)
@@ -1301,7 +1285,7 @@ func fail_mission(reason: String) -> void:
 func abandon_mission() -> void:
 	if not mission_active():
 		return
-	mission_crates = 0
+	_set_item(MISSION_CRATE_ITEM, 0)
 	active_mission.clear()
 	mission_time_left = 0.0
 	add_reputation(MISSION_REP_ABANDON)
@@ -1338,6 +1322,59 @@ func apply_event_choice(money_delta: int, fuel_delta: float, hull_delta: float, 
 	save_game()
 
 
+# --- Catalogo item (roadmap R4) ----------------------------------------------
+
+func _build_item_index() -> void:
+	for def in ITEM_DEFS:
+		_item_by_id[def.id] = def
+
+
+## Definizione di un item dal suo id; null se sconosciuto (salvataggio con un
+## item rimosso dal catalogo: il conteggio resta ma non lo si vende/mostra).
+func item_def(id: StringName) -> ItemDefinition:
+	return _item_by_id.get(id, null)
+
+
+## Definizione dell'item corrispondente a un tipo di gameplay (comodo per chi
+## ragiona ancora per enum: boe in World, pesci nella pesca, bottino dai relitti).
+func buoy_item(type: int) -> ItemDefinition:
+	return item_def(BUOY_ITEM[type])
+
+
+func fish_item(type: int) -> ItemDefinition:
+	return item_def(FISH_ITEM[type])
+
+
+func loot_item(tier: int) -> ItemDefinition:
+	return item_def(LOOT_ITEM[clampi(tier, 0, 2)])
+
+
+func item_count(id: StringName) -> int:
+	return inventory.get(id, 0)
+
+
+## Aggiunge quantità a un item (nessun controllo di capacità: lo fa il
+## chiamante di raccolta, che sa dare il feedback giusto).
+func _add_item(id: StringName, amount: int = 1) -> void:
+	inventory[id] = inventory.get(id, 0) + amount
+
+
+## Fissa la quantità di un item; 0 o meno lo toglie dalla stiva.
+func _set_item(id: StringName, amount: int) -> void:
+	if amount <= 0:
+		inventory.erase(id)
+	else:
+		inventory[id] = amount
+
+
+## Toglie dalla stiva tutti gli item vendibili (vendita al porto,
+## affondamento): le casse missione e le merci non vendibili restano.
+func _clear_sellable() -> void:
+	for def in ITEM_DEFS:
+		if def.sellable:
+			inventory.erase(def.id)
+
+
 # --- Stiva e denaro ----------------------------------------------------------
 
 ## Falso se la stiva è piena: la boa resta in acqua (il limite di stiva
@@ -1346,9 +1383,9 @@ func collect_buoy(type: int) -> bool:
 	if cargo_count() >= cargo_capacity():
 		post_notice("Stiva piena! Vendi al porto")
 		return false
-	cargo[type] = cargo.get(type, 0) + 1
+	_add_item(BUOY_ITEM[type])
 	if type == BuoyType.BLUE:
-		post_notice("Boa blu! Rarissima: +%d $ di carico" % BUOY_VALUE[type])
+		post_notice("Boa blu! Rarissima: +%d $ di carico" % buoy_item(type).base_value)
 	cargo_changed.emit()
 	buoy_collected.emit(type)
 	if tutorial_step == TUTORIAL_COLLECT and cargo_count() >= TUTORIAL_BUOY_GOAL:
@@ -1361,7 +1398,7 @@ func collect_fish(type: int) -> bool:
 	if cargo_count() >= cargo_capacity():
 		post_notice("Stiva piena! Vendi al porto")
 		return false
-	fish_cargo[type] = fish_cargo.get(type, 0) + 1
+	_add_item(FISH_ITEM[type])
 	fish_caught_total += 1
 	cargo_changed.emit()
 	fish_caught.emit(type)
@@ -1375,7 +1412,7 @@ func collect_loot(tier: int) -> bool:
 		post_notice("Stiva piena! Vendi al porto")
 		return false
 	tier = clampi(tier, 0, 2)
-	loot_cargo[tier] = loot_cargo.get(tier, 0) + 1
+	_add_item(LOOT_ITEM[tier])
 	cargo_changed.emit()
 	loot_collected.emit(tier)
 	return true
@@ -1397,54 +1434,38 @@ func difficulty_multiplier(world_pos: Vector3, sea: Sea) -> float:
 	return 1.0 + bonus * (DIFFICULTY_REWARD_MAX - 1.0)
 
 
-## Include le casse missione: occupano stiva ma non si vendono.
+## Include le casse missione e ogni item non vendibile: occupano stiva.
 func cargo_count() -> int:
-	var total := mission_crates
-	for type in cargo:
-		total += cargo[type]
-	for type in fish_cargo:
-		total += fish_cargo[type]
-	for tier in loot_cargo:
-		total += loot_cargo[tier]
+	var total := 0
+	for id in inventory:
+		total += inventory[id]
 	return total
 
 
+## Vale solo l'inventario vendibile: casse missione e merci non vendibili
+## occupano stiva ma non contano al porto.
 func cargo_value() -> int:
 	var total := 0
-	for type in cargo:
-		total += cargo[type] * BUOY_VALUE[type]
-	for type in fish_cargo:
-		total += fish_cargo[type] * FISH_VALUE[type]
-	for tier in loot_cargo:
-		total += loot_cargo[tier] * LOOT_VALUE[tier]
+	for id: StringName in inventory:
+		var def := item_def(id)
+		if def != null and def.sellable:
+			total += inventory[id] * def.base_value
 	return total
 
 
-## Dettaglio stiva in BBCode ("2× gialle · 1× tonno"), condiviso da HUD
-## e pannello del porto: cosa hai raccolto si capisce a colpo d'occhio.
+## Dettaglio stiva in BBCode ("2× boe gialle · 1× tonno"), condiviso da HUD
+## e pannello del porto: cosa hai raccolto si capisce a colpo d'occhio. Segue
+## l'ordine del catalogo; le casse missione portano il suffisso "(missione)".
 func cargo_detail_bbcode() -> String:
 	var parts: Array[String] = []
-	for type: int in BuoyType.values():
-		var count: int = cargo.get(type, 0)
+	for def in ITEM_DEFS:
+		var count := item_count(def.id)
 		if count <= 0:
 			continue
-		var buoy_name: String = BUOY_NAME[type] if count == 1 else BUOY_NAME_PLURAL[type]
-		parts.append("[color=#%s]%d× %s[/color]" % [BUOY_HEX[type], count, buoy_name])
-	for type: int in FishType.values():
-		var count: int = fish_cargo.get(type, 0)
-		if count <= 0:
-			continue
-		var fish_name: String = FISH_NAME[type] if count == 1 else FISH_NAME_PLURAL[type]
-		parts.append("[color=#%s]%d× %s[/color]" % [FISH_HEX[type], count, fish_name])
-	for tier: int in LOOT_VALUE:
-		var count: int = loot_cargo.get(tier, 0)
-		if count <= 0:
-			continue
-		var loot_name: String = LOOT_NAME[tier] if count == 1 else LOOT_NAME_PLURAL[tier]
-		parts.append("[color=#%s]%d× %s[/color]" % [LOOT_HEX, count, loot_name])
-	if mission_crates > 0:
-		var crate_name := "cassa" if mission_crates == 1 else "casse"
-		parts.append("[color=#%s]%d× %s (missione)[/color]" % [CRATE_HEX, mission_crates, crate_name])
+		var label := def.name_for_count(count)
+		if def.category == ItemDefinition.Category.MISSION:
+			label += " (missione)"
+		parts.append("[color=#%s]%d× %s[/color]" % [def.color.to_html(false), count, label])
 	return " · ".join(parts)
 
 
@@ -1454,9 +1475,7 @@ func sell_cargo() -> int:
 		return 0
 	money += earned
 	total_earned += earned
-	cargo.clear()
-	fish_cargo.clear()
-	loot_cargo.clear()
+	_clear_sellable()
 	money_changed.emit(money)
 	cargo_changed.emit()
 	cargo_sold.emit(earned)
@@ -1586,9 +1605,7 @@ func pay_tow() -> void:
 ## recupero costa più del traino. Chiamato dal World a barca già in porto.
 func salvage_after_sinking() -> void:
 	var lost := cargo_value()
-	cargo.clear()
-	fish_cargo.clear()
-	loot_cargo.clear()
+	_clear_sellable()
 	money = maxi(money - SALVAGE_FEE, 0)
 	hull = TOW_HULL_RESTORE
 	money_changed.emit(money)
@@ -1619,15 +1636,9 @@ func _default_world_state() -> Dictionary:
 
 
 func save_game() -> void:
-	var cargo_out: Dictionary = {}
-	for type in cargo:
-		cargo_out[str(type)] = cargo[type]
-	var fish_out: Dictionary = {}
-	for type in fish_cargo:
-		fish_out[str(type)] = fish_cargo[type]
-	var loot_out: Dictionary = {}
-	for tier in loot_cargo:
-		loot_out[str(tier)] = loot_cargo[tier]
+	var inventory_out: Dictionary = {}
+	for id in inventory:
+		inventory_out[String(id)] = inventory[id]
 	var upgrades_out: Dictionary = {}
 	for boat_id in upgrades:
 		var levels: Dictionary = {}
@@ -1674,9 +1685,7 @@ func save_game() -> void:
 		"money": money,
 		"hull": hull,
 		"fuel": fuel,
-		"cargo": cargo_out,
-		"fish": fish_out,
-		"loot": loot_out,
+		"inventory": inventory_out,
 		"cannon_level": cannon_level,
 		"race_wins": race_wins,
 		"tutorial_step": tutorial_step,
@@ -1691,7 +1700,6 @@ func save_game() -> void:
 		"world_state": world_state,
 		"mission": mission_out,
 		"mission_time_left": mission_time_left,
-		"mission_crates": mission_crates,
 		"paints_owned": paints_out,
 		"paint_applied": applied_out,
 		"accessories": accessories_out,
@@ -1741,19 +1749,17 @@ func load_game() -> void:
 		for type: String in upgrades_in[boat_id]:
 			levels[int(type)] = int(upgrades_in[boat_id][type])
 		upgrades[StringName(boat_id)] = levels
-	cargo.clear()
-	var cargo_in: Dictionary = data.get("cargo", {})
-	for type: String in cargo_in:
-		cargo[int(type)] = int(cargo_in[type])
-	fish_cargo.clear()
-	var fish_in: Dictionary = data.get("fish", {})
-	for type: String in fish_in:
-		fish_cargo[int(type)] = int(fish_in[type])
-	# Salvataggi pre-B1: niente bottino né cannone.
-	loot_cargo.clear()
-	var loot_in: Dictionary = data.get("loot", {})
-	for tier: String in loot_in:
-		loot_cargo[int(tier)] = int(loot_in[tier])
+	# Inventario unico (roadmap R4): i salvataggi da R4 in poi hanno la chiave
+	# "inventory"; quelli precedenti avevano cargo/fish/loot/mission_crates
+	# separati e vi confluiscono (migrazione retrocompatibile).
+	inventory.clear()
+	if data.has("inventory"):
+		var inv_in: Dictionary = data.get("inventory", {})
+		for id: String in inv_in:
+			_set_item(StringName(id), int(inv_in[id]))
+	else:
+		_migrate_legacy_cargo(data)
+	# Salvataggi pre-B1: niente cannone.
 	cannon_level = clampi(int(data.get("cannon_level", 0)), 0, CANNON_DEFS.size())
 	fishing_gear.clear()
 	var gear_in: Dictionary = data.get("fishing_gear", {})
@@ -1788,7 +1794,6 @@ func load_game() -> void:
 		var value: Variant = mission_in[key]
 		active_mission[key] = _array_to_vec3(value) if _is_vec3_array(value) else value
 	mission_time_left = float(data.get("mission_time_left", 0.0))
-	mission_crates = int(data.get("mission_crates", 0))
 	# Salvataggi pre-A2: nessuna vernice, statistiche da zero.
 	paints_owned.clear()
 	var paints_in: Dictionary = data.get("paints_owned", {})
@@ -1815,6 +1820,23 @@ func load_game() -> void:
 	hull = clampf(float(data.get("hull", hull_max())), 0.0, hull_max())
 	# Salvataggi pre-benzina: si riparte col pieno.
 	fuel = clampf(float(data.get("fuel", fuel_capacity())), 0.0, fuel_capacity())
+
+
+## Migrazione dei salvataggi pre-R4 (roadmap R4): i quattro contenitori
+## separati dell'alpha (boe per BuoyType, pesci per FishType, bottino per tier,
+## casse missione) confluiscono nell'inventario unico via le mappe enum→id,
+## senza che i mondi esistenti perdano niente.
+func _migrate_legacy_cargo(data: Dictionary) -> void:
+	var cargo_in: Dictionary = data.get("cargo", {})
+	for type: String in cargo_in:
+		_add_item(BUOY_ITEM[int(type)], int(cargo_in[type]))
+	var fish_in: Dictionary = data.get("fish", {})
+	for type: String in fish_in:
+		_add_item(FISH_ITEM[int(type)], int(fish_in[type]))
+	var loot_in: Dictionary = data.get("loot", {})
+	for tier: String in loot_in:
+		_add_item(LOOT_ITEM[int(tier)], int(loot_in[tier]))
+	_set_item(MISSION_CRATE_ITEM, int(data.get("mission_crates", 0)))
 
 
 func _vec3_to_array(v: Vector3) -> Array:
@@ -1851,9 +1873,7 @@ func reset() -> void:
 	money = 0
 	race_wins = 0
 	tutorial_step = TUTORIAL_COLLECT
-	cargo.clear()
-	fish_cargo.clear()
-	loot_cargo.clear()
+	inventory.clear()
 	cannon_level = 0
 	owned_boats.clear()
 	owned_boats.append(&"dinghy")
@@ -1868,7 +1888,6 @@ func reset() -> void:
 	world_state = _default_world_state()
 	active_mission.clear()
 	mission_time_left = 0.0
-	mission_crates = 0
 	paints_owned.clear()
 	paint_applied.clear()
 	accessories_owned.clear()

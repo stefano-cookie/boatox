@@ -503,7 +503,7 @@ func _draw_pickups(rect: Rect2) -> void:
 			continue
 		if not _in_view(buoy.global_position, 10.0):
 			continue
-		var color := Color("#" + GameState.BUOY_HEX[buoy.type])
+		var color := GameState.buoy_item(buoy.type).color
 		draw_circle(_to_map(rect, buoy.global_position), buoy_radius, color)
 	var can_size := 8.0 if _expanded else 5.0
 	for node in get_tree().get_nodes_in_group(&"fuel_cans"):
@@ -576,9 +576,10 @@ func _draw_legend(rect: Rect2) -> void:
 	var y := rect.end.y - 14.0
 	var x := rect.position.x + 14.0
 	for type: int in GameState.BuoyType.values():
-		draw_circle(Vector2(x, y - 5.0), 5.0, Color("#" + GameState.BUOY_HEX[type]))
+		var def := GameState.buoy_item(type)
+		draw_circle(Vector2(x, y - 5.0), 5.0, def.color)
 		x += 10.0
-		x = _legend_label(font, x, y, "boa " + GameState.BUOY_NAME[type])
+		x = _legend_label(font, x, y, def.display_name)
 	draw_rect(Rect2(x - 5.0, y - 10.0, 10.0, 10.0), FUEL_COLOR)
 	x += 10.0
 	x = _legend_label(font, x, y, "benzina")

@@ -73,37 +73,9 @@ fit_content = true
 scroll_active = false
 text = "Stiva 0/0"
 
-[node name="BuoySection" type="VBoxContainer" parent="Overlay/Center/Panel/Margin/VBox"]
+[node name="Sections" type="VBoxContainer" parent="Overlay/Center/Panel/Margin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BuoyHeader" type="Label" parent="Overlay/Center/Panel/Margin/VBox/BuoySection"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.82, 0.95, 1)
-theme_override_font_sizes/font_size = 22
-text = "Boe"
-
-[node name="BuoyGrid" type="GridContainer" parent="Overlay/Center/Panel/Margin/VBox/BuoySection"]
-layout_mode = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 3
-
-[node name="FishSection" type="VBoxContainer" parent="Overlay/Center/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="FishHeader" type="Label" parent="Overlay/Center/Panel/Margin/VBox/FishSection"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.82, 0.95, 1)
-theme_override_font_sizes/font_size = 22
-text = "Pesci"
-
-[node name="FishGrid" type="GridContainer" parent="Overlay/Center/Panel/Margin/VBox/FishSection"]
-layout_mode = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 4
+theme_override_constants/separation = 14
 
 [node name="Hint" type="Label" parent="Overlay/Center/Panel/Margin/VBox"]
 layout_mode = 2

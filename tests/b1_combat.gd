@@ -51,10 +51,10 @@ func _run() -> void:
 	GameState.collect_loot(1)
 	GameState.save_game()
 	GameState.cannon_level = 0
-	GameState.loot_cargo.clear()
+	GameState.inventory.clear()
 	GameState.load_game()
 	print("SALVATAGGIO: cannone=%d (atteso 3), bottino fascia 1=%d (atteso 2)" % [
-		GameState.cannon_level, GameState.loot_cargo.get(1, 0)])
+		GameState.cannon_level, GameState.item_count(GameState.LOOT_ITEM[1])])
 
 	# --- Balistica: la palla ricade sul punto mirato (integrazione a 60 Hz) ---
 	var from := Vector3(0.0, 1.2, 0.0)
@@ -86,5 +86,5 @@ func _run() -> void:
 
 	GameState.reset()
 	print("RESET: cannone=%d (atteso 0), bottino=%d (atteso 0)" % [
-		GameState.cannon_level, GameState.loot_cargo.size()])
+		GameState.cannon_level, GameState.inventory.size()])
 	get_tree().quit()

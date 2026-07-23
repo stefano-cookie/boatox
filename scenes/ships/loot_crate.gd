@@ -4,7 +4,7 @@ extends Area3D
 ## Bottino galleggiante mollato da una nave affondata (roadmap B1): si
 ## raccoglie passandoci sopra con la barca, come boe e taniche (stesso
 ## pattern). Il valore dipende dalla fascia di mare dell'affondamento
-## (tier, vedi GameState.LOOT_VALUE): prede migliori dove il mare è più
+## (tier, vedi GameState.LOOT_ITEM): prede migliori dove il mare è più
 ## duro. A stiva piena resta a galla; dopo un po' il mare se lo riprende.
 
 ## Secondi di vita in acqua prima di sparire (con dissolvenza).

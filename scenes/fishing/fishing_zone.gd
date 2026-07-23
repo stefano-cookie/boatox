@@ -289,7 +289,8 @@ func _finish_catch() -> void:
 	_stock -= 1
 	var label := "Pesce pregiato: %s! (+%d $ in stiva)" if _fight_prize \
 		else "Preso: %s (+%d $ in stiva)"
-	_show_result(label % [GameState.FISH_NAME[_fight_type], GameState.FISH_VALUE[_fight_type]])
+	var fish := GameState.fish_item(_fight_type)
+	_show_result(label % [fish.display_name, fish.base_value])
 
 
 func _refresh_fight_bars() -> void:

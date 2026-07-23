@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"fish_bream"
+display_name = "orata"
+display_name_plural = "orate"
+base_value = 30
+category = 1
+color = Color(0.91, 0.765, 0.478, 1)
+shape = 1
+sellable = true

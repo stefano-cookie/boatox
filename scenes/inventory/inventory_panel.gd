@@ -1,9 +1,11 @@
 extends CanvasLayer
 
-## Pannello inventario della stiva (roadmap P2 § Inventario), aperto col
-## tasto I. Oggi la stiva è solo una riga di testo nell'HUD; qui diventa una
-## griglia leggibile: per ogni tipo di boa e di pesce un'icona, la quantità
-## e il valore unitario, più stiva usata/capacità e valore totale del carico.
+## Pannello inventario della stiva (roadmap R4 § Inventario), aperto col
+## tasto I. La stiva è un inventario unico (GameState.inventory): il pannello
+## si costruisce dal catalogo ITEM_DEFS, una sezione per categoria (boe, pesci,
+## bottino, casse missione e — da R5 — merci). Per ogni item un'icona, il nome,
+## la quantità e il valore unitario, più stiva usata/capacità e valore totale.
+## Aggiungere un item nuovo = un .tres: appare qui senza toccare questo codice.
 ##
 ## Pattern UI del progetto: mette in pausa l'albero come il menu di pausa
 ## (process_mode ALWAYS per ricevere input a gioco fermo), libera/ricattura
@@ -15,6 +17,16 @@ extends CanvasLayer
 const ICON_SIZE: float = 64.0
 ## Righe con quantità 0 restano visibili (catalogo) ma smorzate.
 const EMPTY_MODULATE := Color(1.0, 1.0, 1.0, 0.32)
+## Colonne della griglia di ogni sezione.
+const GRID_COLUMNS: int = 4
+## Titoli delle sezioni per categoria (ItemDefinition.Category).
+const CATEGORY_TITLE: Dictionary[int, String] = {
+	ItemDefinition.Category.BUOY: "Boe",
+	ItemDefinition.Category.FISH: "Pesci",
+	ItemDefinition.Category.LOOT: "Bottino",
+	ItemDefinition.Category.GOODS: "Merci",
+	ItemDefinition.Category.MISSION: "Missione",
+}
 
 ## Durata dell'animazione di apertura/chiusura (feedback playtest: far
 ## capire che si sta aprendo la stiva). Breve: è feedback, non un'attesa.
@@ -24,16 +36,14 @@ const CLOSED_SCALE := Vector2(0.9, 0.9)
 @onready var _root: Control = $Overlay
 @onready var _panel: PanelContainer = $Overlay/Center/Panel
 @onready var _subtitle: RichTextLabel = $Overlay/Center/Panel/Margin/VBox/Subtitle
-@onready var _buoy_grid: GridContainer = $Overlay/Center/Panel/Margin/VBox/BuoySection/BuoyGrid
-@onready var _fish_grid: GridContainer = $Overlay/Center/Panel/Margin/VBox/FishSection/FishGrid
+@onready var _sections: VBoxContainer = $Overlay/Center/Panel/Margin/VBox/Sections
 
 var _open: bool = false
 ## Tween corrente di apertura/chiusura: si annulla prima di ripartire, così
 ## premere I ripetutamente non lascia il pannello a metà.
 var _anim: Tween
-## Celle costruite una volta e aggiornate a ogni apertura. type -> nodi.
-var _buoy_cells: Dictionary[int, Dictionary] = {}
-var _fish_cells: Dictionary[int, Dictionary] = {}
+## Celle costruite una volta e aggiornate a ogni apertura. id item -> nodi.
+var _cells: Dictionary[StringName, Dictionary] = {}
 
 
 func _ready() -> void:
@@ -104,24 +114,46 @@ func _finish_close() -> void:
 
 # --- Costruzione e aggiornamento della griglia -------------------------------
 
+## Costruisce una sezione per categoria dal catalogo (roadmap R4): l'ordine
+## degli item è quello di ITEM_DEFS, le categorie compaiono nell'ordine in cui
+## il catalogo le incontra. Aggiungere un .tres di categoria nuova crea la sua
+## sezione da solo.
 func _build_cells() -> void:
-	for type: int in GameState.BuoyType.values():
-		var color := Color.html(GameState.BUOY_HEX[type])
-		var cell := _make_cell(ItemIcon.Kind.BUOY, color,
-			GameState.BUOY_NAME[type].capitalize(), GameState.BUOY_VALUE[type])
-		_buoy_grid.add_child(cell.root)
-		_buoy_cells[type] = cell
-	for type: int in GameState.FishType.values():
-		var color := Color.html(GameState.FISH_HEX[type])
-		var cell := _make_cell(ItemIcon.Kind.FISH, color,
-			GameState.FISH_NAME[type].capitalize(), GameState.FISH_VALUE[type])
-		_fish_grid.add_child(cell.root)
-		_fish_cells[type] = cell
+	var current_category: int = -1
+	var grid: GridContainer = null
+	for def: ItemDefinition in GameState.ITEM_DEFS:
+		if def.category != current_category:
+			current_category = def.category
+			grid = _add_section(def.category)
+		var cell := _make_cell(def.shape, def.color, def.display_name.capitalize(),
+			def.base_value, def.sellable)
+		grid.add_child(cell.root)
+		_cells[def.id] = cell
 
 
-## Una cella: icona, nome, "×N" e valore unitario. Ritorna i nodi che vanno
-## aggiornati (root per lo smorzamento, qty per la quantità).
-func _make_cell(kind: int, color: Color, item_name: String, unit_value: int) -> Dictionary:
+## Titolo + griglia di una sezione, aggiunti al contenitore. Ritorna la griglia
+## a cui appendere le celle.
+func _add_section(category: int) -> GridContainer:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 6)
+	var header := Label.new()
+	header.text = CATEGORY_TITLE.get(category, "Varie")
+	header.add_theme_color_override("font_color", Color(0.7, 0.82, 0.95))
+	header.add_theme_font_size_override("font_size", 22)
+	section.add_child(header)
+	var grid := GridContainer.new()
+	grid.columns = GRID_COLUMNS
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	section.add_child(grid)
+	_sections.add_child(section)
+	return grid
+
+
+## Una cella: icona, nome, "×N" e valore unitario (o "missione" se non si
+## vende). Ritorna i nodi da aggiornare (root per lo smorzamento, qty).
+func _make_cell(shape: int, color: Color, item_name: String, unit_value: int,
+		sellable: bool) -> Dictionary:
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.custom_minimum_size = Vector2(110.0, 0.0)
@@ -130,7 +162,7 @@ func _make_cell(kind: int, color: Color, item_name: String, unit_value: int) -> 
 	var icon := ItemIcon.new()
 	icon.custom_minimum_size = Vector2(ICON_SIZE, ICON_SIZE)
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	icon.setup(kind, color)
+	icon.setup(shape, color)
 	box.add_child(icon)
 
 	var name_label := Label.new()
@@ -145,7 +177,7 @@ func _make_cell(kind: int, color: Color, item_name: String, unit_value: int) -> 
 	box.add_child(qty_label)
 
 	var value_label := Label.new()
-	value_label.text = "%d $" % unit_value
+	value_label.text = "%d $" % unit_value if sellable else "missione"
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value_label.add_theme_font_size_override("font_size", 18)
 	value_label.modulate = Color(0.7, 0.78, 0.85)
@@ -155,21 +187,11 @@ func _make_cell(kind: int, color: Color, item_name: String, unit_value: int) -> 
 
 
 func _refresh() -> void:
-	# Le casse missione occupano stiva ma non hanno cella in griglia:
-	# si dichiarano nel sottotitolo, così il conteggio torna.
-	var crates_text := ""
-	if GameState.mission_crates > 0:
-		crates_text = " · [color=#%s]%d casse missione[/color]" % [
-			GameState.CRATE_HEX, GameState.mission_crates,
-		]
-	_subtitle.text = "[center]Stiva %d/%d · vale [color=#8ee3a8]%d $[/color]%s[/center]" % [
+	_subtitle.text = "[center]Stiva %d/%d · vale [color=#8ee3a8]%d $[/color][/center]" % [
 		GameState.cargo_count(), GameState.cargo_capacity(), GameState.cargo_value(),
-		crates_text,
 	]
-	for type: int in _buoy_cells:
-		_update_cell(_buoy_cells[type], GameState.cargo.get(type, 0))
-	for type: int in _fish_cells:
-		_update_cell(_fish_cells[type], GameState.fish_cargo.get(type, 0))
+	for id: StringName in _cells:
+		_update_cell(_cells[id], GameState.item_count(id))
 
 
 func _update_cell(cell: Dictionary, count: int) -> void:

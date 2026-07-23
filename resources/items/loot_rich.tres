@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"loot_rich"
+display_name = "bottino ricco"
+display_name_plural = "bottini ricchi"
+base_value = 150
+category = 2
+color = Color(0.847, 0.69, 0.29, 1)
+shape = 2
+sellable = true
