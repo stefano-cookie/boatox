@@ -8,5 +8,5 @@ display_name = "Cannone rinforzato"
 damage = 18.0
 fire_range = 75.0
 fire_interval = 1.2
-projectile_speed = 34.0
+projectile_speed = 44.0
 price = 1800

@@ -42,6 +42,12 @@ extends Vessel
 @export var sink_depth: float = 0.9
 @export var sink_pitch_deg: float = 6.0
 
+@export_group("Fumo da danno")
+## Frazione di scafo sotto cui esce fumo grigio (avaria leggera).
+@export_range(0.0, 1.0) var smoke_threshold: float = 0.5
+## Frazione sotto cui il fumo si fa nero e compaiono le scintille (grave).
+@export_range(0.0, 1.0) var heavy_smoke_threshold: float = 0.33
+
 @export_group("Assetto (visuale)")
 @export var bank_max_deg: float = 10.0
 @export var accel_pitch_deg: float = 3.0
@@ -98,6 +104,11 @@ var _splash: CPUParticles3D
 ## Cannone di bordo (roadmap B1), montato sul Visual quando è comprato:
 ## segue beccheggio e rollio come il resto della coperta.
 var _cannon: BoatCannon
+## Fumo progressivo di scafo danneggiato (roadmap R1): grigio sotto
+## smoke_threshold, nero + scintille sotto heavy_smoke_threshold. Sul
+## Visual così ondeggia con la coperta; pilotato da hull_changed.
+var _smoke: CPUParticles3D
+var _sparks: CPUParticles3D
 
 
 func _ready() -> void:
@@ -106,7 +117,9 @@ func _ready() -> void:
 	# rimonta il modello da zero, così togliere una vernice è gratis.
 	GameState.customization_changed.connect(_apply_definition)
 	GameState.cannon_changed.connect(_mount_cannon)
+	GameState.hull_changed.connect(_on_hull_changed)
 	_build_splash()
+	_build_smoke()
 	_apply_definition()
 
 
@@ -185,6 +198,13 @@ func _apply_definition() -> void:
 	_sample_left = Vector3(-def.collision_size.x * 0.5, 0.0, 0.0)
 	_sample_right = Vector3(def.collision_size.x * 0.5, 0.0, 0.0)
 
+	# Il pennacchio di avaria esce da poppa, a quota di coperta della barca
+	# corrente (le tre barche hanno altezze diverse).
+	if _smoke != null:
+		var deck := Vector3(0.0, def.collision_size.y * 0.9, def.collision_size.z * 0.2)
+		_smoke.position = deck
+		_sparks.position = deck
+
 	for child in _visual.get_children():
 		child.queue_free()
 	_cannon = null
@@ -193,6 +213,9 @@ func _apply_definition() -> void:
 		_visual.add_child(model)
 		BoatCustomization.apply(model, def)
 	_mount_cannon()
+	# Sincronizza subito il fumo: una barca caricata già malconcia fuma
+	# dallo spawn, senza aspettare il prossimo hull_changed.
+	_on_hull_changed(GameState.hull, GameState.hull_max())
 
 
 ## (Ri)monta il cannone in coperta se è comprato: sul Visual, così ondeggia
@@ -326,6 +349,64 @@ func _spawn_splash(pos: Vector3, impact: float) -> void:
 	_splash.initial_velocity_max = lerpf(4.0, 8.0, strength)
 	_splash.restart()
 	_splash.emitting = true
+
+
+## Fumo continuo di avaria: emettitore spento a riposo, acceso da
+## _on_hull_changed. Le scintille sono un secondo emettitore, più corto e
+## luminoso, che si aggiunge al fumo nero dei danni gravi. Appeso al corpo
+## (come lo splash), non al Visual che _apply_definition ripulisce a ogni
+## cambio barca; la quota di coperta la fissa _apply_definition.
+func _build_smoke() -> void:
+	_smoke = CPUParticles3D.new()
+	_smoke.emitting = false
+	_smoke.amount = 22
+	_smoke.lifetime = 1.4
+	_smoke.direction = Vector3.UP
+	_smoke.spread = 18.0
+	_smoke.initial_velocity_min = 1.2
+	_smoke.initial_velocity_max = 2.4
+	_smoke.gravity = Vector3(0.0, 0.6, 0.0)
+	_smoke.damping_min = 0.4
+	_smoke.damping_max = 0.8
+	_smoke.scale_amount_min = 0.3
+	_smoke.scale_amount_max = 0.7
+	_smoke.scale_amount_curve = _smoke_grow_curve()
+	_smoke.color = Color(0.5, 0.5, 0.52, 0.7)
+	add_child(_smoke)
+
+	_sparks = CPUParticles3D.new()
+	_sparks.emitting = false
+	_sparks.amount = 14
+	_sparks.lifetime = 0.5
+	_sparks.direction = Vector3.UP
+	_sparks.spread = 40.0
+	_sparks.initial_velocity_min = 2.5
+	_sparks.initial_velocity_max = 5.0
+	_sparks.gravity = Vector3(0.0, -6.0, 0.0)
+	_sparks.scale_amount_min = 0.05
+	_sparks.scale_amount_max = 0.12
+	_sparks.color = Color(1.0, 0.7, 0.28, 0.95)
+	add_child(_sparks)
+
+
+## Il fumo cresce e sfuma salendo: piccolo alla bocca, gonfio in cima.
+func _smoke_grow_curve() -> Curve:
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.35))
+	curve.add_point(Vector2(1.0, 1.0))
+	return curve
+
+
+## Frazione di scafo cambiata: niente fumo sopra soglia, grigio in avaria
+## leggera, nero + scintille in avaria grave. Le soglie sono @export.
+func _on_hull_changed(current: float, max_value: float) -> void:
+	if _smoke == null:
+		return
+	var frac := current / maxf(max_value, 0.01)
+	var heavy := frac < heavy_smoke_threshold
+	_smoke.emitting = frac < smoke_threshold
+	_smoke.color = Color(0.12, 0.12, 0.13, 0.85) if heavy else Color(0.5, 0.5, 0.52, 0.7)
+	_sparks.emitting = heavy
 
 
 func _turn_factor() -> float:

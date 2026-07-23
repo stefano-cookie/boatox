@@ -26,6 +26,7 @@ script = ExtResource("1")
 events = Array[ExtResource("8")]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7")])
 
 [node name="EventUI" type="CanvasLayer" parent="."]
+process_mode = 3
 
 [node name="Panel" type="PanelContainer" parent="EventUI"]
 visible = false

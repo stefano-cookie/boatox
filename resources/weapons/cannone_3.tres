@@ -8,5 +8,5 @@ display_name = "Cannone lungo"
 damage = 26.0
 fire_range = 90.0
 fire_interval = 0.9
-projectile_speed = 38.0
+projectile_speed = 48.0
 price = 3200

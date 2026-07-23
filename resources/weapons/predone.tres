@@ -8,5 +8,5 @@ display_name = "Cannone del predone"
 damage = 8.0
 fire_range = 50.0
 fire_interval = 3.2
-projectile_speed = 26.0
+projectile_speed = 36.0
 price = 0

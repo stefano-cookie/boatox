@@ -82,6 +82,10 @@ func _trigger() -> void:
 	_event_boat = boat
 	_event_boat.input_enabled = false
 	_event_boat.reset_motion()
+	# Il mondo si ferma davvero mentre leggi l'evento: senza pausa il timer
+	# delle consegne scorreva sotto il pannello (bug R1). Il pannello vive
+	# sul CanvasLayer in process_mode ALWAYS, quindi resta interattivo.
+	get_tree().paused = true
 	GameState.push_ui_focus()
 	_title.text = _current.title
 	_body.text = _current.body
@@ -117,6 +121,7 @@ func _on_choice(first: bool) -> void:
 	_current = null
 	_open = false
 	_panel.hide()
+	get_tree().paused = false
 	GameState.pop_ui_focus()
 	if _event_boat != null:
 		_event_boat.input_enabled = true

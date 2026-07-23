@@ -48,12 +48,41 @@ func _physics_process(delta: float) -> void:
 		_die()
 
 
-## Velocità di lancio per arrivare da from a to in un tempo dato dalla
-## velocità media dell'arma: t = distanza/speed, poi si compensa la
-## gravità. Il minimo di tempo tiene l'arco visibile anche a bruciapelo.
+## Velocità di lancio a modulo fisso (`speed`): si risolve l'ANGOLO d'alzo
+## per centrare `to`, come un vero pezzo d'artiglieria. Vicino il tiro è
+## quasi teso, lontano l'arco cresce da sé con la distanza — la palla passa
+## sempre per il punto mirato (il mirino è il riferimento). Si sceglie la
+## soluzione bassa (arco teso, non il lob a campana). Oltre la gittata
+## balistica (`speed²/g`) si spara a 45°, gittata massima, verso il bersaglio.
 static func launch_velocity(from: Vector3, to: Vector3, speed: float) -> Vector3:
-	var t := maxf(from.distance_to(to) / maxf(speed, 1.0), 0.35)
-	return (to - from) / t + Vector3.UP * (0.5 * GRAVITY * t)
+	var v := maxf(speed, 1.0)
+	var delta := to - from
+	var flat := Vector3(delta.x, 0.0, delta.z)
+	var d := flat.length()
+	if d < 0.01:
+		# Bersaglio a piombo: si spara in verticale nel verso giusto.
+		return Vector3.UP * (v if delta.y >= 0.0 else -v)
+	var dir := flat / d
+	var v2 := v * v
+	# tan θ = (v² ± √(v⁴ − g(g·d² + 2·h·v²))) / (g·d): il segno − è il tiro teso.
+	var disc := v2 * v2 - GRAVITY * (GRAVITY * d * d + 2.0 * delta.y * v2)
+	if disc < 0.0:
+		# Fuori portata: 45° verso il bersaglio (la gittata massima possibile).
+		return (dir + Vector3.UP) * (v / sqrt(2.0))
+	var theta := atan((v2 - sqrt(disc)) / (GRAVITY * d))
+	return dir * (v * cos(theta)) + Vector3.UP * (v * sin(theta))
+
+
+## Vero se un tiro a velocità fissa `speed` può passare per `to` partendo
+## da `from`: il discriminante dell'equazione d'alzo non è negativo. Usato
+## dal cannone per capire se il punto mirato è in portata balistica (i punti
+## alti e vicini possono non esserlo anche dentro la gittata piana).
+static func can_reach(from: Vector3, to: Vector3, speed: float) -> bool:
+	var v := maxf(speed, 1.0)
+	var delta := to - from
+	var d2 := delta.x * delta.x + delta.z * delta.z
+	var v2 := v * v
+	return v2 * v2 - GRAVITY * (GRAVITY * d2 + 2.0 * delta.y * v2) >= 0.0
 
 
 func _on_body_entered(body: Node3D) -> void:
