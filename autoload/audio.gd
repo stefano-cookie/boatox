@@ -240,6 +240,10 @@ func _connect_signals() -> void:
 	GameState.ship_hit.connect(func(_pos: Vector3) -> void: _play(&"impact", 1.25, -6.0))
 	GameState.ship_sunk.connect(func(_pos: Vector3) -> void: _play(&"sink"))
 	GameState.loot_collected.connect(func(_tier: int) -> void: _play(&"pop", 0.8))
+	GameState.fuel_collected.connect(func(_liters: float) -> void: _play(&"pop", 1.15))
+	# Missione compiuta (roadmap R2): fanfara del tracker HUD, distinta dal
+	# cha-ching della vendita che parte in contemporanea.
+	GameState.mission_completed.connect(func(_what: String, _reward: int) -> void: _play(&"chime", 1.18))
 	# Tick discreto su ogni avviso: conferma che qualcosa è successo, basso
 	# volume per non stancare (le vendite hanno già il loro cha-ching sopra).
 	GameState.notice_posted.connect(func(_text: String) -> void: _play(&"tick", 1.0, -14.0))

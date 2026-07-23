@@ -40,6 +40,10 @@ signal reputation_changed(faction: StringName, value: int)
 ## Missione della bacheca accettata/avanzata/chiusa: minimappa, HUD e
 ## World (spawn del pacco di recupero) si aggiornano su questo.
 signal mission_changed
+## Missione portata a termine con successo (roadmap R2): il tracker HUD la
+## celebra (animazione + suono). Distinto da mission_changed, che scatta
+## anche su accetta/abbandona/fallisci.
+signal mission_completed(what: String, reward: int)
 ## Vernice o accessori della barca corrente cambiati (acquisto, cambio o
 ## anteprima dal cantiere): la Boat riveste il suo modello su questo.
 signal customization_changed
@@ -56,6 +60,10 @@ signal cannon_fired
 signal ship_hit(position: Vector3)
 signal ship_sunk(position: Vector3)
 signal loot_collected(tier: int)
+## Tanica di benzina recuperata in acqua (roadmap R2): alimenta i toast di
+## raccolta in basso a destra, come boe/pesci/bottino. Il rifornimento al
+## porto NON la emette: è un pickup di mare, non un acquisto.
+signal fuel_collected(liters: float)
 ## Il world_state è tornato ai default (azzeramento partita): l'autoload
 ## Town lo rilancia alle scene del paese (slot, crescita, flottiglia).
 signal world_state_reset
@@ -1085,6 +1093,34 @@ func mission_status_text() -> String:
 	return ""
 
 
+## Dati strutturati delle missioni attive per il tracker HUD (roadmap R2):
+## una lista (oggi 0 o 1 voce) già pronta per le missioni NPC di R5. Ogni
+## voce: titolo, tappa corrente, progresso "n/N" leggibile e countdown in
+## secondi (< 0 = nessun limite di tempo).
+func active_missions() -> Array[Dictionary]:
+	if not mission_active():
+		return []
+	match mission_type():
+		MissionType.DELIVERY:
+			return [{
+				"title": str(active_mission.get("title", "Consegna")),
+				"stage": "Consegna a %s" % active_mission.get("target_name", "?"),
+				"progress": "%d casse a bordo" % mission_crates,
+				"countdown": maxf(mission_time_left, 0.0),
+			}]
+		MissionType.RECOVERY:
+			var recovered := bool(active_mission.get("recovered", false))
+			return [{
+				"title": str(active_mission.get("title", "Recupero")),
+				"stage": "Riporta il pacco al porto" if recovered \
+					else "Raggiungi il punto in mappa",
+				"progress": "2/2 · pacco a bordo" if recovered \
+					else "1/2 · pacco in acqua",
+				"countdown": -1.0,
+			}]
+	return []
+
+
 ## Genera le offerte della bacheca: una consegna verso l'approdo e due
 ## recuperi (acque medie e mare aperto). Ricompense scalate su distanza e
 ## fascia (GDD pillar 2). Le offerte non si salvano: si rigenerano a ogni
@@ -1209,6 +1245,7 @@ func _finish_mission(what: String) -> void:
 	cargo_changed.emit()
 	cargo_sold.emit(reward)
 	mission_changed.emit()
+	mission_completed.emit(what, reward)
 	post_notice("%s: +%d $ · reputazione +%d" % [what, reward, rep])
 	save_game()
 

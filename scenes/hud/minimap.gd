@@ -24,7 +24,10 @@ const ROCK_COLOR := Color(0.32, 0.34, 0.38)
 const ISLAND_COLOR := Color(0.45, 0.62, 0.4)
 const PORT_COLOR := Color(1.0, 0.62, 0.2)
 const FUEL_COLOR := Color(0.9, 0.15, 0.1)
-const WIND_COLOR := Color(0.03, 0.07, 0.16)
+## Celle di vento: prima quasi nere e invisibili (feedback R2). Ora una
+## macchia di acqua increspata in azzurro chiaro, con anello marcato: si
+## legge a colpo d'occhio dov'è il mare più grosso.
+const WIND_COLOR := Color(0.6, 0.78, 1.0)
 const FISHING_COLOR := Color(0.55, 0.9, 1.0)
 const RACE_COLOR := Color(0.35, 1.0, 0.55)
 const BOAT_COLOR := Color(1, 1, 1)
@@ -39,17 +42,28 @@ const RADAR_RING_COLOR := Color(0.55, 0.9, 1.0)
 const MISSION_COLOR := Color(1.0, 0.8, 0.3)
 
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
-@export var small_height: float = 190.0
-@export_range(0.1, 1.0) var expanded_height_ratio: float = 0.72
+## Alzata in R2 (minimappa in alto a destra, più grande e leggibile).
+@export var small_height: float = 240.0
+@export_range(0.1, 1.0) var expanded_height_ratio: float = 0.8
 ## Lato della vista locale compatta, in metri di mondo: quanto mare si
 ## vede intorno alla barca durante la navigazione.
-@export var compact_span: float = 720.0
+@export var compact_span: float = 760.0
+## Carta nautica navigabile (R2): fattori di zoom min/max e passo rotella.
+@export var chart_zoom_min: float = 1.0
+@export var chart_zoom_max: float = 9.0
+@export var chart_zoom_step: float = 1.25
 
 var _boat: Boat
 var _sea: Sea
 var _world: World
 var _expanded: bool = false
 var _panel_style: StyleBoxFlat
+## Stato della carta nautica navigabile: zoom (1 = tutto il mondo) e centro
+## in coordinate mondo (x, z). Il pan trascina il centro, la rotella zooma
+## verso il cursore, un tasto ricentra sulla barca.
+var _chart_zoom: float = 1.0
+var _chart_center: Vector2 = Vector2.ZERO
+var _panning: bool = false
 
 
 func _ready() -> void:
@@ -74,41 +88,138 @@ func setup(boat: Boat, sea: Sea, world: World) -> void:
 	_apply_layout()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_pulse = fmod(_pulse + delta * 4.0, TAU)
 	queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_map"):
 		get_viewport().set_input_as_handled()
-		_expanded = not _expanded
-		_apply_layout()
+		_set_expanded(not _expanded)
+		return
+	if not _expanded:
+		return
+	# Carta nautica aperta: rotella = zoom verso il cursore, trascinamento
+	# col sinistro = pan, C = ricentra sulla barca. Il mouse è libero
+	# (rilasciato all'apertura), quindi questi eventi arrivano qui.
+	var button := event as InputEventMouseButton
+	if button != null:
+		if button.button_index == MOUSE_BUTTON_WHEEL_UP and button.pressed:
+			_zoom_chart(chart_zoom_step, button.position)
+			get_viewport().set_input_as_handled()
+		elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN and button.pressed:
+			_zoom_chart(1.0 / chart_zoom_step, button.position)
+			get_viewport().set_input_as_handled()
+		elif button.button_index == MOUSE_BUTTON_LEFT:
+			_panning = button.pressed
+			get_viewport().set_input_as_handled()
+		return
+	var motion := event as InputEventMouseMotion
+	if motion != null and _panning:
+		var view := _view_rect()
+		var rect := _map_rect()
+		# Un pixel trascinato = tot metri di mondo (scala della vista corrente).
+		var per_px := view.size.x / rect.size.x
+		_chart_center -= motion.relative * per_px
+		_clamp_chart_center()
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventKey and event.pressed and not event.echo \
+			and (event as InputEventKey).physical_keycode == KEY_C:
+		_recenter_chart()
+		get_viewport().set_input_as_handled()
 
 
 func is_expanded() -> bool:
 	return _expanded
 
 
+## Apre/chiude la carta nautica. All'apertura libera il mouse (serve per
+## rotella e trascinamento) e azzera zoom/centro sul mondo intero; alla
+## chiusura ricattura il mouse solo se si sta davvero guidando.
+func _set_expanded(open: bool) -> void:
+	_expanded = open
+	_panning = false
+	if open:
+		_chart_zoom = chart_zoom_min
+		_recenter_chart()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif not GameState.ui_focus_open() and not get_tree().paused:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_apply_layout()
+
+
+## Zoom della carta verso un punto schermo: il mondo sotto il cursore resta
+## fermo mentre lo zoom cambia (comportamento standard delle mappe).
+func _zoom_chart(factor: float, screen_pos: Vector2) -> void:
+	var before := _screen_to_world(screen_pos)
+	_chart_zoom = clampf(_chart_zoom * factor, chart_zoom_min, chart_zoom_max)
+	var after := _screen_to_world(screen_pos)
+	_chart_center += before - after
+	_clamp_chart_center()
+
+
+func _recenter_chart() -> void:
+	if _boat != null:
+		_chart_center = Vector2(_boat.global_position.x, _boat.global_position.z)
+	else:
+		_chart_center = _expanded_base_rect().get_center()
+	_clamp_chart_center()
+
+
+## Il centro non esce mai dal mondo giocabile: la mappa non si può perdere.
+func _clamp_chart_center() -> void:
+	var base := _expanded_base_rect()
+	_chart_center = _chart_center.clamp(base.position, base.end)
+
+
+## Punto schermo -> coordinate mondo (x, z), usando la vista corrente. Il
+## mouse arriva in coordinate viewport: prima lo porto nel locale del
+## controllo (sottraendo l'origine), poi mappo sul rettangolo interno.
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	var local := screen_pos - global_position
+	var rect := _map_rect()
+	var view := _view_rect()
+	var u := (local.x - rect.position.x) / rect.size.x
+	var v := (local.y - rect.position.y) / rect.size.y
+	return view.position + Vector2(u, v) * view.size
+
+
 # --- Layout ------------------------------------------------------------------
 
 ## Finestra di mondo mostrata, in coordinate mondo (x, z). Compatta:
-## quadrato centrato sulla barca. Espansa: tutto il mare giocabile più la
-## striscia di terra a nord — la carta nautica del viaggio (roadmap B4).
+## quadrato centrato sulla barca. Espansa: la carta nautica navigabile —
+## una finestra su tutto il mondo, ristretta dallo zoom e spostata dal pan.
 func _view_rect() -> Rect2:
 	if not _expanded and _boat != null:
 		var pos := _boat.global_position
 		return Rect2(pos.x - compact_span * 0.5, pos.z - compact_span * 0.5,
 			compact_span, compact_span)
+	var base := _expanded_base_rect()
+	var span := base.size / _chart_zoom
+	return Rect2(_chart_center - span * 0.5, span)
+
+
+## Tutto il mare giocabile più la striscia di terra a nord: la carta al suo
+## zoom minimo (1×). Da qui zoom e pan ritagliano la vista corrente.
+func _expanded_base_rect() -> Rect2:
 	var half_width := _world.bounds_half_width if _world != null else 330.0
 	var depth := _world.bounds_depth if _world != null else 340.0
 	var shore := _sea.shore_z if _sea != null else -140.0
 	return Rect2(-half_width, shore - LAND_DEPTH, half_width * 2.0, depth + LAND_DEPTH)
 
 
+## Rettangolo interno di disegno (cornice esclusa), in pixel del controllo.
+func _map_rect() -> Rect2:
+	return Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
+
+
 func _apply_layout() -> void:
 	var vp := get_viewport_rect().size
-	var view := _view_rect()
-	var aspect := view.size.x / view.size.y
+	# L'aspetto del pannello segue la carta al suo zoom minimo, così la
+	# finestra resta ferma mentre si zooma/pana (solo la mappa dentro cambia).
+	var aspect := _expanded_base_rect().size.aspect() if _expanded else 1.0
 	var h := vp.y * expanded_height_ratio if _expanded else small_height
 	var w := h * aspect
 	if w > vp.x * 0.9:
@@ -118,7 +229,8 @@ func _apply_layout() -> void:
 	if _expanded:
 		position = (vp - size) * 0.5
 	else:
-		position = Vector2(16.0, vp.y - size.y - 16.0)
+		# In alto a destra (R2), sotto un piccolo margine dal bordo.
+		position = Vector2(vp.x - size.x - 16.0, 16.0)
 
 
 func _to_map(rect: Rect2, world_pos: Vector3) -> Vector2:
@@ -151,7 +263,7 @@ func _draw() -> void:
 	if _boat == null or _sea == null or _world == null:
 		return
 	draw_style_box(_panel_style, Rect2(Vector2.ZERO, size))
-	var rect := Rect2(Vector2(PAD, PAD), size - Vector2(PAD, PAD) * 2.0)
+	var rect := _map_rect()
 	_draw_bands(rect)
 	_draw_harbors(rect)
 	_draw_wind_cells(rect)
@@ -227,8 +339,10 @@ func _draw_wind_cells(rect: Rect2) -> void:
 			continue
 		var center := _to_map(rect, Vector3(cell.x, 0.0, cell.y))
 		var radius := _px(rect, cell.z)
-		draw_circle(center, radius, Color(WIND_COLOR, 0.45 * cell.w))
-		draw_arc(center, radius, 0.0, TAU, 28, Color(WIND_COLOR, 0.7 * cell.w), 1.5)
+		draw_circle(center, radius, Color(WIND_COLOR, 0.2 * cell.w))
+		draw_arc(center, radius, 0.0, TAU, 32, Color(WIND_COLOR, 0.85 * cell.w), 2.0)
+		# Un anello interno rende la macchia più "increspata" e leggibile.
+		draw_arc(center, radius * 0.6, 0.0, TAU, 24, Color(WIND_COLOR, 0.4 * cell.w), 1.5)
 
 
 ## Bordo rosso sui lati di mare aperto: oltre scatta il countdown.
@@ -408,7 +522,13 @@ func _draw_boat(rect: Rect2) -> void:
 	var forward := -_boat.global_transform.basis.z
 	var dir := Vector2(forward.x, forward.z)
 	dir = Vector2.UP if dir.length_squared() < 0.001 else dir.normalized()
-	var s := 11.0 if _expanded else 7.0
+	var s := 16.0 if _expanded else 9.0
+	# Sulla carta un alone pulsante rende la barca subito trovabile su tutto
+	# il mondo (feedback R2: il triangolino di 11 px si perdeva su 5 km).
+	if _expanded:
+		var pulse := 0.5 + 0.5 * sin(_pulse_phase())
+		draw_circle(p, s * (1.6 + 0.5 * pulse), Color(BOAT_COLOR, 0.12))
+		draw_arc(p, s * 1.7, 0.0, TAU, 28, Color(BOAT_COLOR, 0.3 + 0.3 * pulse), 2.0)
 	var points := PackedVector2Array([
 		p + dir * s,
 		p + dir.rotated(2.5) * s * 0.7,
@@ -418,6 +538,13 @@ func _draw_boat(rect: Rect2) -> void:
 	var outline := points.duplicate()
 	outline.append(points[0])
 	draw_polyline(outline, Color(0, 0, 0, 0.6), 1.5)
+
+
+## Fase del pulsare del marker barca (0..TAU), dal tempo del motore di
+## rendering. Evita Time.get_ticks nel disegno: basta un accumulatore.
+var _pulse: float = 0.0
+func _pulse_phase() -> float:
+	return _pulse
 
 
 func _draw_diamond(center: Vector2, s: float, color: Color) -> void:
@@ -438,7 +565,7 @@ func _draw_hint(rect: Rect2) -> void:
 	var font := ThemeDB.fallback_font
 	var radar_note := "boe e zone: impulso radar (R)" if GameState.radar_unlocked \
 		else "boe e zone: sblocca il radar da Zu' Vito"
-	var text := "M per chiudere  ·  %s" % radar_note
+	var text := "M chiude  ·  rotella zoom  ·  trascina per spostare  ·  C ricentra  ·  %s" % radar_note
 	var text_width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	draw_string(font, Vector2(rect.position.x + (rect.size.x - text_width) * 0.5, rect.position.y + 20.0),
 		text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.55))
@@ -458,7 +585,7 @@ func _draw_legend(rect: Rect2) -> void:
 	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, FISHING_COLOR, 2.0)
 	x += 10.0
 	x = _legend_label(font, x, y, "pesca")
-	draw_circle(Vector2(x, y - 5.0), 5.0, Color(WIND_COLOR, 0.8))
+	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, Color(WIND_COLOR, 0.9), 2.0)
 	x += 10.0
 	x = _legend_label(font, x, y, "vento")
 	_draw_diamond(Vector2(x, y - 5.0), 6.0, PORT_COLOR)

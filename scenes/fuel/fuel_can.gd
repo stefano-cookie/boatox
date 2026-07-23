@@ -66,7 +66,9 @@ func _on_body_entered(body: Node3D) -> void:
 	if not _active or not body is Boat:
 		return
 	GameState.add_fuel(GameState.FUEL_CAN_LITERS)
-	GameState.post_notice("Tanica recuperata: +%d litri di benzina" % roundi(GameState.FUEL_CAN_LITERS))
+	# Il feedback passa dai toast di raccolta dell'HUD (roadmap R2), non più
+	# dalla scritta centrale, riservata agli avvisi di gioco.
+	GameState.fuel_collected.emit(GameState.FUEL_CAN_LITERS)
 	_set_present(false)
 	await get_tree().create_timer(GameState.FUEL_CAN_RESPAWN).timeout
 	if is_inside_tree():
