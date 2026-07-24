@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"goods_stoffa"
+display_name = "stoffa"
+display_name_plural = "stoffe"
+base_value = 30
+category = 3
+color = Color(0.72, 0.48, 0.72, 1)
+shape = 3
+sellable = true

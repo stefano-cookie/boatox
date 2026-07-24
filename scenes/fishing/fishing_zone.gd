@@ -283,6 +283,17 @@ func _update_fight(delta: float) -> void:
 
 
 func _finish_catch() -> void:
+	# Pesca speciale (roadmap R6): nelle zone del mare aperto la rete può
+	# tirare su un tesoro invece del pesce — probabilità scalata sul fattore
+	# difficoltà del punto (più lontano e più mosso = più probabile).
+	var treasure := _roll_treasure()
+	if treasure != null:
+		if not GameState.collect_item(treasure.id):
+			_show_result("Stiva piena! Vendi al porto")
+			return
+		_stock -= 1
+		_show_result("Nella rete: %s! (+%d $ in stiva)" % [treasure.display_name, treasure.base_value])
+		return
 	if not GameState.collect_fish(_fight_type):
 		_show_result("Stiva piena! Vendi al porto")
 		return
@@ -291,6 +302,16 @@ func _finish_catch() -> void:
 		else "Preso: %s (+%d $ in stiva)"
 	var fish := GameState.fish_item(_fight_type)
 	_show_result(label % [fish.display_name, fish.base_value])
+
+
+## L'eventuale tesoro ripescato (null = pesce normale): solo nelle zone
+## tier 2, con la probabilità di GameState.fishing_treasure_chance.
+func _roll_treasure() -> ItemDefinition:
+	if zone_tier < 2:
+		return null
+	if randf() >= GameState.fishing_treasure_chance(global_position, sea):
+		return null
+	return GameState.item_def(GameState.pick_weighted_item(GameState.FISHING_TREASURE_WEIGHTS))
 
 
 func _refresh_fight_bars() -> void:

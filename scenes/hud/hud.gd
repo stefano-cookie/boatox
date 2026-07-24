@@ -101,6 +101,7 @@ func _ready() -> void:
 	GameState.buoy_collected.connect(_on_buoy_toast)
 	GameState.fish_caught.connect(_on_fish_toast)
 	GameState.loot_collected.connect(_on_loot_toast)
+	GameState.item_collected.connect(_on_item_toast)
 	GameState.fuel_collected.connect(_on_fuel_toast)
 	GameState.cargo_sold.connect(_on_money_toast)
 	# Tracker missione (roadmap R2): pannello a lista sempre visibile.
@@ -279,6 +280,11 @@ func _on_fish_toast(type: int) -> void:
 
 func _on_loot_toast(tier: int) -> void:
 	_push_item_toast(GameState.loot_item(tier))
+
+
+## Merci e tesori raccolti per id (roadmap R6): relitti, prede, pesca speciale.
+func _on_item_toast(id: StringName) -> void:
+	_push_item_toast(GameState.item_def(id))
 
 
 ## Toast di un item raccolto (roadmap R4): pastiglia col colore dell'item,

@@ -14,6 +14,7 @@ hp = 80.0
 collision_size = Vector3(2.1, 1.5, 7.5)
 loot_min = 1
 loot_max = 2
+goods_pool = Array[StringName]([&"goods_stoffa", &"goods_spezie"])
 weapon = ExtResource("2")
 aggro_radius = 95.0
 ram_damage = 12.0

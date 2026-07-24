@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"goods_datteri"
+display_name = "datteri del Cairo"
+display_name_plural = "datteri del Cairo"
+base_value = 65
+category = 3
+color = Color(0.55, 0.36, 0.2, 1)
+shape = 3
+sellable = true

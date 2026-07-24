@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"treasure_anfora"
+display_name = "anfora antica"
+display_name_plural = "anfore antiche"
+base_value = 240
+category = 5
+color = Color(0.8, 0.52, 0.34, 1)
+shape = 4
+sellable = true

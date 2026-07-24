@@ -25,6 +25,7 @@ const CATEGORY_TITLE: Dictionary[int, String] = {
 	ItemDefinition.Category.FISH: "Pesci",
 	ItemDefinition.Category.LOOT: "Bottino",
 	ItemDefinition.Category.GOODS: "Merci",
+	ItemDefinition.Category.TREASURE: "Tesori",
 	ItemDefinition.Category.MISSION: "Missione",
 }
 

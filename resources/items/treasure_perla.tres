@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"treasure_perla"
+display_name = "perla"
+display_name_plural = "perle"
+base_value = 320
+category = 5
+color = Color(0.93, 0.91, 0.96, 1)
+shape = 5
+sellable = true

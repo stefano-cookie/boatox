@@ -16,6 +16,7 @@ const FUEL_CAN_SCENE: PackedScene = preload("res://scenes/fuel/fuel_can.tscn")
 const FISHING_ZONE_SCENE: PackedScene = preload("res://scenes/fishing/fishing_zone.tscn")
 const MISSION_PICKUP_SCENE: PackedScene = preload("res://scenes/missions/mission_pickup.tscn")
 const RACE_COURSE_SCENE: PackedScene = preload("res://scenes/race/race_course.tscn")
+const WRECK_SCENE: PackedScene = preload("res://scenes/world/wreck.tscn")
 
 @export var boat: Boat
 @export var sea: Sea
@@ -63,6 +64,11 @@ const RACE_COURSE_SCENE: PackedScene = preload("res://scenes/race/race_course.ts
 ## Premio base degli spot di gara al largo, poi scalato dal fattore
 ## difficoltà del punto (distanza + agitazione).
 @export var open_race_prize_base: float = 1.6
+## Relitti semisommersi (roadmap R6): nel mare aperto della baia e sparsi
+## sulla traversata di B4. Posizioni casuali a ogni partita, rivelati dal
+## radar; avvicinandosi mollano casse di merci e tesori.
+@export var wreck_count: int = 2
+@export var route_wreck_count: int = 3
 
 @export_group("Navi (roadmap B1)")
 ## Mercantili e predoni della baia di Bova (ShipDirector di casa).
@@ -132,6 +138,8 @@ func _ready() -> void:
 	# non finiscono dentro gli anelli.
 	_spawn_fishing_zones()
 	_spawn_open_activity_zones()
+	# I relitti prima delle boe, così anche loro prendono posto pulito.
+	_spawn_wrecks()
 	_spawn_zone_buoys()
 	_spawn_route_pickups()
 	_spawn_ship_directors()
@@ -469,14 +477,41 @@ func _spawn_open_races() -> void:
 
 ## Punto libero nel mare aperto profondo, campionato col RNG randomizzato
 ## (posizioni nuove a ogni partita). Vector3.INF se non trova posto.
-func _sample_open_point(d_min: float, d_max: float) -> Vector3:
+## half_width < 0 usa scatter_half_width_open (la fascia della baia).
+func _sample_open_point(d_min: float, d_max: float, half_width: float = -1.0) -> Vector3:
+	if half_width < 0.0:
+		half_width = scatter_half_width_open
 	for attempt in 30:
 		var pos := Vector3(
-			_mission_rng.randf_range(-scatter_half_width_open, scatter_half_width_open),
+			_mission_rng.randf_range(-half_width, half_width),
 			0.0, sea.shore_z + _mission_rng.randf_range(d_min, d_max))
 		if _is_clear(pos):
 			return pos
 	return Vector3.INF
+
+
+## Relitti semisommersi (roadmap R6): qualche carcassa nel mare aperto
+## della baia e altre sparse sulla traversata verso le città. RNG
+## randomizzato: la caccia al relitto è nuova a ogni partita.
+func _spawn_wrecks() -> void:
+	for i in wreck_count:
+		_spawn_wreck(_sample_open_point(sea.medium_width + 150.0, bay_depth - 80.0))
+	for i in route_wreck_count:
+		_spawn_wreck(_sample_open_point(bay_depth + 150.0, bounds_depth - 400.0,
+			bounds_half_width - 500.0))
+
+
+func _spawn_wreck(pos: Vector3) -> void:
+	if not pos.is_finite():
+		return
+	var wreck := WRECK_SCENE.instantiate() as Wreck
+	wreck.sea = sea
+	wreck.boat = boat
+	add_child(wreck)
+	wreck.global_position = Vector3(pos.x, 0.0, pos.z)
+	wreck.rotation.y = _mission_rng.randf_range(0.0, TAU)
+	# Le boe e le taniche girano alla larga dalla carcassa.
+	_buoy_positions.append(pos)
 
 
 func _spawn_buoy(pos: Vector3, type: int) -> void:
@@ -548,6 +583,10 @@ func _is_clear(pos: Vector3) -> bool:
 	# Tutti i porti (principale + approdo secondario), non solo _port.
 	for node in get_tree().get_nodes_in_group(&"ports"):
 		if pos.distance_to((node as Port).global_position) < 26.0:
+			return false
+	# I relitti tengono libero l'anello dove affiorano le loro casse.
+	for node in get_tree().get_nodes_in_group(&"wrecks"):
+		if pos.distance_to((node as Wreck).global_position) < 30.0:
 			return false
 	# Niente boe addosso all'NPC del nipote né sul punto di recupero al largo.
 	for node in get_tree().get_nodes_in_group(&"rescue_npc"):

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"treasure_carta"
+display_name = "carta nautica antica"
+display_name_plural = "carte nautiche antiche"
+base_value = 450
+category = 5
+color = Color(0.86, 0.78, 0.56, 1)
+shape = 6
+sellable = true

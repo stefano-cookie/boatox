@@ -22,6 +22,11 @@ extends Resource
 ## Casse mollate all'affondamento (il valore lo decide la fascia di mare).
 @export var loot_min: int = 2
 @export var loot_max: int = 3
+## Merci che la nave porta in stiva (roadmap R6): id di ItemDefinition. Una
+## parte delle casse mollate è merce vera da questo pool (le navi delle
+## città di B4 aggiungono la merce tipica di casa via GameState.FACTION_GOODS).
+## Vuoto = solo bottino generico.
+@export var goods_pool: Array[StringName] = []
 
 @export_group("Predone")
 ## Arma di bordo (null = disarmata, come i mercantili).

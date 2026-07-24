@@ -240,6 +240,7 @@ func _connect_signals() -> void:
 	GameState.ship_hit.connect(func(_pos: Vector3) -> void: _play(&"impact", 1.25, -6.0))
 	GameState.ship_sunk.connect(func(_pos: Vector3) -> void: _play(&"sink"))
 	GameState.loot_collected.connect(func(_tier: int) -> void: _play(&"pop", 0.8))
+	GameState.item_collected.connect(_on_item_collected)
 	GameState.fuel_collected.connect(func(_liters: float) -> void: _play(&"pop", 1.15))
 	# Missione compiuta (roadmap R2): fanfara del tracker HUD, distinta dal
 	# cha-ching della vendita che parte in contemporanea.
@@ -253,6 +254,16 @@ func _connect_signals() -> void:
 func _on_boat_hit(force: float) -> void:
 	var strength := clampf(force / 14.0, 0.15, 1.0)
 	_play(&"impact", lerpf(1.15, 0.7, strength), lerpf(-10.0, 3.0, strength))
+
+
+## Merci e tesori raccolti per id (roadmap R6): pop come il bottino, ma i
+## tesori meritano il campanellino della boa blu.
+func _on_item_collected(id: StringName) -> void:
+	var def := GameState.item_def(id)
+	if def != null and def.category == ItemDefinition.Category.TREASURE:
+		_play(&"blue")
+	else:
+		_play(&"pop", 0.8)
 
 
 func _on_buoy_collected(type: int) -> void:

@@ -64,6 +64,10 @@ signal loot_collected(tier: int)
 ## raccolta in basso a destra, come boe/pesci/bottino. Il rifornimento al
 ## porto NON la emette: è un pickup di mare, non un acquisto.
 signal fuel_collected(liters: float)
+## Item generico raccolto per id (roadmap R6): merci e tesori — casse dei
+## relitti, prede con merci vere, pesca speciale. I segnali granulari sopra
+## restano per i canali storici (suoni dedicati); questo alimenta i toast.
+signal item_collected(id: StringName)
 ## Il world_state è tornato ai default (azzeramento partita): l'autoload
 ## Town lo rilancia alle scene del paese (slot, crescita, flottiglia).
 signal world_state_reset
@@ -123,6 +127,16 @@ const ITEM_DEFS: Array[ItemDefinition] = [
 	preload("res://resources/items/loot_modest.tres"),
 	preload("res://resources/items/loot_good.tres"),
 	preload("res://resources/items/loot_rich.tres"),
+	preload("res://resources/items/goods_legno.tres"),
+	preload("res://resources/items/goods_ferro.tres"),
+	preload("res://resources/items/goods_stoffa.tres"),
+	preload("res://resources/items/goods_spezie.tres"),
+	preload("res://resources/items/goods_agrumi.tres"),
+	preload("res://resources/items/goods_datteri.tres"),
+	preload("res://resources/items/treasure_anfora.tres"),
+	preload("res://resources/items/treasure_perla.tres"),
+	preload("res://resources/items/treasure_carta.tres"),
+	preload("res://resources/items/treasure_statuetta.tres"),
 	preload("res://resources/items/mission_crate.tres"),
 ]
 ## Mappe dagli enum di gameplay (spawn boe, specie di pesca, tier del bottino
@@ -352,6 +366,55 @@ const DIFFICULTY_REWARD_AGITATION_WEIGHT: float = 0.4
 ## (nessun contributo), sopra ROUGH conta come mare grosso (contributo pieno).
 const DIFFICULTY_AGITATION_CALM: float = 1.5
 const DIFFICULTY_AGITATION_ROUGH: float = 3.2
+
+## Item e fonti in mare (roadmap R6): merci comuni e tesori rari, con le
+## loro fonti — relitti semisommersi, prede con merci vere, pesca speciale.
+## Le merci saranno anche ingredienti di costruzione (B3), i tesori la
+## moneta delle missioni NPC (R7): il doppio ruolo deciso in R5.
+
+## Merce tipica per fazione (roadmap R6): le navi di Catania e Il Cairo
+## portano le merci della loro città — si capisce da dove viene la preda.
+const FACTION_GOODS: Dictionary[StringName, StringName] = {
+	FACTION_CATANIA: &"goods_agrumi",
+	FACTION_CAIRO: &"goods_datteri",
+}
+## Probabilità che una cassa mollata da una preda sia merce vera (dal
+## goods_pool della ShipDefinition) invece del bottino generico a tier.
+const SHIP_GOODS_CHANCE: float = 0.5
+## Sulle navi con una fazione "di città": quota delle casse-merce che è la
+## merce tipica della città invece che dal pool della nave.
+const SHIP_FACTION_GOOD_WEIGHT: float = 0.6
+
+## Relitti semisommersi (roadmap R6): quante casse galleggiano attorno a un
+## relitto scoperto, e la probabilità che una sia un tesoro — scalata dal
+## fattore difficoltà del punto (relitti più lontani e in acque più dure
+## nascondono di più). Il resto sono merci dal pool dei relitti.
+const WRECK_CRATES_MIN: int = 4
+const WRECK_CRATES_MAX: int = 6
+const WRECK_TREASURE_CHANCE_MIN: float = 0.1
+const WRECK_TREASURE_CHANCE_MAX: float = 0.4
+const WRECK_GOODS: Array[StringName] = [
+	&"goods_legno", &"goods_ferro", &"goods_stoffa", &"goods_spezie",
+]
+## Pesi dei tesori (id -> peso): l'anfora è il tesoro "comune", la
+## statuetta il colpo raro. Usati da relitti e pesca speciale.
+const TREASURE_WEIGHTS: Dictionary[StringName, int] = {
+	&"treasure_anfora": 5,
+	&"treasure_perla": 3,
+	&"treasure_carta": 2,
+	&"treasure_statuetta": 1,
+}
+
+## Pesca speciale (roadmap R6): nelle zone di pesca del mare aperto (tier
+## 2) una cattura può tirare su un tesoro invece del pesce. Probabilità da
+## zero (acque medie tranquille) fino al massimo, scalata sul fattore
+## difficoltà del punto (riusa difficulty_multiplier di R3). Dal mare
+## escono solo anfore e perle: carte e statuette stanno nei relitti.
+const FISHING_TREASURE_CHANCE_MAX: float = 0.25
+const FISHING_TREASURE_WEIGHTS: Dictionary[StringName, int] = {
+	&"treasure_anfora": 3,
+	&"treasure_perla": 2,
+}
 
 ## Regata (GDD § Corse): premi per piazzamento e avversari IA. Le IA non
 ## hanno velocità assolute ma frazioni della velocità effettiva del
@@ -1416,6 +1479,55 @@ func collect_loot(tier: int) -> bool:
 	cargo_changed.emit()
 	loot_collected.emit(tier)
 	return true
+
+
+## Raccolta generica per id (roadmap R6): merci e tesori da relitti, prede
+## e pesca speciale. Falso a stiva piena o id sconosciuto, come le boe.
+func collect_item(id: StringName) -> bool:
+	if item_def(id) == null:
+		push_error("Item sconosciuto: %s" % id)
+		return false
+	if cargo_count() >= cargo_capacity():
+		post_notice("Stiva piena! Vendi al porto")
+		return false
+	_add_item(id)
+	cargo_changed.emit()
+	item_collected.emit(id)
+	return true
+
+
+## Estrazione a peso da un dizionario id -> peso (tesori di relitti e
+## pesca). Usa il RNG globale: la varietà qui è il punto, non la ripetibilità.
+func pick_weighted_item(weights: Dictionary[StringName, int]) -> StringName:
+	var total := 0
+	for id in weights:
+		total += weights[id]
+	var roll := randi_range(1, maxi(total, 1))
+	for id in weights:
+		roll -= weights[id]
+		if roll <= 0:
+			return id
+	return weights.keys()[0]
+
+
+## Probabilità che una cattura in zona tier 2 tiri su un tesoro (roadmap
+## R6): zero al margine delle acque medie, sale col fattore difficoltà del
+## punto fino a FISHING_TREASURE_CHANCE_MAX al largo e in tempesta.
+func fishing_treasure_chance(world_pos: Vector3, sea: Sea) -> float:
+	var t := (difficulty_multiplier(world_pos, sea) - 1.0) / (DIFFICULTY_REWARD_MAX - 1.0)
+	return FISHING_TREASURE_CHANCE_MAX * clampf(t, 0.0, 1.0)
+
+
+## L'id della merce che una preda molla in una cassa (roadmap R6): le navi
+## delle città portano (spesso) la merce tipica di casa, per il resto si
+## pesca dal pool della nave. &"" se la nave non ha merci da mollare.
+func ship_goods_item(faction: StringName, pool: Array[StringName]) -> StringName:
+	var typical: StringName = FACTION_GOODS.get(faction, &"")
+	if typical != &"" and (pool.is_empty() or randf() < SHIP_FACTION_GOOD_WEIGHT):
+		return typical
+	if pool.is_empty():
+		return &""
+	return pool[randi() % pool.size()]
 
 
 ## Fattore ricompensa per acque difficili in un punto (roadmap R3): 1.0

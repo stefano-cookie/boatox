@@ -13,14 +13,17 @@ extends Resource
 ## restano in GameState, agganciate all'item dalla sua `id`.
 
 ## Categoria dell'item: raggruppa la griglia dell'inventario e distingue chi
-## si vende da chi no. GOODS è predisposta per le merci di R5 (commercio con
-## le città), MISSION sono le casse che occupano stiva ma non si vendono.
-enum Category { BUOY, FISH, LOOT, GOODS, MISSION }
+## si vende da chi no. GOODS sono le merci comuni di R6 (materiali e
+## commercio: da B3 anche ingredienti di costruzione), TREASURE i tesori
+## rari (la moneta delle missioni NPC di R7), MISSION le casse che occupano
+## stiva ma non si vendono. TREASURE è in coda: i valori dell'enum sono
+## serializzati nei .tres e non si riordinano.
+enum Category { BUOY, FISH, LOOT, GOODS, MISSION, TREASURE }
 
 ## Forma dell'icona procedurale (item_icon.gd): in assenza di asset CC0 ogni
 ## item si distingue per forma e colore. Da sostituire con una texture il
 ## giorno che arrivano vere icone.
-enum Shape { BUOY, FISH, CRATE }
+enum Shape { BUOY, FISH, CRATE, SACK, AMPHORA, PEARL, SCROLL, STATUE }
 
 ## Identità stabile dell'item: chiave dell'inventario e dei salvataggi. Non
 ## si cambia dopo il rilascio (i salvataggi la contengono).

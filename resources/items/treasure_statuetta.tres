@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"treasure_statuetta"
+display_name = "statuetta dorata"
+display_name_plural = "statuette dorate"
+base_value = 600
+category = 5
+color = Color(0.95, 0.78, 0.25, 1)
+shape = 7
+sellable = true

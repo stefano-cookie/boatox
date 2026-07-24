@@ -66,7 +66,7 @@ Fissate il 23/07/2026 (feedback del direttore):
 
 ## R — Rifiniture dal feedback del 23/07/2026
 
-*Priorità corrente: quattro sessioni (ognuna chiusa con build giocabile) prima di riprendere B3/B4, poi una sessione di design. Analisi tecnica fatta: ogni punto sotto ha causa/aggancio già individuati nel codice.*
+*R1-R4 (sessioni di codice, ognuna chiusa con build giocabile) e R5 (design) completate — restano i "da validare in playtest". Dalla sessione di design sono nate R6 e R7, da fare prima di riprendere B3/B4.*
 
 ### R1 — Combattimento e camera
 
@@ -107,20 +107,44 @@ Fissate il 23/07/2026 (feedback del direttore):
 
 ### R5 — Sessione di design con Stefano (niente codice prima)
 
-*Da preparare con proposte concrete, decidere insieme:*
+*Svolta il 24/07/2026 — decisioni fissate qui sotto, design esteso in `docs/GDD.md` § Beta.*
 
-- [ ] **Catalogo item nuovi**: quali merci/tesori/materiali, dove si trovano (relitti, isole, prede, fondali), rarità.
-- [ ] **Sistema missioni NPC** (raccogli-e-consegna): NPC che chiedono N item in cambio di denaro, item rari o reputazione. È il **motore del B4 restante**: le missioni/accordi di Catania e Il Cairo diventano catene di raccolta-consegna che muovono la diplomazia. Tracker di R2 già pronto a mostrarle.
-- [ ] **Prima persona**: prototipo su **Bova** (sbarco al molo, si gira il paese, 2-3 NPC, qualcosa da raccogliere), con architettura pensata per sbarcare **ovunque** poi (città, isole, scali). Da decidere: controlli, cosa si fa a terra nella v1, come si rientra in barca.
-- [ ] **Arsenale di B3**: mappa di Bova su cui piazzare le difese + catalogo difese (vedi B3 sotto — impegno preso il 23/07).
+- [x] **Catalogo item nuovi**: ~8-10 item — 4-6 merci comuni (materiali e commercio) + 3-4 tesori rari, con **doppio ruolo**: le merci sono ingredienti di costruzione (edifici/difese costano soldi + materiali), i tesori la moneta delle missioni NPC. Fonti: **tutte e quattro** — relitti semisommersi al largo (casse galleggianti, visibili al radar), isolette da sbarco (raccolta a piedi), prede navali con merci vere (tipiche della città di provenienza), pesca speciale nelle acque difficili (anfore, perle).
+- [x] **Sistema missioni NPC**: datori **solo NPC fisici a terra** — niente bacheche né menu porto; lo sbarco è quindi prerequisito delle missioni. Ogni datore offre **2-3 richieste**, una sola attiva alla volta (tracker di R2). Ricompense: mix di denaro, item rari, reputazione e sblocchi unici (progetti di difesa, accessi). Città lontane: **catene scritte a mano di 4-6 tappe** per città che scandiscono la diplomazia ostile → neutrale → alleata.
+- [x] **Prima persona**: sbarco al **molo e sulle spiagge basse** (prompt dove l'acqua è bassa), rientro alla barca allo stesso modo. V1 su Bova: 2-3 NPC datori con dialogo a riquadro, item raccoglibili a terra, ingresso nell'arsenale, il paese che mostra la prosperità da vicino. Sequenza: **prototipo su Bova → sbarco in città e scali → missioni B4**.
+- [x] **Arsenale di B3**: edificio fisico a Bova in cui si entra a piedi; dentro, la mappa della baia con **slot difensivi dedicati** (promontori, imboccatura della rada, isolotti). Catalogo completo: torre d'avvistamento, batteria costiera, scogli/ostacoli, pattuglia alleata. Costi in **soldi + materiali**; le difese avanzate si sbloccano come **progetti** dalle catene NPC.
+
+*Ordine di lavoro risultante: R6 (item e fonti in mare) → R7 (prima persona su Bova) → B3 (difese e attacchi) → sbarco nelle città (in B4) → catene di missioni e diplomazia di B4.*
+
+### R6 — Item e fonti in mare
+
+*Prima tranche della direzione item decisa in R5. Si appoggia tutta sull'inventario generico di R4: ogni item nuovo è un `.tres`.*
+
+- [x] **Nuovi `ItemDefinition`**: 6 merci (legno 20 $, stoffa 30, ferro 45, agrumi di Catania 55, datteri del Cairo 65, spezie 70 — categoria `GOODS`) e 4 tesori (anfora antica 240, perla 320, carta nautica antica 450, statuetta dorata 600 — nuova categoria `TREASURE`, sezione "Tesori" nell'inventario). Icone procedurali nuove in `item_icon.gd` (sacco, anfora, perla in conchiglia, rotolo con rotta, statuetta). *Nomi/valori proposti sui prezzi esistenti (boa rossa 40, blu 150, tonno 250): da validare con Stefano in playtest, si ritoccano nei `.tres`.*
+- [x] **Relitti semisommersi al largo** (`scenes/world/wreck.gd`): 2 nel mare aperto della baia + 3 sulla traversata, posizioni casuali a ogni partita (`_mission_rng`), rivelati dal radar (✕ color legno in minimappa, voce in legenda, smorzata a saccheggio avvenuto). Sotto i 45 m il carico affiora: 4-6 casse `LootCrate` in anello — merci dal pool relitti, tesoro con probabilità 0.1→0.4 scalata da `difficulty_multiplier`. La cassa generica ora porta un item per id (coperchio del colore dell'item, i tesori luccicano).
+- [x] **Prede con merci vere**: metà delle casse mollate è merce dal `goods_pool` della `ShipDefinition` (mercantile: legno/ferro/stoffa/spezie; predone: stoffa/spezie); le navi con fazione di città portano al 60% la merce tipica di casa (`FACTION_GOODS`: Catania → agrumi, Il Cairo → datteri).
+- [x] **Pesca speciale**: nelle zone tier 2 una cattura può tirare su anfore o perle — probabilità 0 → 0.25 scalata dal fattore difficoltà del punto (`fishing_treasure_chance`), campanellino della boa blu al colpo. Segnale generico `item_collected` per toast e audio di tutti gli item per id.
+- [ ] *Le isolette da sbarco (quarta fonte decisa in R5) arrivano dopo R7: servono i piedi a terra*
+- [ ] **Criterio di uscita**: una battuta al largo riempie la stiva di roba nuova e varia, e si capisce a colpo d'occhio cosa vale e dove rivenderla
+	- *Da verificare in gioco: valori delle merci vs boe/pesci; densità dei relitti e raggio di scoperta; quota merci/bottino delle prede (50%); frequenza tesori in pesca (max 25%); leggibilità di casse colorate, icone nuove e ✕ del relitto in minimappa.*
+
+### R7 — Prima persona: prototipo su Bova
+
+*Architettura pensata per sbarcare ovunque poi (città, scali, isolette); si valida tutto su Bova prima di estendere.*
+
+- [ ] **Sbarco e rientro**: prompt al molo e sulle spiagge basse (dove l'acqua è bassa), la barca resta dov'è; stesso prompt per risalire a bordo
+- [ ] **Controller a piedi**: WASD + mouse, camera in prima persona, niente salto/arrampicata nella v1
+- [ ] **2-3 NPC datori** con dialogo a riquadro e 2-3 richieste ciascuno: la v1 del sistema missioni NPC (raccogli-e-consegna, ricompense miste), mostrata dal tracker di R2
+- [ ] **Item raccoglibili a terra** (casse, ceste sparse nel paese): il seme delle isolette da sbarco
+- [ ] **L'edificio arsenale** sul molo: ci si entra (la mappa delle difese dentro arriva con B3)
+- [ ] **Il paese da vicino**: la prosperità di B2 si legge anche a piedi (dettagli, luci, gente per livello)
+- [ ] **Criterio di uscita**: attraccare, girare il paese, accettare una missione e ripartire è naturale e senza attriti — e viene voglia di scendere a terra
 
 ## B3 — Difendere casa
 
-*Rimandata dopo la prima tranche di B4 (deciso il 23/07/2026). Direzione di design fissata col feedback di Stefano, da definire insieme in R5 prima di partire:*
-- *Niente cartelli svolazzanti sugli slot e niente costruzione dispersa nel pannello porto (oggi è difficile da capire): serve un luogo dedicato, un **arsenale**, con una **mappa di Bova** su cui scegliere e piazzare le difese, che poi appaiono nel mondo reale.*
-- *Catalogo difese da definire insieme: cannone/batteria costiera, un sistema di **scogli/ostacoli** che danneggiano le navi nemiche in rotta, torre d'avvistamento, pattuglia… (sessione di design con Stefano prima di scrivere codice).*
+*Design fissato in R5 (24/07/2026): l'**arsenale** è un edificio fisico a Bova in cui si entra a piedi (prima persona) — dentro, la mappa della baia con **slot difensivi dedicati** disegnati a mano (promontori, imboccatura della rada, isolotti), separati dagli slot di costruzione di B2. Costi in soldi + materiali del catalogo item; le difese avanzate arrivano come **progetti** sbloccati dalle catene NPC. Prerequisito: il prototipo prima persona su Bova.*
 
-- [ ] **Difese costruibili** negli slot: torre d'avvistamento (allunga il preavviso), batteria costiera (spara con `Weapon`), pattuglia (nave `Vessel` alleata in rada)
+- [ ] **Difese costruibili** negli slot dedicati: torre d'avvistamento (allunga il preavviso), batteria costiera (spara con `Weapon`), **scogli/ostacoli** semisommersi che danneggiano/rallentano le navi in rotta d'attacco, pattuglia (nave `Vessel` alleata in rada)
 - [ ] **Attacchi dei predoni**: allarme (campana + HUD + marker minimappa) → i predoni arrivano dopo X minuti → le difese combattono da sole, il giocatore può rientrare e fare la differenza
 - [ ] Se l'attacco riesce: **razzia** — prosperità e magazzino calano, nessun game over (la progressione non si cancella, come per l'affondamento)
 - [ ] Frequenza/forza degli attacchi scalate sulla ricchezza di Bova (più sei ricco più fai gola) e sulle provocazioni (vedi B4)
@@ -132,7 +156,8 @@ Fissate il 23/07/2026 (feedback del direttore):
 
 - [ ] **Diplomazia solo col giocatore**: relazione -100..+100 per città (estende la reputazione di A1); predare le sue navi la peggiora, missioni e accordi la migliorano; soglie leggibili (alleata / neutrale / ostile / in guerra)
 	- *Predisposto*: fazioni `catania`/`cairo` in GameState (relazioni iniziali -40, salvate), navi marchiate con la fazione, `Diplomacy` già a soglie. *Resta*: far muovere la relazione da predazioni/missioni/accordi e mostrarla.
-- [ ] **Accordi, prezzi e missioni delle città**: catene raccogli-e-consegna (sistema di R5) che aprono i porti e migliorano i prezzi; razzie e blocchi navali dal lato ostile
+- [ ] **Sbarco in città e scali**: la prima persona di R7 portata a Catania, Il Cairo e agli scali di rifornimento (banchina percorribile, NPC datori al porto) — prerequisito delle catene di missioni
+- [ ] **Accordi, prezzi e missioni delle città**: catene raccogli-e-consegna scritte a mano (4-6 tappe per città, sistema di R5) date da **NPC fisici a terra**; aprono i porti e migliorano i prezzi; razzie e blocchi navali dal lato ostile
 - [ ] **Commercio**: accordi che aprono rotte automatizzate (le tue navi mercantili viaggiano visibili sulla rotta e rendono passivamente — e sono attaccabili: da difendere o scortare)
 - [ ] **Guerra**: attaccare il porto nemico (difese sue speculari alle tue), rappresaglie su Bova, fino alla sottomissione (tributo o cessate il fuoco)
 - [ ] **Criterio di uscita**: scegliere tra la via del mercante e quella del corsaro cambia davvero la partita

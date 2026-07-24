@@ -159,6 +159,10 @@ func _drop_loot() -> void:
 	for i in count:
 		var crate := LOOT_SCENE.instantiate() as LootCrate
 		crate.tier = tier
+		# Merci vere in stiva (roadmap R6): una parte delle casse è merce dal
+		# pool della nave — le navi delle città portano la merce di casa.
+		if randf() < GameState.SHIP_GOODS_CHANCE:
+			crate.item_id = GameState.ship_goods_item(faction, definition.goods_pool)
 		crate.sea = sea
 		get_parent().add_child(crate)
 		var angle := randf_range(0.0, TAU)

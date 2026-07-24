@@ -13,6 +13,7 @@ hp = 60.0
 collision_size = Vector3(2.8, 1.9, 10.0)
 loot_min = 2
 loot_max = 3
+goods_pool = Array[StringName]([&"goods_legno", &"goods_ferro", &"goods_stoffa", &"goods_spezie"])
 aggro_radius = 0.0
 ram_damage = 0.0
 flee_speed_mult = 1.45

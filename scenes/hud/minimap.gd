@@ -40,6 +40,9 @@ const RADAR_RING_COLOR := Color(0.55, 0.9, 1.0)
 ## Marker della missione della bacheca (roadmap A1): ambra, stessa logica
 ## del cancello regata (anello + punto sul bersaglio corrente).
 const MISSION_COLOR := Color(1.0, 0.8, 0.3)
+## Relitti semisommersi (roadmap R6): la ✕ del legno spezzato, rivelata
+## dal radar come le boe. Smorzata quando il relitto è già saccheggiato.
+const WRECK_COLOR := Color(0.85, 0.68, 0.45)
 
 ## Altezza della mappa compatta in pixel; l'espansa segue la finestra.
 ## Alzata in R2 (minimappa in alto a destra, più grande e leggibile).
@@ -278,6 +281,7 @@ func _draw() -> void:
 	_draw_mission(rect)
 	_draw_radar(rect)
 	_draw_pickups(rect)
+	_draw_wrecks(rect)
 	_draw_boat(rect)
 	if _expanded:
 		_draw_legend(rect)
@@ -516,6 +520,25 @@ func _draw_pickups(rect: Rect2) -> void:
 		draw_rect(Rect2(p - Vector2(can_size, can_size) * 0.5, Vector2(can_size, can_size)), FUEL_COLOR)
 
 
+## Relitti semisommersi (roadmap R6), solo dentro un impulso radar attivo:
+## una ✕ color legno, smorzata se il carico è già stato saccheggiato.
+func _draw_wrecks(rect: Rect2) -> void:
+	var s := 6.0 if _expanded else 4.0
+	for node in get_tree().get_nodes_in_group(&"wrecks"):
+		var wreck := node as Wreck
+		if wreck == null or not _radar_reveals(wreck.global_position):
+			continue
+		if not _in_view(wreck.global_position, 10.0):
+			continue
+		var p := _to_map(rect, wreck.global_position)
+		var color := WRECK_COLOR if wreck.has_loot() else Color(WRECK_COLOR, 0.35)
+		draw_line(p + Vector2(-s, -s), p + Vector2(s, s), color, 2.5)
+		draw_line(p + Vector2(-s, s), p + Vector2(s, -s), color, 2.5)
+		if _expanded and wreck.has_loot():
+			draw_string(ThemeDB.fallback_font, p + Vector2(10.0, 5.0), "Relitto",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT_COLOR)
+
+
 func _draw_boat(rect: Rect2) -> void:
 	var p := _to_map(rect, _boat.global_position)
 	p = p.clamp(rect.position, rect.end)
@@ -600,7 +623,11 @@ func _draw_legend(rect: Rect2) -> void:
 	x = _legend_label(font, x, y, "nipote")
 	draw_arc(Vector2(x, y - 5.0), 5.0, 0.0, TAU, 16, MISSION_COLOR, 2.0)
 	x += 10.0
-	_legend_label(font, x, y, "missione")
+	x = _legend_label(font, x, y, "missione")
+	draw_line(Vector2(x - 4.0, y - 9.0), Vector2(x + 4.0, y - 1.0), WRECK_COLOR, 2.5)
+	draw_line(Vector2(x - 4.0, y - 1.0), Vector2(x + 4.0, y - 9.0), WRECK_COLOR, 2.5)
+	x += 10.0
+	_legend_label(font, x, y, "relitto")
 
 
 ## Disegna un'etichetta di legenda e restituisce la x della voce dopo.

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"goods_legno"
+display_name = "legno"
+display_name_plural = "legno"
+base_value = 20
+category = 3
+color = Color(0.62, 0.45, 0.28, 1)
+shape = 3
+sellable = true

@@ -113,6 +113,17 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 - Navi IA in mare aperto: **mercantili** (rotta + fuga se attaccati) e **predoni** (ti puntano, speronano o sparano).
 - Affondare una nave lascia **bottino galleggiante** da raccogliere; prede migliori dove il mare è più duro (pillar 2).
 
+### Item e raccolta
+
+- **Catalogo generico** (`ItemDefinition`, un `.tres` per item): agli item dell'alpha si aggiungono ~8-10 nuovi — 4-6 **merci comuni** (es. legno, ferro, stoffe, spezie) e 3-4 **tesori rari** (es. anfora antica, perla, carta nautica). Doppio ruolo: le merci sono **ingredienti di costruzione** (edifici e difese costano soldi + materiali), i tesori la **moneta delle missioni NPC**.
+- **Fonti nel mondo** — ogni fonte è un'attività in mare: **relitti** semisommersi al largo (casse galleggianti, visibili al radar), **isolette da sbarco** (raccolta a piedi), **prede navali** con merci vere nella stiva (tipiche della città di provenienza), **pesca speciale** nelle acque difficili (anfore, perle). Prede migliori dove il mare è più duro (pillar 2).
+
+### Missioni NPC e terraferma
+
+- **Missioni raccogli-e-consegna da NPC fisici**: si accettano solo parlando con le persone a terra — niente bacheche né liste nei menu. Ogni datore offre **2-3 richieste** tra cui scegliere; una sola missione attiva alla volta (tracker HUD). Ricompense: denaro, item rari, reputazione, sblocchi unici (progetti di difesa, accessi).
+- **Prima persona ovunque**: si sbarca al **molo o sulle spiagge basse** (prompt), si gira il paese a piedi, si riparte dalla barca allo stesso modo. Prototipo su **Bova**: 2-3 NPC datori con dialogo a riquadro, item raccoglibili a terra, ingresso nell'arsenale, il paese che mostra la prosperità da vicino. Poi lo sbarco arriva in città e scali — prerequisito delle loro missioni.
+- **Città lontane**: catene **scritte a mano di 4-6 missioni** per città che scandiscono la diplomazia ostile → neutrale → alleata.
+
 ### Bova cresce
 
 - **Slot di costruzione predefiniti** disegnati a mano su costa e isole: scegli *cosa* costruire lì, non *dove* — la baia resta bella e leggibile. Molo grande, conserva, cantiere di guerra, magazzino, faro, difese…
@@ -121,6 +132,7 @@ Il gestionale è **incarnato**: niente fogli di calcolo, la barca resta l'avatar
 
 ### Difendere casa
 
+- **L'arsenale**: un edificio vero a Bova in cui entri a piedi; dentro si apre la **mappa della baia** con **slot difensivi dedicati** (promontori, imboccatura della rada, isolotti) su cui piazzare le difese, che poi compaiono nel mondo. Catalogo: torre d'avvistamento (allunga il preavviso), batteria costiera, scogli/ostacoli semisommersi che danneggiano le navi in rotta, pattuglia alleata. Costi in soldi + materiali; le difese avanzate si sbloccano come **progetti** dalle missioni NPC.
 - **Attacchi dei predoni in tempo reale con preavviso**: allarme → l'attacco arriva dopo X minuti → puoi rientrare a difendere; le difese costruite (torri, batterie, pattuglie) combattono comunque.
 - Se la razzia riesce: prosperità e magazzino calano, nessun game over — la progressione non si cancella.
 - Frequenza e forza scalate sulla ricchezza di Bova: più sei ricco, più fai gola.
