@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/world/island.tscn" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scenes/town/fleet.gd" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/world/city.tscn" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/world/supply_island.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/town/bova_landing.tscn" id="12"]
 
 [node name="World" type="Node3D"]
 script = ExtResource("1")
@@ -229,6 +230,8 @@ service_shipyard = false
 service_tackle = false
 service_missions = false
 service_town = false
+
+[node name="BovaLanding" parent="." instance=ExtResource("12")]
 
 [node name="TownGrowth" type="Node3D" parent="."]
 script = ExtResource("8")

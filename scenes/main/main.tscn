@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/sea/sea.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/boat/boat.tscn" id="2"]
@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://scenes/events/event_director.tscn" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/end/alpha_end_screen.tscn" id="11"]
 [ext_resource type="PackedScene" path="res://scenes/title/title_screen.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://scenes/player/walker.tscn" id="13"]
+[ext_resource type="Script" path="res://scenes/player/landing.gd" id="14"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_material"]
 sky_top_color = Color(0.2, 0.42, 0.66, 1)
@@ -84,6 +86,16 @@ fov = 70.0
 far = 1100.0
 script = ExtResource("3")
 target = NodePath("../Boat")
+
+[node name="Walker" parent="." instance=ExtResource("13")]
+
+[node name="Landing" type="Node" parent="." node_paths=PackedStringArray("boat", "walker", "chase_camera", "sea", "world")]
+script = ExtResource("14")
+boat = NodePath("../Boat")
+walker = NodePath("../Walker")
+chase_camera = NodePath("../ChaseCamera")
+sea = NodePath("../Sea")
+world = NodePath("../World")
 
 [node name="InventoryPanel" parent="." instance=ExtResource("9")]
 

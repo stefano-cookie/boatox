@@ -69,6 +69,29 @@ func _build_beach() -> void:
 	body.position = Vector3(0.0, -2.0, shore_z - 22.0)
 	add_child(body)
 	body.add_child(shape)
+	# Suolo camminabile (roadmap R7, layer 2): la stessa sabbia inclinata
+	# della mesh e la pianura del paese, come pavimento per la prima
+	# persona. Solo layer 2: la barca non li vede, i piedi sì.
+	_add_walk_collider(Vector3(half_width * 2.0, 4.0, 48.0),
+		Vector3(0.0, -1.6, shore_z - 20.0), Vector3(deg_to_rad(3.5), 0.0, 0.0))
+	_add_walk_collider(Vector3(half_width * 2.0, 4.0, 420.0),
+		Vector3(0.0, -0.5, shore_z - 250.0))
+
+
+## Collider su misura per la camminata (layer 2): un box statico che
+## ricalca una mesh del paesaggio, invisibile alle barche (layer 1).
+func _add_walk_collider(size: Vector3, pos: Vector3, rot: Vector3 = Vector3.ZERO) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 2
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.position = pos
+	body.rotation = rot
+	add_child(body)
+	body.add_child(shape)
 
 
 ## Pianura verde dietro la spiaggia: copre il piano del mare fin oltre
@@ -165,8 +188,10 @@ func _build_village() -> void:
 		roof.material_override = _mat_roof
 		roof.position = Vector3(0.0, h * 0.5 + 0.65, 0.0)
 		house.add_child(roof)
+		_add_body_collider(house, Vector3(w, h, d))
 	# Campanile vicino al porto.
 	var tower := _add_box(Vector3(2.2, 8.0, 2.2), Vector3(58.0, 5.0, shore_z - 38.0), _mat_wall)
+	_add_body_collider(tower, Vector3(2.2, 8.0, 2.2))
 	var spire := MeshInstance3D.new()
 	var spire_mesh := PrismMesh.new()
 	spire_mesh.size = Vector3(2.6, 1.8, 2.6)
@@ -185,6 +210,20 @@ func _build_trees() -> void:
 			_add_cone(0.6, 0.05, _rng.randf_range(4.0, 6.0), pos + Vector3(0, 2.2, 0), _mat_tree)
 		else:
 			_add_cone(1.6, 0.2, _rng.randf_range(2.2, 3.2), pos + Vector3(0, 1.2, 0), _mat_tree)
+
+
+## Collider (layer 2) appeso a una mesh: a piedi non si passa attraverso
+## le case. Statico, figlio della mesh: ne eredita posizione e rotazione.
+static func _add_body_collider(mesh: MeshInstance3D, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 2
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	mesh.add_child(body)
 
 
 func _add_box(size: Vector3, pos: Vector3, material: StandardMaterial3D) -> MeshInstance3D:

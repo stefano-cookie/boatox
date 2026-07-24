@@ -106,8 +106,10 @@ enum RadarUpgrade { RANGE, DURATION, COOLDOWN }
 ## Missioni della bacheca del porto (roadmap A1). Consegna: porta N casse
 ## all'approdo secondario entro il tempo limite (le casse occupano stiva).
 ## Recupero: raggiungi il punto segnato in minimappa, raccogli il pacco
-## galleggiante e riportalo al porto principale.
-enum MissionType { DELIVERY, RECOVERY }
+## galleggiante e riportalo al porto principale. NPC_FETCH (roadmap R7):
+## raccogli-e-consegna per un datore fisico a terra — gli porti gli item
+## richiesti e lui paga in denaro, reputazione e item rari.
+enum MissionType { DELIVERY, RECOVERY, NPC_FETCH }
 
 ## Catalogo item (roadmap R4): un .tres per item in resources/items/, ognuno
 ## un ItemDefinition con nome, valore, categoria, colore e forma dell'icona.
@@ -327,6 +329,68 @@ const MISSION_ZONE_MULT: Array[float] = [1.0, 1.2, 1.5]
 const MISSION_REP_REWARD: int = 5
 const MISSION_REP_FAIL: int = -5
 const MISSION_REP_ABANDON: int = -3
+
+## Incarichi dei datori NPC a terra (roadmap R5/R7): scritti a mano, per
+## npc_id. Ogni voce: id univoco (spuntato in world_state.npc_done una volta
+## consegnata), titolo, richiesta in items (id item → quantità), ricompensa in
+## denaro/reputazione e un eventuale item in regalo. Le ricompense superano
+## sempre il valore di vendita degli item richiesti: portare la roba al datore
+## deve battere il banco del porto. Valori proposti — da validare in playtest.
+const NPC_MISSIONS: Dictionary[StringName, Array] = {
+	&"mastro_cola": [
+		{
+			"id": "cola_assi", "title": "Assi per il molo",
+			"desc": "Il molo scricchiola e il legname buono sta in mare: relitti e prede ne sono pieni.",
+			"needs": {"goods_legno": 3}, "reward": 180, "rep": 4, "reward_item": "",
+		},
+		{
+			"id": "cola_chiodi", "title": "Ferro per i chiodi",
+			"desc": "Chiodi e staffe per le barche nuove: mi serve ferro, e un'asse per i modelli.",
+			"needs": {"goods_ferro": 2, "goods_legno": 1}, "reward": 300, "rep": 5, "reward_item": "",
+		},
+		{
+			"id": "cola_progetto", "title": "Il banco del maestro d'ascia",
+			"desc": "Con ferro e stoffa buona rimetto in piedi il banco da lavoro. In cambio ti cedo una carta nautica di famiglia.",
+			"needs": {"goods_ferro": 3, "goods_stoffa": 2}, "reward": 120, "rep": 6,
+			"reward_item": "treasure_carta",
+		},
+	],
+	&"donna_rosa": [
+		{
+			"id": "rosa_stoffe", "title": "Stoffe per la festa",
+			"desc": "Per la festa del paese servono stoffe: i mercantili ne portano sempre qualche balla.",
+			"needs": {"goods_stoffa": 3}, "reward": 240, "rep": 4, "reward_item": "",
+		},
+		{
+			"id": "rosa_spezie", "title": "Spezie dal largo",
+			"desc": "La bottega è senza spezie da settimane. Chi va per mare le trova, chi sta al banco le paga.",
+			"needs": {"goods_spezie": 2}, "reward": 320, "rep": 5, "reward_item": "",
+		},
+		{
+			"id": "rosa_agrumi", "title": "Agrumi di Catania",
+			"desc": "Gli agrumi di Catania qui non arrivano più. Portameli e ti do un'anfora che tengo in cantina.",
+			"needs": {"goods_agrumi": 2}, "reward": 160, "rep": 5,
+			"reward_item": "treasure_anfora",
+		},
+	],
+	&"don_liborio": [
+		{
+			"id": "liborio_anfora", "title": "L'anfora per la canonica",
+			"desc": "Un'anfora antica starebbe benissimo in canonica. Il mare le custodisce: tu me la porti, io pago.",
+			"needs": {"treasure_anfora": 1}, "reward": 420, "rep": 6, "reward_item": "",
+		},
+		{
+			"id": "liborio_perla", "title": "La perla della Madonna",
+			"desc": "Per la statua della Madonna del mare voglio una perla vera, di quelle delle acque difficili.",
+			"needs": {"treasure_perla": 1}, "reward": 520, "rep": 8, "reward_item": "",
+		},
+		{
+			"id": "liborio_statua", "title": "La statuetta dorata",
+			"desc": "Dicono che un relitto custodisca una statuetta dorata. Riportala alla luce e non ti farò mancare nulla.",
+			"needs": {"treasure_statuetta": 1}, "reward": 850, "rep": 10, "reward_item": "",
+		},
+	],
+}
 
 ## Gli eventi casuali non affondano mai la barca da soli: lo scafo non
 ## scende sotto questa soglia per effetto di una scelta.
@@ -627,6 +691,11 @@ var fish_caught_total: int = 0
 ## Vero se la schermata di fine alpha è già stata mostrata (si mostra una
 ## volta sola, poi si continua a giocare liberamente). Salvato.
 var alpha_end_shown: bool = false
+
+## Vero mentre il giocatore è sbarcato a piedi (roadmap R7). Transiente,
+## non salvato: al caricamento si riparte sempre in barca. Porto, mirino e
+## radar lo leggono per spegnersi mentre si cammina.
+var on_foot: bool = false
 
 
 func _ready() -> void:
@@ -1170,6 +1239,10 @@ func mission_status_text() -> String:
 			if bool(active_mission.get("recovered", false)):
 				return "Recupero: riporta il pacco al porto"
 			return "Recupero: raggiungi il punto segnato in minimappa"
+		MissionType.NPC_FETCH:
+			return "Incarico di %s: %s" % [
+				str(active_mission.get("npc_name", "?")), npc_needs_text(),
+			]
 	return ""
 
 
@@ -1196,6 +1269,14 @@ func active_missions() -> Array[Dictionary]:
 					else "Raggiungi il punto in mappa",
 				"progress": "2/2 · pacco a bordo" if recovered \
 					else "1/2 · pacco in acqua",
+				"countdown": -1.0,
+			}]
+		MissionType.NPC_FETCH:
+			var p := npc_needs_progress()
+			return [{
+				"title": str(active_mission.get("title", "Incarico")),
+				"stage": "Porta tutto a %s" % str(active_mission.get("npc_name", "?")),
+				"progress": "%d/%d · %s" % [p.x, p.y, npc_needs_text()],
 				"countdown": -1.0,
 			}]
 	return []
@@ -1356,6 +1437,116 @@ func abandon_mission() -> void:
 	mission_changed.emit()
 	post_notice("Missione abbandonata · reputazione %d" % MISSION_REP_ABANDON)
 	save_game()
+
+
+# --- Incarichi dei datori NPC a terra (roadmap R7) ----------------------------
+
+## Id degli incarichi NPC già consegnati (in world_state: si salvano col
+## mondo e si azzerano con la nuova partita).
+func npc_missions_done() -> Array:
+	return world_state.get("npc_done", [])
+
+
+## Offerte ancora aperte di un datore: il catalogo scritto a mano meno gli
+## incarichi già consegnati. L'incarico attivo resta fuori dalla lista (lo
+## mostra il dialogo come "in corso", non come offerta).
+func npc_offers(npc_id: StringName) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var active_id := str(active_mission.get("id", ""))
+	for offer: Dictionary in NPC_MISSIONS.get(npc_id, []):
+		var id := str(offer.get("id", ""))
+		if not npc_missions_done().has(id) and id != active_id:
+			out.append(offer)
+	return out
+
+
+## Accetta un incarico NPC: diventa la missione attiva (una alla volta,
+## come la bacheca — decisione direttore 23/07/2026).
+func accept_npc_mission(npc_id: StringName, npc_name: String, offer: Dictionary) -> bool:
+	if mission_active():
+		return false
+	active_mission = offer.duplicate(true)
+	active_mission["type"] = MissionType.NPC_FETCH
+	active_mission["npc_id"] = String(npc_id)
+	active_mission["npc_name"] = npc_name
+	mission_changed.emit()
+	post_notice("Incarico accettato: %s" % str(offer.get("title", "")))
+	save_game()
+	return true
+
+
+## La richiesta dell'incarico attivo (id item → quantità). Le quantità
+## passano dal round-trip JSON: sempre int() a leggerle.
+func npc_needs() -> Dictionary:
+	return active_mission.get("needs", {})
+
+
+## Progresso della raccolta: x = pezzi in stiva (contati fino al richiesto),
+## y = pezzi totali richiesti.
+func npc_needs_progress() -> Vector2i:
+	var have := 0
+	var total := 0
+	var needs := npc_needs()
+	for id: String in needs:
+		var need := int(needs[id])
+		total += need
+		have += mini(item_count(StringName(id)), need)
+	return Vector2i(have, total)
+
+
+func npc_needs_met() -> bool:
+	var p := npc_needs_progress()
+	return p.y > 0 and p.x >= p.y
+
+
+## La richiesta leggibile, coi conti aggiornati: "2/3 legno · 0/2 ferro".
+func npc_needs_text() -> String:
+	var parts: PackedStringArray = []
+	var needs := npc_needs()
+	for id: String in needs:
+		var def := item_def(StringName(id))
+		var item_name := def.display_name if def != null else id
+		parts.append("%d/%d %s" % [
+			mini(item_count(StringName(id)), int(needs[id])), int(needs[id]), item_name,
+		])
+	return " · ".join(parts)
+
+
+## Consegna al datore: consuma gli item richiesti, paga denaro e reputazione,
+## regala l'eventuale item promesso e spunta l'incarico per sempre. Falso se
+## l'incarico attivo non è suo o manca ancora roba.
+func deliver_npc_mission(npc_id: StringName) -> bool:
+	if mission_type() != MissionType.NPC_FETCH \
+			or str(active_mission.get("npc_id", "")) != String(npc_id) \
+			or not npc_needs_met():
+		return false
+	var needs := npc_needs()
+	for id: String in needs:
+		_set_item(StringName(id), item_count(StringName(id)) - int(needs[id]))
+	var reward := int(active_mission.get("reward", 0))
+	var rep := int(active_mission.get("rep", 0))
+	var gift := str(active_mission.get("reward_item", ""))
+	var title := str(active_mission.get("title", ""))
+	money += reward
+	total_earned += reward
+	add_reputation(rep)
+	# Il regalo entra anche a stiva piena: un dono non si rifiuta.
+	if gift != "":
+		_add_item(StringName(gift))
+	var done: Array = npc_missions_done()
+	done.append(str(active_mission.get("id", "")))
+	world_state["npc_done"] = done
+	active_mission.clear()
+	money_changed.emit(money)
+	cargo_changed.emit()
+	cargo_sold.emit(reward)
+	mission_changed.emit()
+	mission_completed.emit(title, reward)
+	if gift != "":
+		item_collected.emit(StringName(gift))
+	post_notice("%s: +%d $ · reputazione +%d" % [title, reward, rep])
+	save_game()
+	return true
 
 
 # --- Eventi casuali (roadmap A1) ---------------------------------------------
@@ -1727,8 +1918,10 @@ func salvage_after_sinking() -> void:
 		post_notice("Affondato! Carico perso (%d $) · recupero -%d $" % [lost, SALVAGE_FEE])
 	else:
 		post_notice("Affondato! Recupero al porto -%d $" % SALVAGE_FEE)
-	# Il mare si prende anche casse e pacco della missione attiva.
-	if mission_active():
+	# Il mare si prende anche casse e pacco della missione attiva. Gli
+	# incarichi NPC invece restano: la richiesta del datore non affonda,
+	# si riparte a raccogliere (roadmap R7).
+	if mission_active() and mission_type() != MissionType.NPC_FETCH:
 		fail_mission("Missione persa in mare")
 	save_game()
 
@@ -1744,6 +1937,7 @@ func _default_world_state() -> Dictionary:
 		"buildings": {},
 		"warehouse": {},
 		"defenses": [],
+		"npc_done": [],
 	}
 
 
@@ -2010,6 +2204,7 @@ func reset() -> void:
 	alpha_end_shown = false
 	hull = hull_max()
 	fuel = fuel_capacity()
+	on_foot = false
 	_ui_focus_count = 0
 	delete_save()
 	money_changed.emit(money)

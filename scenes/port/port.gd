@@ -140,6 +140,7 @@ func _ready() -> void:
 	_town_back.pressed.connect(_close_town)
 	_town_sell.pressed.connect(_on_town_sell_pressed)
 	_apply_services()
+	_build_walk_deck()
 	_build_shipyard_rows()
 	_build_style_rows()
 	_build_tackle_rows()
@@ -168,9 +169,27 @@ func _apply_services() -> void:
 	($Nino as Node3D).visible = service_tackle
 
 
+## Piano di calpestio del molo (roadmap R7, layer 2): un collider sottile
+## a filo delle assi, così a piedi si cammina sul legno vero. Il collider
+## del Dock (layer 1) resta per fermare le barche: è più alto delle assi.
+func _build_walk_deck() -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 2
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.0, 0.5, 12.0)
+	shape.shape = box
+	shape.position = Vector3(0.0, 0.425, 6.0)
+	body.add_child(shape)
+	add_child(body)
+
+
 func _process(_delta: float) -> void:
 	_update_approach_cap()
-	if _boat == null or _open:
+	# A piedi (roadmap R7) il molo non invita ad attraccare: la barca è
+	# ferma lì sotto, ma il menu si apre solo dal timone.
+	if _boat == null or _open or GameState.on_foot:
 		_hint.hide()
 		return
 	_hint.show()
@@ -230,7 +249,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _open:
 			get_viewport().set_input_as_handled()
 			_close_menu()
-		elif _boat != null and absf(_boat.current_speed()) <= docking_max_speed:
+		elif _boat != null and not GameState.on_foot \
+				and absf(_boat.current_speed()) <= docking_max_speed:
 			get_viewport().set_input_as_handled()
 			_open_menu()
 	elif event.is_action_pressed("ui_cancel"):

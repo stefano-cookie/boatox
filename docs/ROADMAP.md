@@ -130,15 +130,16 @@ Fissate il 23/07/2026 (feedback del direttore):
 
 ### R7 — Prima persona: prototipo su Bova
 
-*Architettura pensata per sbarcare ovunque poi (città, scali, isolette); si valida tutto su Bova prima di estendere.*
+*Architettura pensata per sbarcare ovunque poi (città, scali, isolette); si valida tutto su Bova prima di estendere. Il mondo camminabile vive sul **layer fisico 2** (sabbia in pendenza, pianura, assi del molo, case, arsenale): le barche restano sul layer 1 e i due mondi non si pestano.*
 
-- [ ] **Sbarco e rientro**: prompt al molo e sulle spiagge basse (dove l'acqua è bassa), la barca resta dov'è; stesso prompt per risalire a bordo
-- [ ] **Controller a piedi**: WASD + mouse, camera in prima persona, niente salto/arrampicata nella v1
-- [ ] **2-3 NPC datori** con dialogo a riquadro e 2-3 richieste ciascuno: la v1 del sistema missioni NPC (raccogli-e-consegna, ricompense miste), mostrata dal tracker di R2
-- [ ] **Item raccoglibili a terra** (casse, ceste sparse nel paese): il seme delle isolette da sbarco
-- [ ] **L'edificio arsenale** sul molo: ci si entra (la mappa delle difese dentro arriva con B3)
-- [ ] **Il paese da vicino**: la prosperità di B2 si legge anche a piedi (dettagli, luci, gente per livello)
+- [x] **Sbarco e rientro** (`scenes/player/landing.gd` in Main): **F** con la barca quasi ferma al molo di casa o sulle acque basse della baia (soglie `@export`); la barca resta dov'è a guida spenta (che sospende anche gli eventi casuali), F vicino alla barca riporta a bordo — anche entrando in acqua bassa fino a lei. `GameState.on_foot` spegne prompt del porto, mirino/cannone e radar mentre si cammina. Salvataggio a ogni sbarco/rientro. Passerella di legno dalla battigia alle assi del molo (`bova_landing.gd`), recinti invisibili a promontori e retro del paese; chi cade in acqua torna a riva (rete anti-caduta del Walker).
+- [x] **Controller a piedi** (`scenes/player/walker.gd`, CharacterBody3D su layer 2): WASD + mouse (A/D passo laterale), prima persona, niente salto; sensibilità × slider impostazioni, `input_enabled` spento dai dialoghi (pattern Port). Dorme finché il LandingSystem non lo attiva.
+- [x] **3 NPC datori** (`scenes/npc/town_npc.tscn`): Mastro Cola (maestro d'ascia, materiali), Donna Rosa (bottegaia, merci di commercio) e Don Liborio (collezionista, tesori) — figure stile paesani, dialogo a riquadro, 3 richieste a testa scritte a mano in `GameState.NPC_MISSIONS`. Nuovo `MissionType.NPC_FETCH`: una alla volta (come da decisione 23/07), tracker di R2 con conteggio vivo "2/3 legno", consegna tornando dal datore, ricompense miste (denaro + reputazione + item in regalo: la carta di Cola, l'anfora di Rosa). Incarichi consegnati spuntati per sempre in `world_state.npc_done`; l'affondamento NON fa fallire gli incarichi NPC (la richiesta non affonda). Round-trip di salvataggio verificato.
+- [x] **Item raccoglibili a terra** (`scenes/town/ground_item.tscn`): 6 tra casse e ceste (legno, stoffa, ferro) sparse tra molo, piazza e vicoli — E per raccogliere, coperchio del colore dell'item come le LootCrate. Non salvate: tornano a ogni sessione. Il seme delle isolette da sbarco.
+- [x] **L'edificio arsenale** (`scenes/town/arsenal.gd`, accanto alla radice del molo): pietra e terracotta, insegna, portone verso il mare. E per entrare: stanza interna (sottoterra, porta-teletrasporto) con il tavolo e la mappa della baia segnaposto — gli slot difensivi arrivano con B3, la mappa si co-progetta con Stefano prima.
+- [x] **Il paese da vicino**: collider (layer 2) su case del borgo, case nuove della crescita e campanile — a piedi non si passa attraverso; la prosperità di B2 (case, luci, gente, ormeggi) si gira in mezzo. *Le costruzioni degli slot B2 restano senza collider: da valutare in playtest se disturbano.*
 - [ ] **Criterio di uscita**: attraccare, girare il paese, accettare una missione e ripartire è naturale e senza attriti — e viene voglia di scendere a terra
+	- *Da verificare in gioco: soglie di sbarco (velocità 2 m/s, acqua bassa 16 m, raggio rientro 12 m); camminata (velocità 4.2, sensibilità mouse); leggibilità dei prompt F/E e dei nomi sopra la testa; posizioni di NPC, casse e arsenale; valori/gusto degli incarichi NPC (paghe 160-850 $ e regali); l'HUD di bordo che resta acceso a piedi (nodi a 0, meteo del punto barca): va ripulito?*
 
 ## B3 — Difendere casa
 

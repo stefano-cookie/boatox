@@ -39,7 +39,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var cannon := get_tree().get_first_node_in_group(&"boat_cannon") as BoatCannon
 	visible = cannon != null and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
-		and not get_tree().paused
+		and not get_tree().paused and not GameState.on_foot
 	if visible:
 		queue_redraw()
 

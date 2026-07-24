@@ -1,0 +1,55 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/town/bova_landing.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/npc/town_npc.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/town/ground_item.tscn" id="3"]
+
+[node name="BovaLanding" type="Node3D"]
+script = ExtResource("1")
+
+[node name="MastroCola" parent="." instance=ExtResource("2")]
+transform = Transform3D(-0.5, 0, -0.866, 0, 1, 0, 0.866, 0, -0.5, 46, 0.22, -157)
+npc_id = &"mastro_cola"
+npc_display_name = "Mastro Cola"
+shirt_color = Color(0.7, 0.35, 0.2, 1)
+greeting = "Mastro Cola, maestro d'ascia: questo molo l'ho piantato io, asse per asse. Il legname buono ormai sta in fondo al mare — se me lo porti, c'è da lavorare."
+
+[node name="DonnaRosa" parent="." instance=ExtResource("2")]
+transform = Transform3D(0.766, 0, -0.643, 0, 1, 0, 0.643, 0, 0.766, -8, 0.88, -168)
+npc_id = &"donna_rosa"
+npc_display_name = "Donna Rosa"
+shirt_color = Color(0.75, 0.3, 0.45, 1)
+greeting = "La bottega di Donna Rosa tiene in piedi mezzo paese, ma gli scaffali piangono: i mercantili non attraccano più. Tu che vai per mare, portami la roba e ti tratto bene."
+
+[node name="DonLiborio" parent="." instance=ExtResource("2")]
+transform = Transform3D(0.174, 0, -0.985, 0, 1, 0, 0.985, 0, 0.174, 64, 1.48, -178)
+npc_id = &"don_liborio"
+npc_display_name = "Don Liborio"
+shirt_color = Color(0.3, 0.28, 0.35, 1)
+greeting = "Don Liborio, custode del campanile e delle memorie di Bova. Il mare qui davanti è un museo affondato: chi mi riporta un pezzo di storia non lo fa gratis."
+
+[node name="CassaLegno1" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.94, 0, 0.342, 0, 1, 0, -0.342, 0, 0.94, 36, 0.15, -156)
+item_id = &"goods_legno"
+
+[node name="CassaLegno2" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.766, 0, -0.643, 0, 1, 0, 0.643, 0, 0.766, 57, 0.32, -158.5)
+item_id = &"goods_legno"
+
+[node name="CestaStoffa1" parent="." instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.82, -167)
+item_id = &"goods_stoffa"
+basket = true
+
+[node name="CestaStoffa2" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.5, 0, 0.866, 0, 1, 0, -0.866, 0, 0.5, 95, 1.25, -174)
+item_id = &"goods_stoffa"
+basket = true
+
+[node name="CassaFerro1" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 20, 1.13, -172)
+item_id = &"goods_ferro"
+
+[node name="CassaFerro2" parent="." instance=ExtResource("3")]
+transform = Transform3D(0.643, 0, 0.766, 0, 1, 0, -0.766, 0, 0.643, 120, 0.15, -156)
+item_id = &"goods_ferro"

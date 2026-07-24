@@ -131,7 +131,9 @@ func _ready() -> void:
 ## dopo lo sblocco e a cooldown scaduto (guardie in Radar.can_ping);
 ## nessun altro pannello lo usa, quindi non c'è conflitto con Esc/E.
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("radar_ping") and boat != null and Radar.can_ping():
+	# A piedi (roadmap R7) il radar riposa: è uno strumento di bordo.
+	if event.is_action_pressed("radar_ping") and boat != null \
+			and not GameState.on_foot and Radar.can_ping():
 		get_viewport().set_input_as_handled()
 		Radar.ping(boat.global_position)
 

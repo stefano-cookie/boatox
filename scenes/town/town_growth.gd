@@ -90,6 +90,17 @@ func _add_houses(count: int) -> void:
 		roof.material_override = _mat_roof
 		roof.position = Vector3(0.0, h * 0.5 + 0.65, 0.0)
 		house.add_child(roof)
+		# A piedi non si passa attraverso le case nuove (roadmap R7):
+		# collider layer 2, invisibile alle barche.
+		var body := StaticBody3D.new()
+		body.collision_layer = 2
+		body.collision_mask = 0
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(w, h, d)
+		shape.shape = box
+		body.add_child(shape)
+		house.add_child(body)
 		# Due finestre accese sulla facciata verso il mare (+z).
 		for x: float in [-w * 0.25, w * 0.25]:
 			var window := MeshInstance3D.new()
